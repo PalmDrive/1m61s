@@ -1,6 +1,6 @@
 # request headers
 
-The public key is required for every request. Set the `x-smartchat-key` in the header the value of the public key. 
+The public key is required for every request. Set the `x-ailingual-key` in the header the value of the public key. 
 
 For requests need authorization, the access token need set in the header with key `Authorization` and value `Bearer ${accessToken}`(e.x., `Bearer cb409bce-fdff-488b-9173-5332a06c683d`)
 
