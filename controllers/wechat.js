@@ -5,12 +5,12 @@ const request = require('request'),
       leanCloud = require('../lib/lean_cloud'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
-      config = require(`../config/${global.APP_ENV}.json`),
+      wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       redisClient = require('../redis_client');
 
 const getAccessTokenFromWechat = () => {
-  const APPID = config.wechat.appId,
-        APPSECRET = config.wechat.appSecret,
+  const APPID = wechatConfig.appId,
+        APPSECRET = wechatConfig.appSecret,
         url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${APPID}&secret=${APPSECRET}`;
   return new Promise((resolve, reject) => {
     request({
@@ -38,23 +38,23 @@ const getAccessTokenFromCache = (options) => {
         return reject(error);
       }
 
-      if (reply && !options.disableCache) {
-        console.log('hit the cache');
+      if (reply && !options.updateCache) {
+        console.log('hit the cache:', reply);
         resolve(reply);
       } else {
         getAccessTokenFromWechat().then(data => {
           // Add to cache
-          if (options.disableCache !== true) {
-            redisClient.set(name, data.access_token, (err, ret) => {
-              if (err) {
-                console.log(err);
-              } else {
-                console.log('added to the cache');
-              }
-            });
-            // Set redis expire time as 1min less than actual access token expire time
-            redisClient.expire(name, data.expires_in - 60);
-          }
+          redisClient.set(name, data.access_token, (err, ret) => {
+            if (err) {
+              console.log(err);
+            } else {
+              console.log('added to the cache');
+            }
+          });
+          // Set redis expire time as 1min less than actual access token expire time
+          redisClient.expire(name, data.expires_in - 60);
+
+          console.log(data.access_token);
           resolve(data.access_token);
         }, err => reject(err));
       }
@@ -309,24 +309,23 @@ const createUser = (userId, tasksDone) => {
 
 const onSubscribe = (data, accessToken) => {
   const userId = data.fromusername;
-  // // Send image about task
-  // const mediaId = '4RQ7o1t9-gZT5OjzshdyCGCFXI3OOR-2Y-e92Wss6lk', // subscribe.jpeg
-  //       body = {
-  //         touser: userId,
-  //         msgtype: 'image',
-  //         image: {
-  //           media_id: mediaId
-  //         }
-  //       },
-  //       content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
+  // Send image about task
+  const mediaId = '4RQ7o1t9-gZT5OjzshdyCM5gy6_MsXDS3fzJbP34fyk',
+        body = {
+          touser: userId,
+          msgtype: 'image',
+          image: {
+            media_id: mediaId
+          }
+        },
+        content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
 
-  // sendMessage(body, accessToken);
-
-  // // Send text in 1s
-  // setTimeout(() => {
-  //   sendText(content, data, accessToken);
-  // }, 1000);
-
+  sendMessage(body, accessToken).then(() => {
+    // Send text in 1s
+    setTimeout(() => {
+      sendText(content, data, accessToken);
+    }, 1000);
+  });
 
   // Check if the user is in WeChatUser
   const query = new leanCloud.AV.Query('WeChatUser');
@@ -360,8 +359,11 @@ const sendVoiceMessage = (transcript, data, accessToken, type) => {
   const audioURL = transcript.get('fragment_src'),
         audioId = transcript.id,
         mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
-        ws = fs.createWriteStream(mediaSrc),
-        text = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');;
+        ws = fs.createWriteStream(mediaSrc);
+
+  type = type || 'Transcript';
+  const text = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
+
 
   ws.on('finish', () => {
       console.log('Audio saved in local');
@@ -388,7 +390,7 @@ const sendVoiceMessage = (transcript, data, accessToken, type) => {
           return sendText(text, data, accessToken);
         })
         .then(() => {
-          return sendText('请将错别字数与修改后文字分两次留言,否则机器人将无法识别。谢谢！', data, accessToken);
+          return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
   }, err => {
     console.log('upload media failed:', err);
@@ -399,7 +401,8 @@ const sendVoiceMessage = (transcript, data, accessToken, type) => {
 };
 
 // send voice and text to the user
-const sendTask = (task, data, accessToken) => {
+// mode === 'test' for testing permanent voice material
+const sendTask = (task, data, accessToken, mode) => {
   // get Transcript or UserTranscript
   const type = task.get('fragment_type');
   const query = new leanCloud.AV.Query(type);
@@ -408,8 +411,26 @@ const sendTask = (task, data, accessToken) => {
     // This transcript can be Transcript or UserTranscript
     if (transcript) {
       console.log('Found transcript when sending task');
-      // Send voice
-      sendVoiceMessage(transcript, data, accessToken, type);
+
+      if (mode === 'test') {
+        const body = {
+                touser: data.fromusername,
+                msgtype: 'voice',
+                voice: {
+                  media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
+                }
+              };
+        sendMessage(body, accessToken)
+        .then(() => {
+          return sendText('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
+        })
+        .then(() => {
+          return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
+        });
+      } else {
+        // Send voice
+        sendVoiceMessage(transcript, data, accessToken, type);
+      }
     } else {
       console.log('Did not find transcript');
       // Should not get here when normal
@@ -420,7 +441,8 @@ const sendTask = (task, data, accessToken) => {
   });
 };
 
-const onGetTask = (data, accessToken) => {
+// mode = 'test' for testing permanent voice material
+const onGetTask = (data, accessToken, mode) => {
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
     if (task) {
@@ -438,7 +460,11 @@ const onGetTask = (data, accessToken) => {
     }
   }).then(task => {
     if (task) {
-      sendTask(task, data, accessToken);
+      if (mode === 'test') {
+        sendTask(task, data, accessToken, 'test');
+      } else {
+        sendTask(task, data, accessToken);
+      }
     } else {
       // inform user there is no available task
       sendText('暂时没有新任务可以领取，请稍后再来！', data, accessToken);
@@ -484,9 +510,7 @@ const onReceiveRating = (data, accessToken, task) => {
       if (user) {
         // Update number of tasks done
         const tasksDone = user.get('tasks_done');
-
         user.set('tasks_done', tasksDone + 1);
-
         return user.save();
       } else {
         // User does not exist
@@ -495,18 +519,31 @@ const onReceiveRating = (data, accessToken, task) => {
         return createUser(userId, 1);
       }
     }).then(user => {
+      const tasksDone = user.get('tasks_done'),
+            amountPaid = user.get('amount_paid'),
+            setNeedPay = () => {
+              const minutesDone = tasksDone / 4;
+              if (minutesDone - amountPaid >= 1) {
+                user.set('need_pay', true);
+              }
+            };
+
       // Check for tasks done
-      const tasksDone = user.get('tasks_done');
       if (tasksDone === 4) {
         // User has just completed 4 tasks. Send text
         sendText('请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
         // Change user status to 1
         user.set('status', 1);
+
+        setNeedPay();
         user.save();
       } else if (tasksDone % 4 === 0) {
         // User has completed another 4 tasks. Send text
         sendText('恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
+
+        setNeedPay();
+        user.save();
       } else {
         // User has not completed 4 tasks. Send task
         onGetTask(data, accessToken);
@@ -543,7 +580,7 @@ const onReceiveRating = (data, accessToken, task) => {
         // No userTranscript found:
         // 1. User has not submitted transcription
         // 2. The transcription submitted has not been created as a userTranscript
-        sendText('抱歉，系统繁忙，请重新提交错别字数（如您还未提交文字内容，请先提交文字）', data, accessToken);
+        sendText('biu~机器crush啦，请你再来一遍～\n1.先写修改后的文字，\n2.再写错别字的数量，分两次回复。', data, accessToken);
 
         return false;
       }
@@ -714,6 +751,13 @@ module.exports.postCtrl = (req, res, next) => {
 
   getAccessTokenFromCache().then(accessToken => {
     if (data.msgtype === 'text') {
+      if (data.content === '回复临时素材') {
+        onGetTask(data, accessToken);
+      } else if (data.content === '回复永久素材') {
+        // Test 2: send voice
+        onGetTask(data, accessToken, 'test');
+      }
+
       // Get user
       getUser(userId).then(user => {
         if (user) {
