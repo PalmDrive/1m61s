@@ -76,7 +76,7 @@ const apiRoutesV1 = require('./routes/api/v1/index');
  * The public key is used to identifies the request came from the trusted client
  */
 apiApp.use(function(req, res, next) {
-  if (req.headers['x-ailingual-key'] === config.appPublicKey || SNS.isValidSNSRequest(req) || _hasXMLInRequest(req) || req.query.signature) {
+  if (req.headers['x-ailingual-key'] === config.appPublicKey || _hasXMLInRequest(req) || req.query.signature) {
     next();
   } else {
     let err = new UnauthorizedError('401', {message: 'invalid x-ailingual-key'});
@@ -94,9 +94,9 @@ apiApp.use(function(req, res, next) {
  */
 apiApp.use(jwtCheck.unless({
   path: [
-    new RegExp(/\/api\/v[0-9]\/aliyun_sts/),
     '/api/v1/medium/upload_srt',
-    '/api/wechat_messages'
+    '/api/wechat_messages',
+    '/api/aliyun_sts'
   ],
   custom: function(req) {
     let paths = [
@@ -111,9 +111,12 @@ apiApp.use(jwtCheck.unless({
 }));
 apiApp.use('/v1', apiRoutesV1);
 
-const wechatAPICtrl = require('./controllers/wechat');
+const wechatAPICtrl = require('./controllers/wechat'),
+      stsAPICtrl = require('./controllers/aliyun_sts');
+
 apiApp.post('/wechat_messages', xmlParser({trim: false, explicitArray: false}), wechatAPICtrl.postCtrl);
 apiApp.get('/wechat_messages', wechatAPICtrl.getCtrl);
+apiApp.get('/aliyun_sts', stsAPICtrl.ctrl);
 
 // apiApp.post('/wechat_messages', xmlParser({trim: false, explicitArray: false}), (req, res) => {
 //   const xml = require('xml'),
