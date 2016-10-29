@@ -24,7 +24,6 @@
     "firebase-token-generator": "^2.0.0",
     "formidable": "^1.0.17",
     "gm": "^1.21.1",
-    "jade": "~1.9.2",
     "jsonwebtoken": "^5.0.2",
     "kue": "^0.9.4",
     "kue-ui": "^0.1.0",
