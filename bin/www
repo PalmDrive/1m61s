@@ -3,7 +3,6 @@
 'use strict';
 
 const cluster = require('cluster'),
-      clusterConfig = require('../config/cluster'),
       os = require('os');
 
 if (cluster.isMaster) {
@@ -12,10 +11,7 @@ if (cluster.isMaster) {
    */
   require('../redis_client');
 
-  const numWorkers = os.cpus().length,
-        Scheduler = require('../lib/scheduler'),
-        Models = require('../models'),
-        PromiseSeries = require('promise-series');
+  const numWorkers = os.cpus().length;
 
   for (let i = 0; i < numWorkers; i++) {
     cluster.fork();
@@ -30,42 +26,12 @@ if (cluster.isMaster) {
     console.log('Starting a new worker');
     cluster.fork();
   });
-
-  let series = new PromiseSeries();
-
-  const _setTimeout = (fn, interval) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        fn();
-        resolve(true);
-      }, interval);
-    });
-  };
-
-  // start the scheduler processor;
-  if (clusterConfig.isMaster) {
-    Scheduler.init();
-
-    Models.Group.scope('entireTalks', 'activeTalks').findAll()
-      .then(groups => {
-        // Set 400 delay to execute g.listenToMembers
-        // to avoid mass incoming payload
-        groups.forEach(g => {
-          series.add(() => {
-            return _setTimeout(() => {
-              g.listenToMembersInFirebase();
-            }, 400)
-          });
-        });
-        series.run();
-      });
-  }
 } else {
   /**
    * Include Newrelic to monitor the perf
    */
   if (['staging', 'production'].indexOf(process.env.NODE_ENV) !== -1) {
-    require('newrelic');
+    //require('newrelic');
   }
 
   const app = require('../app'),
@@ -125,10 +91,7 @@ if (cluster.isMaster) {
    */
 
   function onListening() {
-    const debug = require('debug')('smartChat-service:server'),
-          request_queue = require('../lib/request_queue');
-
-    request_queue.run();
+    const debug = require('debug')('1m61s:server');
 
     var addr = server.address();
     var bind = typeof addr === 'string'
