@@ -10,8 +10,6 @@ const express = require('express'),
       jwt = require('express-jwt'),
       _ = require('underscore'),
       URL = require('url'),
-      kue = require('kue'),
-      kueUI = require('kue-ui'),
       cors = require('cors'),
       logger = require('./lib/logger'),
       loggerFormat = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :response-time ms - :res[content-length] ":referrer" ":user-agent"',
@@ -146,25 +144,6 @@ apiApp.get('/aliyun_sts', stsAPICtrl.ctrl);
 
 // Amount the apiApp
 app.use('/api', apiApp);
-
-//Setup the kue UI
-// kueUI.setup({
-//   apiURL: '/kue_api',
-//   baseURL: '/kue',
-//   updateInterval: 5000000,
-// });
-
-// // Mount kue JSON api
-// app.use('/kue_api', kue.app);
-
-// // Mount UI
-// app.use('/kue', kueUI.app);
-
-
-// catch 404 and forward to error handler
-// app.all('*', function(req, res, next) {
-//   next(new NotFoundError('404'));
-// });
 
 // error handler for all the application
 app.use(function(err, req, res, next) {
