@@ -358,15 +358,11 @@ const sendText = (content, data, accessToken) => {
 };
 
 // Send a voice message to user
-const sendVoiceMessage = (transcript, data, accessToken, type) => {
+const sendVoiceMessage = (transcript, data, accessToken) => {
   const audioURL = transcript.get('fragment_src'),
         audioId = transcript.id,
         mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
         ws = fs.createWriteStream(mediaSrc);
-
-  type = type || 'Transcript';
-  const text = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
-
 
   ws.on('finish', () => {
       console.log('Audio saved in local');
@@ -390,9 +386,6 @@ const sendVoiceMessage = (transcript, data, accessToken, type) => {
           console.log('upload media failed:', error);
         })
         .then(() => {
-          return sendText(text, data, accessToken);
-        })
-        .then(() => {
           return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
   }, err => {
@@ -410,10 +403,9 @@ const sendTask = (task, data, accessToken, mode) => {
   const type = task.get('fragment_type');
   const query = new leanCloud.AV.Query(type);
   return query.get(task.get('fragment_id')).then(transcript => {
-    console.log('query transcript success');
     // This transcript can be Transcript or UserTranscript
     if (transcript) {
-      console.log('Found transcript when sending task');
+      const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
 
       if (mode === 'test') {
         const body = {
@@ -431,8 +423,10 @@ const sendTask = (task, data, accessToken, mode) => {
           return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
       } else {
+        // Send text in transcript
+        sendText(content, data, accessToken);
         // Send voice
-        sendVoiceMessage(transcript, data, accessToken, type);
+        sendVoiceMessage(transcript, data, accessToken);
       }
     } else {
       console.log('Did not find transcript');
