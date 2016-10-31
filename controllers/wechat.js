@@ -309,8 +309,10 @@ const createUser = (userId, tasksDone) => {
 
 const onSubscribe = (data, accessToken) => {
   const userId = data.fromusername;
-  // Send image about task
+  // For staging
   const mediaId = '4RQ7o1t9-gZT5OjzshdyCM5gy6_MsXDS3fzJbP34fyk',
+  // For production
+  // const mediaId = 'SO1CNzJwCOJJGw74pJG8YaBYzXoxGmzHRB10XbL6iRs',
         body = {
           touser: userId,
           msgtype: 'image',
@@ -320,6 +322,7 @@ const onSubscribe = (data, accessToken) => {
         },
         content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
 
+  // Send image about task
   sendMessage(body, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
