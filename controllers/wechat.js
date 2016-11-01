@@ -756,12 +756,12 @@ module.exports.postCtrl = (req, res, next) => {
 
   getAccessTokenFromCache().then(accessToken => {
     if (data.msgtype === 'text') {
-      if (data.content === '回复临时素材') {
-        onGetTask(data, accessToken);
-      } else if (data.content === '回复永久素材') {
-        // Test 2: send voice
-        onGetTask(data, accessToken, 'test');
-      }
+      // if (data.content === '回复临时素材') {
+      //   onGetTask(data, accessToken);
+      // } else if (data.content === '回复永久素材') {
+      //   // Test 2: send voice
+      //   onGetTask(data, accessToken, 'test');
+      // }
 
       // Get user
       getUser(userId).then(user => {
