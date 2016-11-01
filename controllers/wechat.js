@@ -45,6 +45,7 @@ const getAccessTokenFromCache = (options) => {
         resolve(reply);
       } else {
         getAccessTokenFromWechat().then(data => {
+          console.log(data);
           // Add to cache
           redisClient.set(name, data.access_token, (err, ret) => {
             if (err) {
