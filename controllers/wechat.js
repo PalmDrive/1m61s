@@ -386,9 +386,6 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
           }, accessToken);
         }, error => {
           console.log('upload media failed:', error);
-        })
-        .then(() => {
-          return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
   }, err => {
     console.log('upload media failed:', err);
@@ -549,7 +546,22 @@ const onReceiveRating = (data, accessToken, task) => {
         user.save();
       } else {
         // User has not completed 4 tasks. Send task
-        onGetTask(data, accessToken);
+        findNewTaskForUser(userId).then(task => {
+          if (task) {
+            return assignTask(task, userId);
+          } else {
+            return task;
+          }
+        }).then(task => {
+          if (task) {
+            sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
+
+            sendTask(task, data, accessToken);
+          } else {
+            // inform user there is no available task
+            return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
+          }
+        });
       }
     });
   };
