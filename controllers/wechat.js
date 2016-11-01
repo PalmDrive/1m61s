@@ -281,6 +281,7 @@ const onQRCodeScanned = (data, token, res) => {
 
 // Send a message using 客服接口
 const sendMessage = (body, accessToken) => {
+  console.log('send message...');
   return new Promise((resolve, reject) => {
     request.post({
       url: `https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=${accessToken}`,
@@ -308,6 +309,7 @@ const createUser = (userId, tasksDone) => {
 };
 
 const onSubscribe = (data, accessToken) => {
+  console.log('on subscribe...');
   const userId = data.fromusername,
         mediaId = wechatConfig.imageMediaId,
         body = {
