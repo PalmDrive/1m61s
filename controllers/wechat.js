@@ -389,9 +389,6 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
           }, accessToken);
         }, error => {
           console.log('upload media failed:', error);
-        })
-        .then(() => {
-          return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
   }, err => {
     console.log('upload media failed:', err);
@@ -537,7 +534,7 @@ const onReceiveRating = (data, accessToken, task) => {
       // Check for tasks done
       if (tasksDone === 4) {
         // User has just completed 4 tasks. Send text
-        sendText('请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
+        sendText('么么哒，请回复你的微信号（非微信昵称），稍后我会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
         // Change user status to 1
         user.set('status', 1);
@@ -546,13 +543,26 @@ const onReceiveRating = (data, accessToken, task) => {
         user.save();
       } else if (tasksDone % 4 === 0) {
         // User has completed another 4 tasks. Send text
-        sendText('恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
+        sendText('么么哒，恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
         setNeedPay();
         user.save();
       } else {
         // User has not completed 4 tasks. Send task
-        onGetTask(data, accessToken);
+        findNewTaskForUser(userId).then(task => {
+          if (task) {
+            return assignTask(task, userId);
+          } else {
+            return task;
+          }
+        }).then(task => {
+          if (task) {
+            sendTask(task, data, accessToken);
+          } else {
+            // inform user there is no available task
+            return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
+          }
+        });
       }
     });
   };
@@ -569,6 +579,8 @@ const onReceiveRating = (data, accessToken, task) => {
 
     userTranscriptQuery.first().then(userTranscript => {
       if (userTranscript) {
+        sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
+
         // Create new crowdsourcingTask
         const Task = leanCloud.AV.Object.extend('CrowdsourcingTask'),
               newTask = new Task();
@@ -759,12 +771,12 @@ module.exports.postCtrl = (req, res, next) => {
 
   getAccessTokenFromCache().then(accessToken => {
     if (data.msgtype === 'text') {
-      if (data.content === '回复临时素材') {
-        onGetTask(data, accessToken);
-      } else if (data.content === '回复永久素材') {
-        // Test 2: send voice
-        onGetTask(data, accessToken, 'test');
-      }
+      // if (data.content === '回复临时素材') {
+      //   onGetTask(data, accessToken);
+      // } else if (data.content === '回复永久素材') {
+      //   // Test 2: send voice
+      //   onGetTask(data, accessToken, 'test');
+      // }
 
       // Get user
       getUser(userId).then(user => {
