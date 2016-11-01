@@ -531,7 +531,7 @@ const onReceiveRating = (data, accessToken, task) => {
       // Check for tasks done
       if (tasksDone === 4) {
         // User has just completed 4 tasks. Send text
-        sendText('请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
+        sendText('么么哒，请回复你的微信号（非微信昵称），稍后我会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
         // Change user status to 1
         user.set('status', 1);
