@@ -458,6 +458,7 @@ const onGetTask = (data, accessToken, mode) => {
       });
     }
   }).then(task => {
+    console.log(task);
     if (task) {
       if (mode === 'test') {
         sendTask(task, data, accessToken, 'test');
