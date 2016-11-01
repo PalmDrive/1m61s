@@ -281,6 +281,7 @@ const onQRCodeScanned = (data, token, res) => {
 
 // Send a message using 客服接口
 const sendMessage = (body, accessToken) => {
+  console.log('send message...');
   return new Promise((resolve, reject) => {
     request.post({
       url: `https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=${accessToken}`,
@@ -308,9 +309,9 @@ const createUser = (userId, tasksDone) => {
 };
 
 const onSubscribe = (data, accessToken) => {
-  const userId = data.fromusername;
-  // Send image about task
-  const mediaId = '4RQ7o1t9-gZT5OjzshdyCM5gy6_MsXDS3fzJbP34fyk',
+  console.log('on subscribe...');
+  const userId = data.fromusername,
+        mediaId = wechatConfig.imageMediaId,
         body = {
           touser: userId,
           msgtype: 'image',
@@ -320,6 +321,7 @@ const onSubscribe = (data, accessToken) => {
         },
         content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
 
+  // Send image about task
   sendMessage(body, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
@@ -355,15 +357,11 @@ const sendText = (content, data, accessToken) => {
 };
 
 // Send a voice message to user
-const sendVoiceMessage = (transcript, data, accessToken, type) => {
+const sendVoiceMessage = (transcript, data, accessToken) => {
   const audioURL = transcript.get('fragment_src'),
         audioId = transcript.id,
         mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
         ws = fs.createWriteStream(mediaSrc);
-
-  type = type || 'Transcript';
-  const text = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
-
 
   ws.on('finish', () => {
       console.log('Audio saved in local');
@@ -387,9 +385,6 @@ const sendVoiceMessage = (transcript, data, accessToken, type) => {
           console.log('upload media failed:', error);
         })
         .then(() => {
-          return sendText(text, data, accessToken);
-        })
-        .then(() => {
           return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
   }, err => {
@@ -407,10 +402,9 @@ const sendTask = (task, data, accessToken, mode) => {
   const type = task.get('fragment_type');
   const query = new leanCloud.AV.Query(type);
   return query.get(task.get('fragment_id')).then(transcript => {
-    console.log('query transcript success');
     // This transcript can be Transcript or UserTranscript
     if (transcript) {
-      console.log('Found transcript when sending task');
+      const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
 
       if (mode === 'test') {
         const body = {
@@ -428,8 +422,10 @@ const sendTask = (task, data, accessToken, mode) => {
           return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
         });
       } else {
+        // Send text in transcript
+        sendText(content, data, accessToken);
         // Send voice
-        sendVoiceMessage(transcript, data, accessToken, type);
+        sendVoiceMessage(transcript, data, accessToken);
       }
     } else {
       console.log('Did not find transcript');
