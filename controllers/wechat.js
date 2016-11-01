@@ -540,7 +540,7 @@ const onReceiveRating = (data, accessToken, task) => {
         user.save();
       } else if (tasksDone % 4 === 0) {
         // User has completed another 4 tasks. Send text
-        sendText('恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
+        sendText('么么哒，恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
         setNeedPay();
         user.save();
