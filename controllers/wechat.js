@@ -343,6 +343,7 @@ const onSubscribe = (data, accessToken) => {
 
 // Assign the task to the user in database
 const assignTask = (task, userId) => {
+  console.log('assign task...');
   task.set('user_id', userId);
   return task.save();
 };
@@ -398,6 +399,7 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
 // send voice and text to the user
 // mode === 'test' for testing permanent voice material
 const sendTask = (task, data, accessToken, mode) => {
+  console.log('send task...');
   // get Transcript or UserTranscript
   const type = task.get('fragment_type');
   const query = new leanCloud.AV.Query(type);
@@ -439,6 +441,7 @@ const sendTask = (task, data, accessToken, mode) => {
 
 // mode = 'test' for testing permanent voice material
 const onGetTask = (data, accessToken, mode) => {
+  console.log('on get task...');
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
     if (task) {
@@ -470,6 +473,7 @@ const onGetTask = (data, accessToken, mode) => {
 
 // Find a task the user is working on
 const findInProcessTaskForUser = userId => {
+  console.log('find in-process task...');
   const query = new leanCloud.AV.Query('CrowdsourcingTask');
   query.equalTo('user_id', userId);
   query.equalTo('status', 0);
@@ -640,6 +644,7 @@ const findLastTaskForUser = (userId) => {
 };
 
 const findNewTaskForUser = userId => {
+  console.log('find new task...');
   const _constructQuery = fragmentType => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask');
     // query.equalTo('is_head', true);
@@ -722,6 +727,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
 };
 
 const changeUserStatus = (userId, status) => {
+  console.log('change user status...');
   return getUser(userId).then(user => {
     if (user) {
       user.set('status', status);
