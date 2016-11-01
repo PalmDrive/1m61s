@@ -345,7 +345,9 @@ const onSubscribe = (data, accessToken) => {
 const assignTask = (task, userId) => {
   console.log('assign task...');
   task.set('user_id', userId);
-  return task.save();
+  return task.save().catch(error => {
+    console.log(error);
+  });
 };
 
 // Send a text message to user
