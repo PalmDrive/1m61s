@@ -554,8 +554,6 @@ const onReceiveRating = (data, accessToken, task) => {
           }
         }).then(task => {
           if (task) {
-            sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
-
             sendTask(task, data, accessToken);
           } else {
             // inform user there is no available task
@@ -578,6 +576,8 @@ const onReceiveRating = (data, accessToken, task) => {
 
     userTranscriptQuery.first().then(userTranscript => {
       if (userTranscript) {
+        sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
+
         // Create new crowdsourcingTask
         const Task = leanCloud.AV.Object.extend('CrowdsourcingTask'),
               newTask = new Task();
