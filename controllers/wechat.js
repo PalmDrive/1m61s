@@ -308,11 +308,8 @@ const createUser = (userId, tasksDone) => {
 };
 
 const onSubscribe = (data, accessToken) => {
-  const userId = data.fromusername;
-  // For staging
-  const mediaId = '4RQ7o1t9-gZT5OjzshdyCM5gy6_MsXDS3fzJbP34fyk',
-  // For production
-  // const mediaId = 'SO1CNzJwCOJJGw74pJG8YaBYzXoxGmzHRB10XbL6iRs',
+  const userId = data.fromusername,
+        mediaId = wechatConfig.imageMediaId,
         body = {
           touser: userId,
           msgtype: 'image',
