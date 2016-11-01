@@ -9,6 +9,7 @@ const request = require('request'),
       redisClient = require('../redis_client');
 
 const getAccessTokenFromWechat = () => {
+  console.log('get access token from wechat...');
   const APPID = wechatConfig.appId,
         APPSECRET = wechatConfig.appSecret,
         url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${APPID}&secret=${APPSECRET}`;
@@ -29,6 +30,7 @@ const getAccessTokenFromWechat = () => {
 };
 
 const getAccessTokenFromCache = (options) => {
+  console.log('get access token from cache...');
   options = options || {};
   const name = 'wechat_access_token';
 
