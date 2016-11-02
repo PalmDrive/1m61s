@@ -593,6 +593,13 @@ const onReceiveTranscription = (data, accessToken, task) => {
     // Create new crowdsourcingTask
     return createCrowdsourcingTask(userTranscript, userId);
   });
+
+  // Mark the transcript wrong_chars = 21
+  // Why 21? Because before we use 0-20, 21 is distinct
+  getTranscript(task).then(transcript => {
+    transcript.set('wrong_chars', 21);
+    transcript.save();
+  });
 };
 
 // // Find last completed task for user
@@ -700,8 +707,11 @@ const onReceiveCorrect = (data, accessToken, task) => {
 
   completeTaskAndReply(task, data, accessToken);
 
-  // TODO: mark the transcript wrong_chars = 0
-  getTranscript(task).then(transcript => {});
+  // Mark the transcript wrong_chars = 0
+  getTranscript(task).then(transcript => {
+    transcript.set('wrong_chars', 0);
+    transcript.save();
+  });
 };
 
 const changeUserStatus = (userId, status) => {
