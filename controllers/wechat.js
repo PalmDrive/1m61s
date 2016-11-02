@@ -791,11 +791,7 @@ module.exports.postCtrl = (req, res, next) => {
         } else {
           findInProcessTaskForUser(userId).then(task => {
             if (task) {
-              if (ratings.indexOf(data.content) !== -1) {
-                onReceiveRating(data, accessToken, task);
-              } else {
-                onReceiveTranscription(data, accessToken, task);
-              }
+              onReceiveTranscription(data, accessToken, task);
             }
           });
         }
