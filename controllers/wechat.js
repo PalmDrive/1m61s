@@ -480,128 +480,6 @@ const findInProcessTaskForUser = userId => {
   return query.first();
 };
 
-const onReceiveRating = (data, accessToken, task) => {
-  // Find the transcript/userTranscript of the task
-  const id = task.get('fragment_id'),
-        type = task.get('fragment_type'),
-        mediaId = task.get('media_id'),
-        fragmentOrder = task.get('fragment_order'),
-        content = data.content,
-        userId = data.fromusername,
-        query = new leanCloud.AV.Query(type);
-
-  // 3 parts of code to be run when rating = 0 or
-  // after creating a new crowdsourcingTask
-  const next = () => {
-    // Record the number of wrong characters
-    query.get(id).then(transcript => {
-      transcript.set('wrong_chars', +content);
-      return transcript.save();
-    });
-
-    // Change task status to complete
-    task.set('status', 1);
-    task.save();
-
-    // Find user object
-    const userQuery = new leanCloud.AV.Query('WeChatUser');
-    userQuery.equalTo('open_id', userId);
-    userQuery.first().then(user => {
-      // Update number of tasks done
-      const tasksDone = user.get('tasks_done');
-      user.set('tasks_done', tasksDone + 1);
-      return user.save();
-    }).then(user => {
-      const tasksDone = user.get('tasks_done'),
-            amountPaid = user.get('amount_paid'),
-            setNeedPay = () => {
-              const minutesDone = tasksDone / 4;
-              if (minutesDone - amountPaid >= 1) {
-                user.set('need_pay', true);
-              }
-            };
-
-      // Check for tasks done
-      if (tasksDone === 4) {
-        // User has just completed 4 tasks. Send text
-        sendText('么么哒，请回复你的微信号（非微信昵称），稍后我会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
-
-        // Change user status to 1
-        user.set('status', 1);
-
-        setNeedPay();
-        user.save();
-      } else if (tasksDone % 4 === 0) {
-        // User has completed another 4 tasks. Send text
-        sendText('么么哒，恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
-
-        setNeedPay();
-        user.save();
-      } else {
-        // User has not completed 4 tasks. Send task
-        findNewTaskForUser(userId).then(task => {
-          if (task) {
-            return assignTask(task, userId);
-          } else {
-            return task;
-          }
-        }).then(task => {
-          if (task) {
-            sendTask(task, data, accessToken);
-          } else {
-            // inform user there is no available task
-            return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
-          }
-        });
-      }
-    });
-  };
-
-  if (content !== '0') {
-    // Find the new userTranscript
-    const userTranscriptQuery = new leanCloud.AV.Query('UserTranscript');
-
-    userTranscriptQuery.equalTo('media_id', mediaId);
-    userTranscriptQuery.doesNotExist('wrong_chars');
-    userTranscriptQuery.equalTo('fragment_order', fragmentOrder);
-    userTranscriptQuery.equalTo('user_open_id', userId);
-    userTranscriptQuery.descending('createdAt');
-
-    userTranscriptQuery.first().then(userTranscript => {
-      if (userTranscript) {
-        sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
-
-        // Create new crowdsourcingTask
-        const Task = leanCloud.AV.Object.extend('CrowdsourcingTask'),
-              newTask = new Task();
-
-        newTask.set('fragment_id', userTranscript.id);
-        newTask.set('fragment_type', 'UserTranscript');
-        newTask.set('fragment_order', userTranscript.get('fragment_order'));
-        newTask.set('status', 0);
-        newTask.set('media_id', userTranscript.get('media_id'));
-        newTask.set('last_user', userId);
-        // task.set('is_head', userTranscript.get('fragment_order') % 4 === 0);
-
-        return newTask.save();
-      } else {
-        // No userTranscript found:
-        // 1. User has not submitted transcription
-        // 2. The transcription submitted has not been created as a userTranscript
-        sendText('biu~机器crush啦，请你再来一遍～\n1.先写修改后的文字，\n2.再写错别字的数量，分两次回复。', data, accessToken);
-
-        return false;
-      }
-    }).then(newTask => {
-      if (newTask) {
-        next();
-      }
-    });
-  } else {
-    next();
-  }
-};
-
 // userId:  user who created content
 // content: text content
 // task: task user was doing to create this userTranscript
@@ -635,6 +513,7 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
     return newTask.save();
 };
 
+// Set user's need_pay
 const setNeedPay = user => {
   const minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
