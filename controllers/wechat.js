@@ -522,16 +522,12 @@ const setNeedPay = user => {
   }
 };
 
-const onReceiveTranscription = (data, accessToken, task) => {
-  console.log('receive transcription...');
+const completeTaskAndReply = (task, data, accessToken) => {
+  console.log('finish task and reply...');
 
-  const id = task.get('fragment_id'),
-        type = task.get('fragment_type'),
-        query = new leanCloud.AV.Query(type),
-        userId = data.fromusername,
-        content = data.content;
+  const userId = data.fromusername;
 
-  // Complete task
+  // Change task status to 1
   task.set('status', 1);
   task.save();
 
@@ -579,6 +575,18 @@ const onReceiveTranscription = (data, accessToken, task) => {
       });
     }
   });
+};
+
+const onReceiveTranscription = (data, accessToken, task) => {
+  console.log('receive transcription...');
+
+  const id = task.get('fragment_id'),
+        type = task.get('fragment_type'),
+        query = new leanCloud.AV.Query(type),
+        userId = data.fromusername,
+        content = data.content;
+
+  completeTaskAndReply(task, data, accessToken);
 
   // Get the relevant transcript / userTranscript
   query.get(id).then(transcript => {
@@ -684,6 +692,8 @@ const onReceiveWeChatId = (data, accessToken, user) => {
 
 const onReceiveCorrect = (data, accessToken, task) => {
   console.log('on receive correct...');
+
+  completeTaskAndReply(task, data, accessToken);
 };
 
 const changeUserStatus = (userId, status) => {
