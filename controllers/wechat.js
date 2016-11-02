@@ -610,42 +610,43 @@ const onReceiveRating = (data, accessToken, task) => {
 };
 
 const onReceiveTranscription = (data, accessToken, task) => {
+  console.log('receive transcription...');
+
   const id = task.get('fragment_id'),
         type = task.get('fragment_type'),
         mediaId = task.get('media_id'),
         fragmentOrder = task.get('fragment_order'),
         query = new leanCloud.AV.Query(type),
         userId = data.fromusername,
-        content = data.content;
+        content = data.content,
+        UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
+        CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),;
 
+  // Get the relevant transcript / userTranscript
   query.get(id).then(transcript => {
-    // Look for UserTranscript with same media_id and fragment_order, emtpy wrong_chars, and user_open_id
-    const userTranscriptQuery = new leanCloud.AV.Query('UserTranscript');
+    // create new UserTranscript to record transcription
+    const userTranscript = new UserTranscript();
 
-    userTranscriptQuery.equalTo('media_id', mediaId);
-    userTranscriptQuery.equalTo('fragment_order', fragmentOrder);
-    userTranscriptQuery.doesNotExist('wrong_chars');
-    userTranscriptQuery.equalTo('user_open_id', userId);
+    userTranscript.set('media_id', mediaId);
+    userTranscript.set('content', content);
+    userTranscript.set('fragment_order', fragmentOrder);
+    userTranscript.set('fragment_src', transcript.get('fragment_src'));
+    userTranscript.set('user_open_id', userId);
 
-    return userTranscriptQuery.first().then(userTranscript => {
-      if (userTranscript) {
-        // update content
-        userTranscript.set('content', content);
-        return userTranscript.save();
-      } else {
-        // create new UserTranscript
-        const UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
-              userTranscript = new UserTranscript();
+    return userTranscript.save();
+  }).then(userTranscript => {
+    // TODO: how to tell whether to create or not?
+    // Create crowdsourcingTask
+    const newTask = new CrowdsourcingTask();
 
-        userTranscript.set('media_id', mediaId);
-        userTranscript.set('content', content);
-        userTranscript.set('fragment_order', fragmentOrder);
-        userTranscript.set('fragment_src', transcript.get('fragment_src'));
-        userTranscript.set('user_open_id', userId);
+    newTask.set('fragment_id', userTranscript.id);
+    newTask.set('fragment_type', 'UserTranscript');
+    newTask.set('fragment_order', userTranscript.get('fragment_order'));
+    newTask.set('status', 0);
+    newTask.set('media_id', userTranscript.get('media_id'));
+    newTask.set('last_user', userId);
 
-        return userTranscript.save();
-      }
-    });
+    return newTask.save();
   });
 };
 
@@ -762,8 +763,7 @@ module.exports.postCtrl = (req, res, next) => {
   const data = req.body.xml,
         userId = data.fromusername,
         Scene = leanCloud.AV.Object.extend('Scene'),
-        // Create ['0', '1', ..., '20']
-        ratings = Array.from({length: 21}, (v, k) => k.toString());
+
   let scene;
 
   getAccessTokenFromCache().then(accessToken => {
