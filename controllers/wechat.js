@@ -735,6 +735,7 @@ module.exports.postCtrl = (req, res, next) => {
   const data = req.body.xml,
         userId = data.fromusername,
         Scene = leanCloud.AV.Object.extend('Scene'),
+        correctContent = '0';
 
   let scene;
 
@@ -763,7 +764,7 @@ module.exports.postCtrl = (req, res, next) => {
         } else {
           findInProcessTaskForUser(userId).then(task => {
             if (task) {
-              if (data.content === '0') {
+              if (data.content === correctContent) {
                 onReceiveCorrect(data, accessToken, task);
               } else {
                 onReceiveTranscription(data, accessToken, task);
