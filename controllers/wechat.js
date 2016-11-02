@@ -480,183 +480,136 @@ const findInProcessTaskForUser = userId => {
   return query.first();
 };
 
-const onReceiveRating = (data, accessToken, task) => {
-  // Find the transcript/userTranscript of the task
-  const id = task.get('fragment_id'),
-        type = task.get('fragment_type'),
-        mediaId = task.get('media_id'),
-        fragmentOrder = task.get('fragment_order'),
-        content = data.content,
-        userId = data.fromusername,
-        query = new leanCloud.AV.Query(type);
+// userId:  user who created content
+// content: text content
+// task: task user was doing to create this userTranscript
+// transcript: transcript from which the task was created
+const createUserTranscript = (userId, content, task, transcript) => {
+  const UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
+        userTranscript = new UserTranscript();
 
-  // 3 parts of code to be run when rating = 0 or
-  // after creating a new crowdsourcingTask
-  const next = () => {
-    // Record the number of wrong characters
-    query.get(id).then(transcript => {
-      transcript.set('wrong_chars', +content);
-      return transcript.save();
-    });
+  userTranscript.set('media_id', task.get('media_id'));
+  userTranscript.set('content', content);
+  userTranscript.set('fragment_order', task.get('fragment_order'));
+  userTranscript.set('fragment_src', transcript.get('fragment_src'));
+  userTranscript.set('user_open_id', userId);
 
-    // Change task status to complete
-    task.set('status', 1);
-    task.save();
+  return userTranscript.save();
+};
 
-    // Find user object
-    const userQuery = new leanCloud.AV.Query('WeChatUser');
-    userQuery.equalTo('open_id', userId);
-    userQuery.first().then(user => {
-      if (user) {
-        // Update number of tasks done
-        const tasksDone = user.get('tasks_done');
-        user.set('tasks_done', tasksDone + 1);
-        return user.save();
-      } else {
-        // User does not exist
-        // Should not get here when normal
-        // Create new user object, set tasks_done = 1
-        return createUser(userId, 1);
-      }
-    }).then(user => {
-      const tasksDone = user.get('tasks_done'),
-            amountPaid = user.get('amount_paid'),
-            setNeedPay = () => {
-              const minutesDone = tasksDone / 4;
-              if (minutesDone - amountPaid >= 1) {
-                user.set('need_pay', true);
-              }
-            };
+// userTranscript: on which the task is based
+// lastUserId: user who created this task
+const createCrowdsourcingTask = (userTranscript, lastUserId) => {
+  const CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
+        newTask = new CrowdsourcingTask();
 
-      // Check for tasks done
-      if (tasksDone === 4) {
-        // User has just completed 4 tasks. Send text
-        sendText('么么哒，请回复你的微信号（非微信昵称），稍后我会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
+    newTask.set('fragment_id', userTranscript.id);
+    newTask.set('fragment_type', 'UserTranscript');
+    newTask.set('fragment_order', userTranscript.get('fragment_order'));
+    newTask.set('status', 0);
+    newTask.set('media_id', userTranscript.get('media_id'));
+    newTask.set('last_user', lastUserId);
 
-        // Change user status to 1
-        user.set('status', 1);
+    return newTask.save();
+};
 
-        setNeedPay();
-        user.save();
-      } else if (tasksDone % 4 === 0) {
-        // User has completed another 4 tasks. Send text
-        sendText('么么哒，恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
-
-        setNeedPay();
-        user.save();
-      } else {
-        // User has not completed 4 tasks. Send task
-        findNewTaskForUser(userId).then(task => {
-          if (task) {
-            return assignTask(task, userId);
-          } else {
-            return task;
-          }
-        }).then(task => {
-          if (task) {
-            sendTask(task, data, accessToken);
-          } else {
-            // inform user there is no available task
-            return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
-          }
-        });
-      }
-    });
-  };
-
-  if (content !== '0') {
-    // Find the new userTranscript
-    const userTranscriptQuery = new leanCloud.AV.Query('UserTranscript');
-
-    userTranscriptQuery.equalTo('media_id', mediaId);
-    userTranscriptQuery.doesNotExist('wrong_chars');
-    userTranscriptQuery.equalTo('fragment_order', fragmentOrder);
-    userTranscriptQuery.equalTo('user_open_id', userId);
-    userTranscriptQuery.descending('createdAt');
-
-    userTranscriptQuery.first().then(userTranscript => {
-      if (userTranscript) {
-        sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
-
-        // Create new crowdsourcingTask
-        const Task = leanCloud.AV.Object.extend('CrowdsourcingTask'),
-              newTask = new Task();
-
-        newTask.set('fragment_id', userTranscript.id);
-        newTask.set('fragment_type', 'UserTranscript');
-        newTask.set('fragment_order', userTranscript.get('fragment_order'));
-        newTask.set('status', 0);
-        newTask.set('media_id', userTranscript.get('media_id'));
-        newTask.set('last_user', userId);
-        // task.set('is_head', userTranscript.get('fragment_order') % 4 === 0);
-
-        return newTask.save();
-      } else {
-        // No userTranscript found:
-        // 1. User has not submitted transcription
-        // 2. The transcription submitted has not been created as a userTranscript
-        sendText('biu~机器crush啦，请你再来一遍～\n1.先写修改后的文字，\n2.再写错别字的数量，分两次回复。', data, accessToken);
-
-        return false;
-      }
-    }).then(newTask => {
-      if (newTask) {
-        next();
-      }
-    });
-  } else {
-    next();
+// Set user's need_pay
+const setNeedPay = user => {
+  const minutesDone = user.get('tasks_done') / 4,
+        amountPaid = user.get('amount_paid');
+  if (minutesDone - amountPaid >= 1) {
+    user.set('need_pay', true);
   }
 };
 
-const onReceiveTranscription = (data, accessToken, task) => {
-  const id = task.get('fragment_id'),
-        type = task.get('fragment_type'),
-        mediaId = task.get('media_id'),
-        fragmentOrder = task.get('fragment_order'),
-        query = new leanCloud.AV.Query(type),
-        userId = data.fromusername,
-        content = data.content;
+const completeTaskAndReply = (task, data, accessToken) => {
+  console.log('finish task and reply...');
 
-  query.get(id).then(transcript => {
-    // Look for UserTranscript with same media_id and fragment_order, emtpy wrong_chars, and user_open_id
-    const userTranscriptQuery = new leanCloud.AV.Query('UserTranscript');
+  const userId = data.fromusername;
 
-    userTranscriptQuery.equalTo('media_id', mediaId);
-    userTranscriptQuery.equalTo('fragment_order', fragmentOrder);
-    userTranscriptQuery.doesNotExist('wrong_chars');
-    userTranscriptQuery.equalTo('user_open_id', userId);
+  // Change task status to 1
+  task.set('status', 1);
+  task.save();
 
-    return userTranscriptQuery.first().then(userTranscript => {
-      if (userTranscript) {
-        // update content
-        userTranscript.set('content', content);
-        return userTranscript.save();
-      } else {
-        // create new UserTranscript
-        const UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
-              userTranscript = new UserTranscript();
+  // Find user object
+  getUser(userId).then(user => {
+    // Add 1 to user's tasks done
+    const tasksDone = user.get('tasks_done');
+    user.set('tasks_done', tasksDone + 1);
+    return user.save();
+  }).then(user => {
+    const tasksDone = user.get('tasks_done');
+    // Check for tasks done
+    if (tasksDone === 4) {
+      // User has just completed 4 tasks
+      sendText('么么哒，请回复你的微信号（非微信昵称），稍后我会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
-        userTranscript.set('media_id', mediaId);
-        userTranscript.set('content', content);
-        userTranscript.set('fragment_order', fragmentOrder);
-        userTranscript.set('fragment_src', transcript.get('fragment_src'));
-        userTranscript.set('user_open_id', userId);
+      // Change user status to 1
+      user.set('status', 1);
 
-        return userTranscript.save();
-      }
-    });
+      setNeedPay(user);
+      user.save();
+    } else if (tasksDone % 4 === 0) {
+      // User has completed another 4 tasks. Send text
+      sendText('么么哒，恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
+
+      setNeedPay(user);
+      user.save();
+    } else {
+      // User has not completed 4 tasks
+      sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
+
+      findNewTaskForUser(userId).then(task => {
+        if (task) {
+          return assignTask(task, userId);
+        } else {
+          return task;
+        }
+      }).then(task => {
+        if (task) {
+          sendTask(task, data, accessToken);
+        } else {
+          // inform user there is no available task
+          return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
+        }
+      });
+    }
   });
 };
 
-// Find last completed task for user
-const findLastTaskForUser = (userId) => {
-  const query = new leanCloud.AV.Query('CrowdsourcingTask');
-  query.equalTo('user_id', userId);
-  query.equalTo('status', 1);
-  query.descending('updatedAt');
-  return query.first();
+const onReceiveTranscription = (data, accessToken, task) => {
+  console.log('receive transcription...');
+
+  const userId = data.fromusername,
+        content = data.content;
+
+  completeTaskAndReply(task, data, accessToken);
+
+  // Get the relevant transcript / userTranscript
+  getTranscript(task).then(transcript => {
+    // create new UserTranscript to record transcription
+    return createUserTranscript(userId, content, task, transcript);
+  }).then(userTranscript => {
+    // Create new crowdsourcingTask
+    return createCrowdsourcingTask(userTranscript, userId);
+  });
+
+  // Mark the transcript wrong_chars = 21
+  // Why 21? Because before we use 0-20, 21 is distinct
+  getTranscript(task).then(transcript => {
+    transcript.set('wrong_chars', 21);
+    transcript.save();
+  });
 };
+
+// // Find last completed task for user
+// const findLastTaskForUser = (userId) => {
+//   const query = new leanCloud.AV.Query('CrowdsourcingTask');
+//   query.equalTo('user_id', userId);
+//   query.equalTo('status', 1);
+//   query.descending('updatedAt');
+//   return query.first();
+// };
 
 const findNewTaskForUser = userId => {
   console.log('find new task...');
@@ -684,39 +637,39 @@ const findNewTaskForUser = userId => {
     });
 };
 
-const findNextTaskForUser = (userId, task) => {
-  const query = new leanCloud.AV.Query('CrowdsourcingTask');
-  query.equalTo('fragment_order', task.get('fragment_order') + 1);
-  query.ascending('createdAt');
-  query.equalTo('status', 0);
-  query.equalTo('fragment_type', task.get('fragment_type'));
-  query.doesNotExist('user_id');
-  query.equalTo('media_id', task.get('media_id'));
-  return query.first();
-};
+// const findNextTaskForUser = (userId, task) => {
+//   const query = new leanCloud.AV.Query('CrowdsourcingTask');
+//   query.equalTo('fragment_order', task.get('fragment_order') + 1);
+//   query.ascending('createdAt');
+//   query.equalTo('status', 0);
+//   query.equalTo('fragment_type', task.get('fragment_type'));
+//   query.doesNotExist('user_id');
+//   query.equalTo('media_id', task.get('media_id'));
+//   return query.first();
+// };
 
-// Find a new/next task for user
-const findTaskForUser = (userId) => {
-  return findLastTaskForUser(userId)
-    .then(task => {
-      if (task) {
-        if ((task.get('fragment_order') + 1) % 4 === 0) {
-          return findNewTaskForUser(userId);
-        } else {
-          return findNextTaskForUser(userId, task)
-            .then(task => {
-              if (task) {
-                return task;
-              } else {
-                return findNewTaskForUser(userId);
-              }
-            });
-        }
-      } else {
-        return findNewTaskForUser(userId);
-      }
-    });
-};
+// // Find a new/next task for user
+// const findTaskForUser = (userId) => {
+//   return findLastTaskForUser(userId)
+//     .then(task => {
+//       if (task) {
+//         if ((task.get('fragment_order') + 1) % 4 === 0) {
+//           return findNewTaskForUser(userId);
+//         } else {
+//           return findNextTaskForUser(userId, task)
+//             .then(task => {
+//               if (task) {
+//                 return task;
+//               } else {
+//                 return findNewTaskForUser(userId);
+//               }
+//             });
+//         }
+//       } else {
+//         return findNewTaskForUser(userId);
+//       }
+//     });
+// };
 
 const getUser = userId => {
   const query = new leanCloud.AV.Query('WeChatUser');
@@ -741,6 +694,26 @@ const onReceiveWeChatId = (data, accessToken, user) => {
   }
 };
 
+// Get the related transcript or userTranscript from a task
+const getTranscript = task => {
+  const type = task.get('fragment_type'),
+        id = task.get('fragment_id'),
+        query = new leanCloud.AV.Query(type);
+  return query.get(id);
+};
+
+const onReceiveCorrect = (data, accessToken, task) => {
+  console.log('on receive correct...');
+
+  completeTaskAndReply(task, data, accessToken);
+
+  // Mark the transcript wrong_chars = 0
+  getTranscript(task).then(transcript => {
+    transcript.set('wrong_chars', 0);
+    transcript.save();
+  });
+};
+
 const changeUserStatus = (userId, status) => {
   console.log('change user status...');
   return getUser(userId).then(user => {
@@ -752,7 +725,7 @@ const changeUserStatus = (userId, status) => {
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
-module.exports.findTaskForUser = findTaskForUser;
+// module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
 
 module.exports.postCtrl = (req, res, next) => {
@@ -762,8 +735,8 @@ module.exports.postCtrl = (req, res, next) => {
   const data = req.body.xml,
         userId = data.fromusername,
         Scene = leanCloud.AV.Object.extend('Scene'),
-        // Create ['0', '1', ..., '20']
-        ratings = Array.from({length: 21}, (v, k) => k.toString());
+        correctContent = '0';
+
   let scene;
 
   getAccessTokenFromCache().then(accessToken => {
@@ -791,8 +764,8 @@ module.exports.postCtrl = (req, res, next) => {
         } else {
           findInProcessTaskForUser(userId).then(task => {
             if (task) {
-              if (ratings.indexOf(data.content) !== -1) {
-                onReceiveRating(data, accessToken, task);
+              if (data.content === correctContent) {
+                onReceiveCorrect(data, accessToken, task);
               } else {
                 onReceiveTranscription(data, accessToken, task);
               }
