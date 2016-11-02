@@ -6,7 +6,8 @@ const request = require('request'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
-      redisClient = require('../redis_client');
+      redisClient = require('../redis_client'),
+      correctContent = '0';
 
 const getAccessTokenFromWechat = () => {
   const APPID = wechatConfig.appId,
@@ -525,8 +526,8 @@ const setNeedPay = user => {
 const completeTaskAndReply = (task, data, accessToken) => {
   console.log('finish task and reply...');
 
-  const userId = data.fromusername;
-
+  const userId = data.fromusername,
+        isCorrect =  data.content === correctContent ? true : false;
   // Change task status to 1
   task.set('status', 1);
   task.save();
@@ -557,7 +558,17 @@ const completeTaskAndReply = (task, data, accessToken) => {
       user.save();
     } else {
       // User has not completed 4 tasks
-      sendText('biu~我已经收到了你的文字啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。', data, accessToken);
+      let replyContent = 'biu~我已经收到了你的';
+
+      if (isCorrect) {
+        replyContent += '回复';
+      } else {
+        replyContent += '文字';
+      }
+
+      replyContent += '啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。';
+      
+      sendText(replyContent, data, accessToken);
 
       findNewTaskForUser(userId).then(task => {
         if (task) {
@@ -734,8 +745,7 @@ module.exports.postCtrl = (req, res, next) => {
 
   const data = req.body.xml,
         userId = data.fromusername,
-        Scene = leanCloud.AV.Object.extend('Scene'),
-        correctContent = '0';
+        Scene = leanCloud.AV.Object.extend('Scene');
 
   let scene;
 
