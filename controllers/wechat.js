@@ -580,16 +580,13 @@ const completeTaskAndReply = (task, data, accessToken) => {
 const onReceiveTranscription = (data, accessToken, task) => {
   console.log('receive transcription...');
 
-  const id = task.get('fragment_id'),
-        type = task.get('fragment_type'),
-        query = new leanCloud.AV.Query(type),
-        userId = data.fromusername,
+  const userId = data.fromusername,
         content = data.content;
 
   completeTaskAndReply(task, data, accessToken);
 
   // Get the relevant transcript / userTranscript
-  query.get(id).then(transcript => {
+  getTranscript(task).then(transcript => {
     // create new UserTranscript to record transcription
     return createUserTranscript(userId, content, task, transcript);
   }).then(userTranscript => {
@@ -690,10 +687,21 @@ const onReceiveWeChatId = (data, accessToken, user) => {
   }
 };
 
+// Get the related transcript or userTranscript from a task
+const getTranscript = task => {
+  const type = task.get('fragment_type'),
+        id = task.get('fragment_id'),
+        query = new leanCloud.AV.Query(type);
+  return query.get(id);
+};
+
 const onReceiveCorrect = (data, accessToken, task) => {
   console.log('on receive correct...');
 
   completeTaskAndReply(task, data, accessToken);
+
+  // TODO: mark the transcript wrong_chars = 0
+  getTranscript(task).then(transcript => {});
 };
 
 const changeUserStatus = (userId, status) => {
