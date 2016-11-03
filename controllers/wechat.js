@@ -598,7 +598,8 @@ const onReceiveTranscription = (data, accessToken, task) => {
 
   // Get the relevant transcript / userTranscript
   getTranscript(task).then(transcript => {
-    const oldContent = task.fragment_type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
+    const taskType = task.get('fragment_type'),
+          oldContent = taskType === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
     if (content === oldContent) {
       // Mark the transcript wrong_chars = 0
       transcript.set('wrong_chars', 0);
@@ -607,8 +608,11 @@ const onReceiveTranscription = (data, accessToken, task) => {
       // New content
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
-        // Create new crowdsourcingTask
-        return createCrowdsourcingTask(userTranscript, userId);
+        // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
+        if (taskType === 'Transcript') {
+          // Create new crowdsourcingTask
+          createCrowdsourcingTask(userTranscript, userId);
+        }
       });
 
       // Mark the transcript wrong_chars = 21
