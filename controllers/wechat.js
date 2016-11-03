@@ -745,6 +745,20 @@ const changeUserStatus = (userId, status) => {
   });
 };
 
+const sendGA = (userId) => {
+  const payload = `v=1&t=event&tid=UA-86809745-2&cid=${userId}&ec=task&ea=reply`;
+  request.post({
+    url: 'https://www.google-analytics.com/collect',
+    body: payload
+  }, (error, response, body) => {
+    if (error) {
+      console.log('Failed sending GA: ', error);
+    } else {
+      console.log('GA sent: ', body);
+    }
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -789,6 +803,9 @@ module.exports.postCtrl = (req, res, next) => {
               } else {
                 onReceiveTranscription(data, accessToken, task);
               }
+
+              // GA: reply for task
+              sendGA(userId);
             }
           });
         }
