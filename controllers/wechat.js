@@ -598,18 +598,24 @@ const onReceiveTranscription = (data, accessToken, task) => {
 
   // Get the relevant transcript / userTranscript
   getTranscript(task).then(transcript => {
-    // create new UserTranscript to record transcription
-    return createUserTranscript(userId, content, task, transcript);
-  }).then(userTranscript => {
-    // Create new crowdsourcingTask
-    return createCrowdsourcingTask(userTranscript, userId);
-  });
+    const oldContent = task.fragment_type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
+    if (content === oldContent) {
+      // Mark the transcript wrong_chars = 0
+      transcript.set('wrong_chars', 0);
+      transcript.save();
+    } else {
+      // New content
+      // create new UserTranscript to record transcription
+      createUserTranscript(userId, content, task, transcript).then(userTranscript => {
+        // Create new crowdsourcingTask
+        return createCrowdsourcingTask(userTranscript, userId);
+      });
 
-  // Mark the transcript wrong_chars = 21
-  // Why 21? Because before we use 0-20, 21 is distinct
-  getTranscript(task).then(transcript => {
-    transcript.set('wrong_chars', 21);
-    transcript.save();
+      // Mark the transcript wrong_chars = 21
+      // Why 21? Because before we use 0-20, 21 is distinct
+      transcript.set('wrong_chars', 21);
+      transcript.save();
+    }
   });
 };
 
