@@ -796,8 +796,25 @@ module.exports.postCtrl = (req, res, next) => {
       if (data.event === 'subscribe') {
         onSubscribe(data, accessToken);
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
-        changeUserStatus(userId, 0);
-        onGetTask(data, accessToken);
+        // Check if the user has wechat_id recorded if the user has done more than 4 tasks
+        getUser(userId).then(user => {
+          if (user) {
+            return user;
+          } else {
+            return createUser(userId);
+          }
+        }).then(user => {
+          const wechatId = user.get('wechat_id');
+          if (user.get('tasks_done') >= 4 && !wechatId) {
+            sendText('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
+
+            // Change user status to 1
+            user.set('status', 1);
+            user.save();
+          } else {
+            onGetTask(data, accessToken);
+          }
+        });
       } else if (data.event === 'SCAN') {
         // onQRCodeScanned(data, accessToken, res);
       }
