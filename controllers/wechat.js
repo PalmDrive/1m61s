@@ -6,6 +6,7 @@ const request = require('request'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
+      gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
       correctContent = '0';
 
@@ -746,7 +747,7 @@ const changeUserStatus = (userId, status) => {
 };
 
 const sendGA = (userId) => {
-  const payload = `v=1&t=event&tid=UA-86809745-2&cid=${userId}&ec=task&ea=reply`;
+  const payload = `v=1&t=event&tid=${gaConfig.tid}&cid=${userId}&ec=task&ea=reply`;
   request.post({
     url: 'https://www.google-analytics.com/collect',
     body: payload
