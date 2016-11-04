@@ -754,8 +754,6 @@ const sendGA = (userId) => {
   }, (error, response, body) => {
     if (error) {
       console.log('Failed sending GA: ', error);
-    } else {
-      console.log('GA sent: ', body);
     }
   });
 };
