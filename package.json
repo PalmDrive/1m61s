@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "deployStaging": "./deploy/run.sh staging"
+    "deployStaging": "./deploy/run.sh staging",
+    "redis": "redis-server /usr/local/etc/redis.conf"
   },
   "dependencies": {
     "ali-oss": "^3.1.2",
