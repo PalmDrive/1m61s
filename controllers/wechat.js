@@ -300,6 +300,17 @@ const sendMessage = (body, accessToken) => {
   });
 };
 
+const sendImage = (mediaId, userId, accessToken) => {
+  const body = {
+          touser: userId,
+          msgtype: 'image',
+          image: {
+            media_id: mediaId
+          }
+        };
+  return sendMessage(body, accessToken);
+};
+
 const createUser = (userId, tasksDone) => {
   const WeChatUser = leanCloud.AV.Object.extend('WeChatUser'),
         weChatUser = new WeChatUser();
@@ -312,19 +323,10 @@ const createUser = (userId, tasksDone) => {
 
 const onSubscribe = (data, accessToken) => {
   console.log('on subscribe...');
-  const userId = data.fromusername,
-        mediaId = wechatConfig.imageMediaId,
-        body = {
-          touser: userId,
-          msgtype: 'image',
-          image: {
-            media_id: mediaId
-          }
-        },
-        content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
+  const content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
 
-  // Send image about task
-  sendMessage(body, accessToken).then(() => {
+  // Send image of task instructions
+  sendImage(wechatConfig.imageMediaId.subscribe, data.fromusername, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
       sendText(content, data, accessToken);
@@ -705,7 +707,8 @@ const onReceiveWeChatId = (data, accessToken, user) => {
     // change status
     user.set('status', 0);
     user.save().then(user => {
-      sendText(`微信号登记成功。继续做任务请点击“领取任务”。`, data, accessToken);
+      // Send image to let user add xiaozhushou
+      sendImage(wechatConfig.imageMediaId.xiaozhushou, data.fromusername, accessToken);
     });
   } else {
     // Save WeChatId, ask for confirmation
