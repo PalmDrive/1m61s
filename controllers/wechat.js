@@ -787,34 +787,38 @@ module.exports.postCtrl = (req, res, next) => {
       //   onGetTask(data, accessToken, 'test');
       // }
 
-      // Get user
-      getUser(userId).then(user => {
-        if (user) {
-          return user;
-        } else {
-          return createUser(userId);
-        }
-      }).then(user => {
-        // Check status
-        const userStatus = user.get('status');
-        if (userStatus === 1) {
-          // Waiting for WeChat ID
-          onReceiveWeChatId(data, accessToken, user);
-        } else {
-          findInProcessTaskForUser(userId).then(task => {
-            if (task) {
-              if (data.content === correctContent) {
-                onReceiveCorrect(data, accessToken, task);
-              } else {
-                onReceiveTranscription(data, accessToken, task);
-              }
+      if (data.content === '网络测试') {
+        sendText('网络测试成功', data, accessToken);
+      } else {
+        // Get user
+        getUser(userId).then(user => {
+          if (user) {
+            return user;
+          } else {
+            return createUser(userId);
+          }
+        }).then(user => {
+          // Check status
+          const userStatus = user.get('status');
+          if (userStatus === 1) {
+            // Waiting for WeChat ID
+            onReceiveWeChatId(data, accessToken, user);
+          } else {
+            findInProcessTaskForUser(userId).then(task => {
+              if (task) {
+                if (data.content === correctContent) {
+                  onReceiveCorrect(data, accessToken, task);
+                } else {
+                  onReceiveTranscription(data, accessToken, task);
+                }
 
-              // GA: reply for task
-              sendGA(userId);
-            }
-          });
-        }
-      });
+                // GA: reply for task
+                sendGA(userId);
+              }
+            });
+          }
+        });
+      }
     } else if (data.msgtype === 'event') {
       if (data.event === 'subscribe') {
         onSubscribe(data, accessToken);
