@@ -10,8 +10,6 @@ const gulp = require('gulp'),
     WeChat = require('./controllers/wechat'),
     request = require('request');
 
-require('./data_analyze');
-
 gulp.task('apidoc', () => {
               apidoc.exec({
                   src: 'routes/api/',
@@ -192,8 +190,8 @@ gulp.task('fixtime', done => {
 
 gulp.task('checktime', done => {
   const query = new leanCloud.AV.Query('Transcript'),
-        mediaId = 'edce99c9-4be8-4d4c-aff0-a7aff7f4f9ec',
-        tolerance = 0.03,
+        mediaId = '709f6d34-ec76-4dad-9c3f-07d2071a4341',
+        tolerance = 1,
         errors = [];
 
   query.equalTo('media_id', mediaId);
@@ -412,4 +410,28 @@ gulp.task('resetForWeChatTest', done => {
   ]).then(() => {
     done();
   });
+});
+
+gulp.task('addRoleToUser', done => {
+  const userId = '580d5f548ac247005b58c868',
+        roleName = 'company',
+        roleQuery = new leanCloud.AV.Query('_Role'),
+        q = new leanCloud.AV.Query('_User');
+
+  roleQuery.equalTo('name', roleName);
+
+  Promise.all([
+    roleQuery.first(),
+    q.get(userId)
+  ])
+    .then(res => {
+      const users = res[0].relation('users');
+      users.add(res[1]);
+      return res[0].save();
+    })
+    .then(() => done(), err => {
+
+      console.log(err);
+      done();
+    });
 });
