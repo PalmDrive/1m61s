@@ -786,6 +786,7 @@ module.exports.postCtrl = (req, res, next) => {
 
       if (data.content === '网络测试') {
         sendText('网络测试成功', data, accessToken);
+        console.log('User testing internet: ', data.fromusername);
       } else {
         // Get user
         getUser(userId).then(user => {
