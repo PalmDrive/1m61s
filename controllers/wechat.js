@@ -484,8 +484,8 @@ const onGetTask = (data, accessToken, mode) => {
           } else {
             // Destroy the task
             task.destroy().then(success => {
-              // Find new task for user
-              onGetTask(data, accessToken);
+              // Find and send new task for user
+              findAndSendNewTaskForUser(data, accessToken);
             }, error => {
               console.log('Failed destroying task: ', error);
             });
@@ -548,6 +548,37 @@ const setNeedPay = user => {
   if (minutesDone - amountPaid >= 1) {
     user.set('need_pay', true);
   }
+};
+
+// Very similar to onGetTask, however doesn't check for in process task
+const findAndSendNewTaskForUser = (data, accessToken) => {
+  const userId = data.fromusername;
+  findNewTaskForUser(userId).then(task => {
+    if (task) {
+      return assignTask(task, userId);
+    } else {
+      return task;
+    }
+  }).then(task => {
+    if (task) {
+      checkContent(task).then(content => {
+        if (content) {
+          sendTask(task, data, accessToken);
+        } else {
+          // Destroy the task
+          task.destroy().then(success => {
+            // Find new task for user
+            findAndSendNewTaskForUser(data, accessToken);
+          }, error => {
+            console.log('Failed destroying task: ', error);
+          });
+        }
+      });
+    } else {
+      // inform user there is no available task
+      return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
+    }
+  });
 };
 
 const completeTaskAndReply = (task, data, accessToken) => {
