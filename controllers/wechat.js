@@ -442,6 +442,17 @@ const sendTask = (task, data, accessToken, mode) => {
   });
 };
 
+// Return the text content of a task
+const checkContent = task => {
+  const type = task.get('fragment_type'),
+        id = task.get('fragment_id'),
+        query = new leanCloud.AV.Query(type);
+
+  return query.get(id).then(transcript => {
+    return type === 'Transcript' ? transcript.get('content_baidu') : transcript.get('content');
+  });
+};
+
 // mode = 'test' for testing permanent voice material
 const onGetTask = (data, accessToken, mode) => {
   console.log('on get task...');
@@ -466,7 +477,20 @@ const onGetTask = (data, accessToken, mode) => {
       if (mode === 'test') {
         sendTask(task, data, accessToken, 'test');
       } else {
-        sendTask(task, data, accessToken);
+        // Check if content_baidu is undefined
+        checkContent(task).then(content => {
+          if (content) {
+            sendTask(task, data, accessToken);
+          } else {
+            // Destroy the task
+            task.destroy().then(success => {
+              // Find new task for user
+              onGetTask(data, accessToken);
+            }, error => {
+              console.log('Failed destroying task: ', error);
+            });
+          }
+        });
       }
     } else {
       // inform user there is no available task
