@@ -1,6 +1,7 @@
 'use strict';
 
-const express = require('express'),
+const nr = require('newrelic'),
+      express = require('express'),
       path = require('path'),
       favicon = require('serve-favicon'),
       cookieParser = require('cookie-parser'),
