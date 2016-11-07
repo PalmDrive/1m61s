@@ -628,20 +628,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
       
       sendText(replyContent, data, accessToken);
 
-      findNewTaskForUser(userId).then(task => {
-        if (task) {
-          return assignTask(task, userId);
-        } else {
-          return task;
-        }
-      }).then(task => {
-        if (task) {
-          sendTask(task, data, accessToken);
-        } else {
-          // inform user there is no available task
-          return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
-        }
-      });
+      findAndSendNewTaskForUser(data, accessToken);
     }
   });
 };
@@ -816,6 +803,20 @@ const sendGA = (userId) => {
   });
 };
 
+const onReceiveNoVoice = (data, accessToken, task) => {
+  const userId = data.fromusername;
+
+  // Change task status to 1
+  task.set('status', 2);
+  task.save();
+
+  const replyContent = 'biu~谢谢你的反馈，抱歉我们的系统还不完善。请稍等，正在为你寻找新的任务...';
+  
+  sendText(replyContent, data, accessToken);
+
+  findAndSendNewTaskForUser(data, accessToken);
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -861,6 +862,8 @@ module.exports.postCtrl = (req, res, next) => {
               if (task) {
                 if (data.content === correctContent) {
                   onReceiveCorrect(data, accessToken, task);
+                } else if (data.content === '没有语音') {
+                  onReceiveNoVoice(data, accessToken, task);
                 } else {
                   onReceiveTranscription(data, accessToken, task);
                 }
