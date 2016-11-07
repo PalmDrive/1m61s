@@ -5,6 +5,7 @@ const request = require('request'),
       leanCloud = require('../lib/lean_cloud'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
+      logger = require('../lib/logger'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
@@ -41,22 +42,24 @@ const getAccessTokenFromCache = (options) => {
       }
 
       if (reply && !options.updateCache) {
-        console.log('hit the cache:', reply);
+        logger.info('hit the cache: ');
+        logger.info(reply);
         resolve(reply);
       } else {
         getAccessTokenFromWechat().then(data => {
           // Add to cache
           redisClient.set(name, data.access_token, (err, ret) => {
             if (err) {
-              console.log(err);
+              logger.info('error: ');
+              logger.info(err);
             } else {
-              console.log('added to the cache');
+              logger.info('added to the cache: ');
             }
           });
           // Set redis expire time as 1min less than actual access token expire time
           redisClient.expire(name, data.expires_in - 60);
 
-          console.log(data.access_token);
+          logger.info(data.access_token);
           resolve(data.access_token);
         }, err => reject(err));
       }
@@ -167,20 +170,21 @@ const sendQRCodeMessage = (data, token, res) => {
       return createQRTicket(scene, token);
     })
     .then(ticket => {
-      console.log('ticket created:', ticket);
+      logger.info('ticket created: ');
+      logger.info(ticket);
 
       const qrURL = `https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=${ticket}`,
             mediaSrc = `${global.APP_ROOT}/tmp/qr_${scene.id}.jpg`,
             ws = fs.createWriteStream(mediaSrc);
 
       ws.on('finish', () => {
-        console.log('QR image saved in local');
+        logger.info('QR image saved in local');
 
         // Upload the QR image as media in Wechat
         uploadMedia(mediaSrc, 'image', token)
           .then(media => {
-            console.log('media uploaded:');
-            console.log(media);
+            logger.info('media uploaded: ');
+            logger.info(media);
 
             // Delete local QR image
             fs.unlink(mediaSrc);
@@ -212,13 +216,15 @@ const sendQRCodeMessage = (data, token, res) => {
             res.send(xml(object));
           });
       }, err => {
-        console.log('upload media failed:', err);
+        logger.info('upload media failed: ');
+        logger.info(err);
       });
 
       // Save the QR image to local
       request(qrURL).pipe(ws);
     }, err => {
-      console.log('ticket creation failed:', err);
+      logger.info('ticket creation failed: ');
+      logger.info(err);
     });
 };
 
@@ -241,7 +247,8 @@ const onQRCodeScanned = (data, token, res) => {
 
   query.equalTo('sceneId', sceneId);
 
-  console.log('scene id:', sceneId);
+  logger.info('scene id: ');
+  logger.info(sceneId);
 
   // Use the scene id to get the scene
   query.first()
@@ -255,7 +262,8 @@ const onQRCodeScanned = (data, token, res) => {
         scene.save();
       }
 
-      console.log('the number of users scanned:', scene.get('scanUsers').length);
+      logger.info('the number of users scanned: ');
+      logger.info(scene.get('scanUsers').length)
 
       if (scene.get('scanUsers').length >= scannerLimit) {
         // Notifify the scene creator that
@@ -283,7 +291,6 @@ const onQRCodeScanned = (data, token, res) => {
 
 // Send a message using 客服接口
 const sendMessage = (body, accessToken) => {
-  console.log('send message...');
   return new Promise((resolve, reject) => {
     request.post({
       url: `https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=${accessToken}`,
@@ -322,7 +329,6 @@ const createUser = (userId, tasksDone) => {
 };
 
 const onSubscribe = (data, accessToken) => {
-  console.log('on subscribe...');
   const content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
 
   // Send image of task instructions
@@ -347,10 +353,10 @@ const onSubscribe = (data, accessToken) => {
 
 // Assign the task to the user in database
 const assignTask = (task, userId) => {
-  console.log('assign task...');
   task.set('user_id', userId);
   return task.save().catch(error => {
-    console.log(error);
+    logger.info('assign task error: ');
+    logger.info(error);
   });
 };
 
@@ -371,13 +377,13 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
         ws = fs.createWriteStream(mediaSrc);
 
   ws.on('finish', () => {
-      console.log('Audio saved in local');
+      logger.info('Audio saved in local');
 
       // Upload the audio as media in Wechat
       uploadMedia(mediaSrc, 'voice', accessToken)
         .then(media => {
-          console.log('media uploaded:');
-          console.log(media);
+          logger.info('media uploaded: ');
+          logger.info(media);
 
           // Delete local audio file
           fs.unlink(mediaSrc);
@@ -389,10 +395,12 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
             voice: {media_id: media.media_id}
           }, accessToken);
         }, error => {
-          console.log('upload media failed:', error);
+          logger.info('upload media failed: ');
+          logger.info(error);
         });
   }, err => {
-    console.log('upload media failed:', err);
+    logger.info('voice message ws error: ');
+    logger.info(err);
   });
 
   // Save the audio to local
@@ -402,11 +410,11 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
 // send voice and text to the user
 // mode === 'test' for testing permanent voice material
 const sendTask = (task, data, accessToken, mode) => {
-  console.log('send task...');
   // get Transcript or UserTranscript
-  const type = task.get('fragment_type');
-  const query = new leanCloud.AV.Query(type);
-  return query.get(task.get('fragment_id')).then(transcript => {
+  const type = task.get('fragment_type'),
+        fragmentId = task.get('fragment_id'),
+        query = new leanCloud.AV.Query(type);
+  return query.get(fragmentId).then(transcript => {
     // This transcript can be Transcript or UserTranscript
     if (transcript) {
       const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
@@ -433,12 +441,15 @@ const sendTask = (task, data, accessToken, mode) => {
         sendVoiceMessage(transcript, data, accessToken);
       }
     } else {
-      console.log('Did not find transcript');
+      logger.info('Did not find transcript with id: ');
+      logger.info(fragmentId);
+
       // Should not get here when normal
       return sendText('对不起，系统错误，请联系管理员。', data, accessToken);
     }
   }, error => {
-    console.log('Failed getting transcript', error);
+    logger.info('Failed getting transcript: ');
+    logger.info(error);
   });
 };
 
@@ -455,7 +466,6 @@ const checkContent = task => {
 
 // mode = 'test' for testing permanent voice material
 const onGetTask = (data, accessToken, mode) => {
-  console.log('on get task...');
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
     if (task) {
@@ -472,7 +482,6 @@ const onGetTask = (data, accessToken, mode) => {
       });
     }
   }).then(task => {
-    console.log(task);
     if (task) {
       if (mode === 'test') {
         sendTask(task, data, accessToken, 'test');
@@ -487,7 +496,8 @@ const onGetTask = (data, accessToken, mode) => {
               // Find and send new task for user
               findAndSendNewTaskForUser(data, accessToken);
             }, error => {
-              console.log('Failed destroying task: ', error);
+              logger.info('Failed destroying task: ');
+              logger.info(error);
             });
           }
         });
@@ -501,7 +511,6 @@ const onGetTask = (data, accessToken, mode) => {
 
 // Find a task the user is working on
 const findInProcessTaskForUser = userId => {
-  console.log('find in-process task...');
   const query = new leanCloud.AV.Query('CrowdsourcingTask');
   query.equalTo('user_id', userId);
   query.equalTo('status', 0);
@@ -570,7 +579,8 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
             // Find new task for user
             findAndSendNewTaskForUser(data, accessToken);
           }, error => {
-            console.log('Failed destroying task: ', error);
+            logger.info('Failed destroying task: ');
+            logger.info(error);
           });
         }
       });
@@ -582,8 +592,6 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
 };
 
 const completeTaskAndReply = (task, data, accessToken) => {
-  console.log('finish task and reply...');
-
   const userId = data.fromusername,
         isCorrect =  data.content === correctContent ? true : false;
   // Change task status to 1
@@ -634,8 +642,6 @@ const completeTaskAndReply = (task, data, accessToken) => {
 };
 
 const onReceiveTranscription = (data, accessToken, task) => {
-  console.log('receive transcription...');
-
   const userId = data.fromusername,
         content = data.content;
 
@@ -678,7 +684,6 @@ const onReceiveTranscription = (data, accessToken, task) => {
 // };
 
 const findNewTaskForUser = userId => {
-  console.log('find new task...');
   const _constructQuery = fragmentType => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask');
     // query.equalTo('is_head', true);
@@ -770,8 +775,6 @@ const getTranscript = task => {
 };
 
 const onReceiveCorrect = (data, accessToken, task) => {
-  console.log('on receive correct...');
-
   completeTaskAndReply(task, data, accessToken);
 
   // Mark the transcript wrong_chars = 0
@@ -782,7 +785,6 @@ const onReceiveCorrect = (data, accessToken, task) => {
 };
 
 const changeUserStatus = (userId, status) => {
-  console.log('change user status...');
   return getUser(userId).then(user => {
     if (user) {
       user.set('status', status);
@@ -798,7 +800,8 @@ const sendGA = (userId) => {
     body: payload
   }, (error, response, body) => {
     if (error) {
-      console.log('Failed sending GA: ', error);
+      logger.info('Failed sending GA: ');
+      logger.info(error);
     }
   });
 };
@@ -842,7 +845,8 @@ module.exports.postCtrl = (req, res, next) => {
 
       if (data.content === '网络测试') {
         sendText('网络测试成功', data, accessToken);
-        console.log('User testing internet: ', data.fromusername);
+        logger.info('User testing internet: ');
+        logger.info(data.fromusername);
       } else {
         // Get user
         getUser(userId).then(user => {
