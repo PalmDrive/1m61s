@@ -810,7 +810,7 @@ const onReceiveNoVoice = (data, accessToken, task) => {
   task.set('status', 2);
   task.save();
 
-  const replyContent = 'biu~谢谢你的反馈，抱歉我们的系统还不完善。请稍等，正在为你寻找新的任务...';
+  const replyContent = 'biu~谢谢你的反馈。正在为你寻找新的任务...';
   
   sendText(replyContent, data, accessToken);
 
