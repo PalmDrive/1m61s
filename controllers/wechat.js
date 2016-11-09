@@ -407,7 +407,12 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
   });
 
   // Save the audio to local
-  request(audioURL).pipe(ws);
+  request(audioURL, (err, res, body) => {
+    if (err) {
+      logger.info('request audio error: ');
+      logger.info(err);
+    }
+  }).pipe(ws);
 };
 
 // send voice and text to the user
