@@ -409,8 +409,11 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
   // Save the audio to local
   request(audioURL, (err, res, body) => {
     if (err) {
+      sendText('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
       logger.info('request audio error: ');
       logger.info(err);
+      logger.info('audio URL: ');
+      logger.info(audioURL);
     }
   }).pipe(ws);
 };
