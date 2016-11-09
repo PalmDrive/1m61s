@@ -482,8 +482,14 @@ const onGetTask = (data, accessToken, mode) => {
         } else {
           return task;
         }
+      }, err => {
+        logger.info('findNewTaskForUser error:');
+        logger.info(err);
       });
     }
+  }, err => {
+    logger.info('findInProcessTaskForUser error:');
+    logger.info(err);
   }).then(task => {
     if (task) {
       if (mode === 'test') {
@@ -503,6 +509,9 @@ const onGetTask = (data, accessToken, mode) => {
               logger.info(error);
             });
           }
+        }, err => {
+          logger.info('checkContent error:');
+          logger.info(err);
         });
       }
     } else {
