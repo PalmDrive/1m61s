@@ -412,6 +412,17 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
   }).pipe(ws);
 };
 
+const destroyTaskAndSendNew = (task, data, accessToken) => {
+  // Destroy the task
+  task.destroy().then(success => {
+    // Find and send new task for user
+    findAndSendNewTaskForUser(data, accessToken);
+  }, error => {
+    logger.info('Failed destroying task: ');
+    logger.info(error);
+  });
+};
+
 // send voice and text to the user
 // mode === 'test' for testing permanent voice material
 const sendTask = (task, data, accessToken, mode) => {
@@ -422,28 +433,34 @@ const sendTask = (task, data, accessToken, mode) => {
   return query.get(fragmentId).then(transcript => {
     // This transcript can be Transcript or UserTranscript
     if (transcript) {
-      const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
+      const fragmentSrc = transcript.get('fragment_src');
+      if (fragmentSrc) {
+        const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
 
-      if (mode === 'test') {
-        const body = {
-                touser: data.fromusername,
-                msgtype: 'voice',
-                voice: {
-                  media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
-                }
-              };
-        sendMessage(body, accessToken)
-        .then(() => {
-          return sendText('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
-        })
-        .then(() => {
-          return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
-        });
+        if (mode === 'test') {
+          const body = {
+                  touser: data.fromusername,
+                  msgtype: 'voice',
+                  voice: {
+                    media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
+                  }
+                };
+          sendMessage(body, accessToken)
+          .then(() => {
+            return sendText('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
+          })
+          .then(() => {
+            return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
+          });
+        } else {
+          // Send text in transcript
+          sendText(content, data, accessToken);
+          // Send voice
+          sendVoiceMessage(transcript, data, accessToken);
+        }
       } else {
-        // Send text in transcript
-        sendText(content, data, accessToken);
-        // Send voice
-        sendVoiceMessage(transcript, data, accessToken);
+        logger.info('Error: fragment_src is empty');
+        destroyTaskAndSendNew(task, data, accessToken);
       }
     } else {
       logger.info('Did not find transcript with id: ');
@@ -496,14 +513,7 @@ const onGetTask = (data, accessToken, mode) => {
           if (content) {
             sendTask(task, data, accessToken);
           } else {
-            // Destroy the task
-            task.destroy().then(success => {
-              // Find and send new task for user
-              findAndSendNewTaskForUser(data, accessToken);
-            }, error => {
-              logger.info('Failed destroying task: ');
-              logger.info(error);
-            });
+            destroyTaskAndSendNew(task, data, accessToken);
           }
         });
       }
@@ -579,14 +589,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
         if (content) {
           sendTask(task, data, accessToken);
         } else {
-          // Destroy the task
-          task.destroy().then(success => {
-            // Find new task for user
-            findAndSendNewTaskForUser(data, accessToken);
-          }, error => {
-            logger.info('Failed destroying task: ');
-            logger.info(error);
-          });
+          destroyTaskAndSendNew(task, data, accessToken);
         }
       });
     } else {
