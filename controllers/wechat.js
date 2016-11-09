@@ -67,32 +67,32 @@ const getAccessTokenFromCache = (options) => {
   });
 };
 
-const createQRTicket = (scene, token) => {
-  const actionName = 'QR_SCENE',
-        expireSeconds = 604800; // 1 week
+// const createQRTicket = (scene, token) => {
+//   const actionName = 'QR_SCENE',
+//         expireSeconds = 604800; // 1 week
 
-  return new Promise((resolve, reject) => {
-    request.post({
-      url: `https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=${token}`,
-      json: true,
-      body: {
-        expire_seconds: expireSeconds,
-        action_name: actionName,
-        action_info: {
-          scene: {scene_id: scene.get('sceneId')}
-        }
-      }
-    }, (error, response, body) => {
-      if (error) return reject(error);
+//   return new Promise((resolve, reject) => {
+//     request.post({
+//       url: `https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=${token}`,
+//       json: true,
+//       body: {
+//         expire_seconds: expireSeconds,
+//         action_name: actionName,
+//         action_info: {
+//           scene: {scene_id: scene.get('sceneId')}
+//         }
+//       }
+//     }, (error, response, body) => {
+//       if (error) return reject(error);
 
-      if (body.errcode) {
-        reject(body);
-      } else {
-        resolve(body.ticket);
-      }
-    });
-  });
-};
+//       if (body.errcode) {
+//         reject(body);
+//       } else {
+//         resolve(body.ticket);
+//       }
+//     });
+//   });
+// };
 
 const uploadMedia = (mediaSrc, type, token) => {
   const url = `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${token}&type=${type}`;
@@ -118,29 +118,28 @@ const uploadMedia = (mediaSrc, type, token) => {
   });
 };
 
-const sendTemplateMessage = (toUser, data, templateId, token) => {
-  const url = `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${token}`;
-  return new Promise((resolve, reject) => {
-    request.post({
-      url,
-      json: true,
-      body: {
-        template_id: templateId,
-        touser: toUser,
-        url: '',
-        data: data
-      }
-    }, (error, response, body) => {
-      if (error) { return reject(error); }
-      if (body.errcode) {
-        reject(body);
-      } else {
-        resolve(body);
-      }
-    });
-  });
-
-}
+// const sendTemplateMessage = (toUser, data, templateId, token) => {
+//   const url = `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${token}`;
+//   return new Promise((resolve, reject) => {
+//     request.post({
+//       url,
+//       json: true,
+//       body: {
+//         template_id: templateId,
+//         touser: toUser,
+//         url: '',
+//         data: data
+//       }
+//     }, (error, response, body) => {
+//       if (error) { return reject(error); }
+//       if (body.errcode) {
+//         reject(body);
+//       } else {
+//         resolve(body);
+//       }
+//     });
+//   });
+// };
 
 /**
  * @param  {Dict} data
@@ -148,85 +147,85 @@ const sendTemplateMessage = (toUser, data, templateId, token) => {
  * @param  {String} data.fromusername 接收QRcode的用户OpenID
  * @param  {String} data.content 将要创建的scene的eventName
  */
-const sendQRCodeMessage = (data, token, res) => {
-  const Scene = leanCloud.AV.Object.extend('Scene'),
-        query = new leanCloud.AV.Query('Scene'),
-        scene = new Scene();
+// const sendQRCodeMessage = (data, token, res) => {
+//   const Scene = leanCloud.AV.Object.extend('Scene'),
+//         query = new leanCloud.AV.Query('Scene'),
+//         scene = new Scene();
 
-  query.count()
-    .then(count => {
-      // Create the scene
-      scene.set('creatorId', data.fromusername);
-      scene.set('eventName', data.content);
-      scene.set('sceneId', count + 1);
+//   query.count()
+//     .then(count => {
+//       // Create the scene
+//       scene.set('creatorId', data.fromusername);
+//       scene.set('eventName', data.content);
+//       scene.set('sceneId', count + 1);
 
-      // @fixme:
-      // temp event time
-      scene.set('eventTime', + new Date());
-      return scene.save();
-    })
-    .then(scene => {
-      // Create QR ticket
-      return createQRTicket(scene, token);
-    })
-    .then(ticket => {
-      logger.info('ticket created: ');
-      logger.info(ticket);
+//       // @fixme:
+//       // temp event time
+//       scene.set('eventTime', + new Date());
+//       return scene.save();
+//     })
+//     .then(scene => {
+//       // Create QR ticket
+//       return createQRTicket(scene, token);
+//     })
+//     .then(ticket => {
+//       logger.info('ticket created: ');
+//       logger.info(ticket);
 
-      const qrURL = `https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=${ticket}`,
-            mediaSrc = `${global.APP_ROOT}/tmp/qr_${scene.id}.jpg`,
-            ws = fs.createWriteStream(mediaSrc);
+//       const qrURL = `https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=${ticket}`,
+//             mediaSrc = `${global.APP_ROOT}/tmp/qr_${scene.id}.jpg`,
+//             ws = fs.createWriteStream(mediaSrc);
 
-      ws.on('finish', () => {
-        logger.info('QR image saved in local');
+//       ws.on('finish', () => {
+//         logger.info('QR image saved in local');
 
-        // Upload the QR image as media in Wechat
-        uploadMedia(mediaSrc, 'image', token)
-          .then(media => {
-            logger.info('media uploaded: ');
-            logger.info(media);
+//         // Upload the QR image as media in Wechat
+//         uploadMedia(mediaSrc, 'image', token)
+//           .then(media => {
+//             logger.info('media uploaded: ');
+//             logger.info(media);
 
-            // Delete local QR image
-            fs.unlink(mediaSrc);
+//             // Delete local QR image
+//             fs.unlink(mediaSrc);
 
-            const object = {
-              xml: [
-                {ToUserName: {_cdata: data.fromusername}},
-                {FromUserName: {_cdata: data.tousername}},
-                {MsgType: {_cdata: 'image'}},
-                {CreateTime: +new Date()},
-                {Image: [{
-                  MediaId: {_cdata: media.media_id}
-                }]}
-              ]
-            };
+//             const object = {
+//               xml: [
+//                 {ToUserName: {_cdata: data.fromusername}},
+//                 {FromUserName: {_cdata: data.tousername}},
+//                 {MsgType: {_cdata: 'image'}},
+//                 {CreateTime: +new Date()},
+//                 {Image: [{
+//                   MediaId: {_cdata: media.media_id}
+//                 }]}
+//               ]
+//             };
 
-            // Send the user the message containing the QR code
-            //
-            // <xml>
-            // <ToUserName><![CDATA[toUser]]></ToUserName>
-            // <FromUserName><![CDATA[fromUser]]></FromUserName>
-            // <CreateTime>12345678</CreateTime>
-            // <MsgType><![CDATA[image]]></MsgType>
-            // <Image>
-            // <MediaId><![CDATA[media_id]]></MediaId>
-            // </Image>
-            // </xml>
-            res.set('Content-Type', 'text/xml');
-            res.send(xml(object));
-          });
-      }, err => {
-        logger.info('upload media failed: ');
-        logger.info(err);
-      });
+//             // Send the user the message containing the QR code
+//             //
+//             // <xml>
+//             // <ToUserName><![CDATA[toUser]]></ToUserName>
+//             // <FromUserName><![CDATA[fromUser]]></FromUserName>
+//             // <CreateTime>12345678</CreateTime>
+//             // <MsgType><![CDATA[image]]></MsgType>
+//             // <Image>
+//             // <MediaId><![CDATA[media_id]]></MediaId>
+//             // </Image>
+//             // </xml>
+//             res.set('Content-Type', 'text/xml');
+//             res.send(xml(object));
+//           });
+//       }, err => {
+//         logger.info('upload media failed: ');
+//         logger.info(err);
+//       });
 
-      // Save the QR image to local
-      request(qrURL).pipe(ws);
-    }, err => {
-      logger.info('ticket creation failed: ');
-      logger.info(err);
-    });
-};
+//       // Save the QR image to local
+//       request(qrURL).pipe(ws);
+//     }, err => {
+//       logger.info('ticket creation failed: ');
+//       logger.info(err);
+//     });
+// };
 
 /**
  * @param  {Dict} data
@@ -238,56 +237,56 @@ const sendQRCodeMessage = (data, token, res) => {
  * @param  {String} data.eventkey
  * @param  {String} data.ticket
  */
-const onQRCodeScanned = (data, token, res) => {
-  const scannerLimit = 3,
-        sceneId = data.event === 'SCAN' ? +data.eventkey : +(data.eventkey.replace('qrscene_', '')),
-        query = new leanCloud.AV.Query('Scene');
+// const onQRCodeScanned = (data, token, res) => {
+//   const scannerLimit = 3,
+//         sceneId = data.event === 'SCAN' ? +data.eventkey : +(data.eventkey.replace('qrscene_', '')),
+//         query = new leanCloud.AV.Query('Scene');
 
-  let scanUsers;
+//   let scanUsers;
 
-  query.equalTo('sceneId', sceneId);
+//   query.equalTo('sceneId', sceneId);
 
-  logger.info('scene id: ');
-  logger.info(sceneId);
+//   logger.info('scene id: ');
+//   logger.info(sceneId);
 
-  // Use the scene id to get the scene
-  query.first()
-    .then(scene => {
-      scanUsers = scene.get('scanUsers') || [];
+//   // Use the scene id to get the scene
+//   query.first()
+//     .then(scene => {
+//       scanUsers = scene.get('scanUsers') || [];
 
-      // If this is the first time the person scanned this QR code, add him into scanUsers
-      if (scanUsers.indexOf(data.fromusername) === -1) {
-        scanUsers.push(data.fromusername);
-        scene.set('scanUsers', scanUsers);
-        scene.save();
-      }
+//       // If this is the first time the person scanned this QR code, add him into scanUsers
+//       if (scanUsers.indexOf(data.fromusername) === -1) {
+//         scanUsers.push(data.fromusername);
+//         scene.set('scanUsers', scanUsers);
+//         scene.save();
+//       }
 
-      logger.info('the number of users scanned: ');
-      logger.info(scene.get('scanUsers').length)
+//       logger.info('the number of users scanned: ');
+//       logger.info(scene.get('scanUsers').length)
 
-      if (scene.get('scanUsers').length >= scannerLimit) {
-        // Notifify the scene creator that
-        // there are enough users referred by his QR code
-        const templateId = 'RoZSvlxg6rf7JlmBXEnnsbeHnoZ6gKXHY4PJp6lk7IA',
-              templateData = {
-                first: {value: '报名成功。'},
-                class: {value: scene.get('eventName')},
-                time: {value: datetime(scene.get('eventTime') || new Date(), {format: 'datetime'})},
-                add: {value: '小板凳APP'},
-                remark: {value: ''}
-              };
+//       if (scene.get('scanUsers').length >= scannerLimit) {
+//         // Notifify the scene creator that
+//         // there are enough users referred by his QR code
+//         const templateId = 'RoZSvlxg6rf7JlmBXEnnsbeHnoZ6gKXHY4PJp6lk7IA',
+//               templateData = {
+//                 first: {value: '报名成功。'},
+//                 class: {value: scene.get('eventName')},
+//                 time: {value: datetime(scene.get('eventTime') || new Date(), {format: 'datetime'})},
+//                 add: {value: '小板凳APP'},
+//                 remark: {value: ''}
+//               };
 
-        sendTemplateMessage(scene.get('creatorId'), templateData, templateId, token);
-      }
+//         sendTemplateMessage(scene.get('creatorId'), templateData, templateId, token);
+//       }
 
-      // 给扫描二维码的用户发送一个二维码
-      sendQRCodeMessage({
-        fromusername: data.fromusername,
-        tousername: data.tousername,
-        content: scene.get('eventName')
-      }, token, res);
-    });
-};
+//       // 给扫描二维码的用户发送一个二维码
+//       sendQRCodeMessage({
+//         fromusername: data.fromusername,
+//         tousername: data.tousername,
+//         content: scene.get('eventName')
+//       }, token, res);
+//     });
+// };
 
 // Send a message using 客服接口
 const sendMessage = (body, accessToken) => {
@@ -858,7 +857,7 @@ module.exports.postCtrl = (req, res, next) => {
 
       if (data.content === '网络测试') {
         sendText('网络测试成功', data, accessToken);
-        logger.info('User testing internet: ');
+        logger.info('User testing connection: ');
         logger.info(data.fromusername);
       } else {
         // Get user
