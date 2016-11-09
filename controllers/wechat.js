@@ -406,6 +406,7 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
   // Save the audio to local
   request(audioURL, (err, res, body) => {
     if (err) {
+      sendText('biu~抱歉，获取语音出现问题，请联系小助手。', data, accessToken);
       logger.info('request audio error: ');
       logger.info(err);
     }
