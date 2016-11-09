@@ -461,12 +461,8 @@ const sendTask = (task, data, accessToken, mode) => {
       } else {
         destroyTaskAndSendNew(task, data, accessToken);
 
-        logger.info('Found transcript with empty fragment_src: ');
-        transcript = transcript.toJSON();
-        logger.info('fragment_type: ');
-        logger.info(transcript.fragment_type);
-        logger.info('objectId: ');
-        logger.info(transcript.objectId);
+        logger.info('Found transcript/userTranscript with empty fragment_src, objectId: ');
+        logger.info(transcript.toJSON().objectId);
       }
     } else {
       logger.info('Did not find transcript with id: ');
