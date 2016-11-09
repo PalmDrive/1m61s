@@ -459,7 +459,8 @@ const sendTask = (task, data, accessToken, mode) => {
           sendVoiceMessage(transcript, data, accessToken);
         }
       } else {
-        logger.info('Error: fragment_src is empty');
+        logger.info('Found transcript with empty fragment_src:');
+        logger.info(transcript.toJSON());
         destroyTaskAndSendNew(task, data, accessToken);
       }
     } else {
