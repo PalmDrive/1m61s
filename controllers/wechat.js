@@ -546,10 +546,17 @@ const createUserTranscript = (userId, content, task, transcript) => {
   userTranscript.set('media_id', task.get('media_id'));
   userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
-  userTranscript.set('fragment_src', transcript.get('fragment_src'));
   userTranscript.set('user_open_id', userId);
-
-  return userTranscript.save();
+  if (transcript) {
+    userTranscript.set('fragment_src', transcript.get('fragment_src'));
+    return userTranscript.save();
+  } else {
+    // Get transcript from task
+    return getTranscript(task).then(transcript => {
+      userTranscript.set('fragment_src', transcript.get('fragment_src'));
+      return userTranscript.save();
+    })
+  }
 };
 
 // userTranscript: on which the task is based
@@ -836,6 +843,14 @@ const logError = (message, err) => {
   logger.info(err);
 };
 
+const findUserTranscriptFromTaskByUser = (task, userId) => {
+  const query = new leanCloud.AV.Query('UserTranscript');
+  query.equalTo('user_open_id', userId);
+  query.equalTo('media_id', task.get('media_id'));
+  query.equalTo('fragment_order', task.get('fragment_order'));
+  return query.first();
+};
+
 const enterRevokeMode = (data, accessToken, user) => {
   // Change user status to 2
   user.set('status', 2);
@@ -850,6 +865,27 @@ const enterRevokeMode = (data, accessToken, user) => {
     });
   }, err => {
     logError('failed saving user when entering revoke mode', err);
+  });
+};
+
+const onReceiveRevokeTranscription = (data, accessToken, user) => {
+  findLastTaskForUser(user.get('open_id')).then(task => {
+    return findUserTranscriptFromTaskByUser(task, user.get('open_id')).then(userTranscript => {
+      if (userTranscript) {
+        // Update last created userTranscript's content
+        userTranscript.set('content', data.content);
+        return userTranscript.save();
+      } else {
+        return createUserTranscript(user.get('open_id'), data.content, task);
+      }
+    });
+  }).then(userTranscript => {
+    // Change user status back to 0
+    user.set('status', 0);
+    return user.save();
+  }).then(user => {
+    // Tell user that he is back to normal mode
+    return sendText('biu~修改完成！继续做任务请点击“领取任务”。', data, accessToken);
   });
 };
 
@@ -896,6 +932,7 @@ module.exports.postCtrl = (req, res, next) => {
             onReceiveWeChatId(data, accessToken, user);
           } else if (userStatus === 2) {
             // Revoke mode
+            onReceiveRevokeTranscription(data, accessToken, user);
           } else {
             // User status === 0
             if (data.content === '修改') {
