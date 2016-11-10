@@ -473,9 +473,8 @@ const sendTask = (task, data, accessToken, mode) => {
       // Should not get here when normal
       return sendText('对不起，系统错误，请联系管理员。', data, accessToken);
     }
-  }, error => {
-    logger.info('Failed getting transcript: ');
-    logger.info(error);
+  }, err => {
+    logError('failed getting transcript when sending task', err);
   });
 };
 
@@ -686,14 +685,14 @@ const onReceiveTranscription = (data, accessToken, task) => {
   });
 };
 
-// // Find last completed task for user
-// const findLastTaskForUser = (userId) => {
-//   const query = new leanCloud.AV.Query('CrowdsourcingTask');
-//   query.equalTo('user_id', userId);
-//   query.equalTo('status', 1);
-//   query.descending('updatedAt');
-//   return query.first();
-// };
+// Find last completed task for user
+const findLastTaskForUser = userId => {
+  const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  query.equalTo('user_id', userId);
+  query.equalTo('status', 1);
+  query.descending('updatedAt');
+  return query.first();
+};
 
 const findNewTaskForUser = userId => {
   const _constructQuery = fragmentType => {
@@ -796,7 +795,7 @@ const onReceiveCorrect = (data, accessToken, task) => {
   });
 };
 
-const changeUserStatus = (userId, status) => {
+const getAndChangeUserStatus = (userId, status) => {
   return getUser(userId).then(user => {
     if (user) {
       user.set('status', status);
@@ -830,6 +829,28 @@ const onReceiveNoVoice = (data, accessToken, task) => {
   sendText(replyContent, data, accessToken);
 
   findAndSendNewTaskForUser(data, accessToken);
+};
+
+const logError = (message, err) => {
+  logger.info('Error: ' + message + '.');
+  logger.info(err);
+};
+
+const enterRevokeMode = (data, accessToken, user) => {
+  // Change user status to 2
+  user.set('status', 2);
+  user.save().then(user => {
+    // Tell user that he has entered revoke mode
+    sendText('biu~进入修改模式，即将为你取回上一条任务。');
+    // Send last task
+    findLastTaskForUser(user.get('open_id')).then(task => {
+      sendTask(task, data, accessToken);
+    }, err => {
+      logError('failed getting last task in revoke mode', err);
+    });
+  }, err => {
+    logError('failed saving user when entering revoke mode', err);
+  });
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
@@ -873,21 +894,29 @@ module.exports.postCtrl = (req, res, next) => {
           if (userStatus === 1) {
             // Waiting for WeChat ID
             onReceiveWeChatId(data, accessToken, user);
+          } else if (userStatus === 2) {
+            // Revoke mode
           } else {
-            findInProcessTaskForUser(userId).then(task => {
-              if (task) {
-                if (data.content === correctContent) {
-                  onReceiveCorrect(data, accessToken, task);
-                } else if (data.content === '没有语音') {
-                  onReceiveNoVoice(data, accessToken, task);
-                } else {
-                  onReceiveTranscription(data, accessToken, task);
-                }
+            // User status === 0
+            if (data.content === '修改') {
+              // Enter revoke mode
+              enterRevokeMode(data, accessToken, user);
+            } else {
+              findInProcessTaskForUser(userId).then(task => {
+                if (task) {
+                  if (data.content === correctContent) {
+                    onReceiveCorrect(data, accessToken, task);
+                  } else if (data.content === '没有语音') {
+                    onReceiveNoVoice(data, accessToken, task);
+                  } else {
+                    onReceiveTranscription(data, accessToken, task);
+                  }
 
-                // GA: reply for task
-                sendGA(userId);
-              }
-            });
+                  // GA: reply for task
+                  sendGA(userId);
+                }
+              });
+            }
           }
         });
       }
