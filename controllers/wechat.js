@@ -857,9 +857,21 @@ const enterRevokeMode = (data, accessToken, user) => {
   user.save().then(user => {
     // Tell user that he has entered revoke mode
     sendText('biu~进入修改模式，即将为你取回上一条任务。', data, accessToken);
-    // Send last task
+    // Send last task's voice with user's content
     findLastTaskForUser(user.get('open_id')).then(task => {
-      sendTask(task, data, accessToken);
+      findUserTranscriptFromTaskByUser(task, user.get('open_id')).then(userTranscript => {
+        if (userTranscript) {
+          // Send user's content
+          sendText(userTranscript.get('content'), data, accessToken);
+          // Send voice
+          getTranscript(task).then(transcript => {
+            sendVoiceMessage(transcript, data, accessToken);
+          });
+        } else {
+          // No user's content
+          sendTask(task, data, accessToken);
+        }
+      });
     }, err => {
       logError('failed getting last task in revoke mode', err);
     });
