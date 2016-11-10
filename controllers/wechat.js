@@ -856,7 +856,7 @@ const enterRevokeMode = (data, accessToken, user) => {
   user.set('status', 2);
   user.save().then(user => {
     // Tell user that he has entered revoke mode
-    sendText('biu~进入修改模式，即将为你取回上一条任务。');
+    sendText('biu~进入修改模式，即将为你取回上一条任务。', data, accessToken);
     // Send last task
     findLastTaskForUser(user.get('open_id')).then(task => {
       sendTask(task, data, accessToken);
