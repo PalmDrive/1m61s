@@ -811,8 +811,8 @@ const getAndChangeUserStatus = (userId, status) => {
   });
 };
 
-const sendGA = (userId) => {
-  const payload = `v=1&t=event&tid=${gaConfig.tid}&cid=${userId}&ec=task&ea=reply`;
+const sendGA = (userId, eventAction) => {
+  const payload = `v=1&t=event&tid=${gaConfig.tid}&cid=${userId}&ec=task&ea=${eventAction}`;
   request.post({
     url: 'https://www.google-analytics.com/collect',
     body: payload
@@ -950,6 +950,7 @@ module.exports.postCtrl = (req, res, next) => {
             if (data.content === '修改') {
               // Enter revoke mode
               enterRevokeMode(data, accessToken, user);
+              sendGA(userId, 'revoke');
             } else {
               findInProcessTaskForUser(userId).then(task => {
                 if (task) {
@@ -962,7 +963,7 @@ module.exports.postCtrl = (req, res, next) => {
                   }
 
                   // GA: reply for task
-                  sendGA(userId);
+                  sendGA(userId, 'reply');
                 }
               });
             }
