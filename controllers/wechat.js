@@ -1387,6 +1387,23 @@ const onReceivePrevNext = (data, accessToken, task) => {
   });
 };
 
+const onReceivePass = (data, accessToken, task) => {
+  // Tell user we received request
+  sendText('biu~收到“跳过”请求，新的任务正在路上。');
+  // Set original task to unassigned status
+  const passedUserList = task.get('passed_users') || [];
+  passedUserList.push(data.fromusername);
+  task.set('status', 0);
+  task.unset('user_id');
+  task.set('passed_users', passedUserList);
+  task.save().then(task => {
+    findAndSendNewTaskForUser(data, accessToken);
+  });
+
+
+  // TODO: Check for passed_users when finding new task
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1477,6 +1494,9 @@ module.exports.postCtrl = (req, res, next) => {
                 } else if (data.content === '后') {
                   onReceivePrevNext(data, accessToken, task);
                   sendGA(userId, 'reply_next');
+                } else if (data.content === '过') {
+                  onReceivePass(data, accessToken, task);
+                  sendGA(userId, 'reply_pass');
                 } else {
                   onReceiveTranscription(data, accessToken, task, user);
                   sendGA(userId, 'reply');
