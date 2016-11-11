@@ -905,9 +905,8 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
     }).then(user => {
       // Tell user that he is back to normal mode
       return sendText('biu~修改完成！继续做任务请点击“领取任务”。', data, accessToken);
-    });    
+    });
   }
-
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
