@@ -815,7 +815,7 @@ const findUserTranscriptFromTaskByUser = (task, userId) => {
   return query.first();
 };
 
-const enterRevokeMode = (data, accessToken, user) => {
+const onReceiveRevoke = (data, accessToken, user) => {
   // Change user status to 2
   user.set('status', 2);
   user.save().then(user => {
@@ -921,7 +921,7 @@ module.exports.postCtrl = (req, res, next) => {
             // User status === 0
             if (data.content === '修改') {
               // Enter revoke mode
-              enterRevokeMode(data, accessToken, user);
+              onReceiveRevoke(data, accessToken, user);
               sendGA(userId, 'revoke');
             } else {
               findInProcessTaskForUser(userId).then(task => {
