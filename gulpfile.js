@@ -388,6 +388,17 @@ gulp.task('resetForWeChatTest', done => {
         task.unset('user_id');
       });
       return leanCloud.AV.Object.saveAll(tasks);
+    }).then(() => {
+      const query = new leanCloud.AV.Query('CrowdsourcingTask');
+      query.limit(1000);
+      query.notEqualTo('status', 0);
+      return query.find();
+    }).then(tasks => {
+      // Set status back to 0
+      tasks.forEach(task => {
+        task.set('status', 0);
+      });
+      return leanCloud.AV.Object.saveAll(tasks);
     });
   };
 
