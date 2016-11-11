@@ -881,24 +881,33 @@ const enterRevokeMode = (data, accessToken, user) => {
 };
 
 const onReceiveRevokeTranscription = (data, accessToken, user) => {
-  findLastTaskForUser(user.get('open_id')).then(task => {
-    return findUserTranscriptFromTaskByUser(task, user.get('open_id')).then(userTranscript => {
-      if (userTranscript) {
-        // Update last created userTranscript's content
-        userTranscript.set('content', data.content);
-        return userTranscript.save();
-      } else {
-        return createUserTranscript(user.get('open_id'), data.content, task);
-      }
-    });
-  }).then(userTranscript => {
-    // Change user status back to 0
+  if (data.content === '0') {
+    // Switch back to normal mode
     user.set('status', 0);
-    return user.save();
-  }).then(user => {
-    // Tell user that he is back to normal mode
-    return sendText('biu~修改完成！继续做任务请点击“领取任务”。', data, accessToken);
-  });
+    user.save().then(user => {
+      sendText('biu~已退出修改模式，继续做任务请点击“领取任务”。', data, accessToken);
+    });
+  } else {
+    findLastTaskForUser(user.get('open_id')).then(task => {
+      return findUserTranscriptFromTaskByUser(task, user.get('open_id')).then(userTranscript => {
+        if (userTranscript) {
+          // Update last created userTranscript's content
+          userTranscript.set('content', data.content);
+          return userTranscript.save();
+        } else {
+          return createUserTranscript(user.get('open_id'), data.content, task);
+        }
+      });
+    }).then(userTranscript => {
+      // Change user status back to 0
+      user.set('status', 0);
+      return user.save();
+    }).then(user => {
+      // Tell user that he is back to normal mode
+      return sendText('biu~修改完成！继续做任务请点击“领取任务”。', data, accessToken);
+    });    
+  }
+
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
