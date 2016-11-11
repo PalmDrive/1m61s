@@ -417,17 +417,6 @@ const sendVoiceMessage = (transcript, data, accessToken) => {
   }).pipe(ws);
 };
 
-const destroyTaskAndSendNew = (task, data, accessToken) => {
-  // Destroy the task
-  task.destroy().then(success => {
-    // Find and send new task for user
-    findAndSendNewTaskForUser(data, accessToken);
-  }, error => {
-    logger.info('Failed destroying task: ');
-    logger.info(error);
-  });
-};
-
 // send voice and text to the user
 // mode === 'test' for testing permanent voice material
 const sendTask = (task, data, accessToken, mode) => {
@@ -438,36 +427,28 @@ const sendTask = (task, data, accessToken, mode) => {
   return query.get(fragmentId).then(transcript => {
     // This transcript can be Transcript or UserTranscript
     if (transcript) {
-      const fragmentSrc = transcript.get('fragment_src');
-      if (fragmentSrc) {
-        const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
+      const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
 
-        if (mode === 'test') {
-          const body = {
-                  touser: data.fromusername,
-                  msgtype: 'voice',
-                  voice: {
-                    media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
-                  }
-                };
-          sendMessage(body, accessToken)
-          .then(() => {
-            return sendText('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
-          })
-          .then(() => {
-            return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
-          });
-        } else {
-          // Send text in transcript
-          sendText(content, data, accessToken);
-          // Send voice
-          sendVoiceMessage(transcript, data, accessToken);
-        }
+      if (mode === 'test') {
+        const body = {
+                touser: data.fromusername,
+                msgtype: 'voice',
+                voice: {
+                  media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
+                }
+              };
+        sendMessage(body, accessToken)
+        .then(() => {
+          return sendText('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
+        })
+        .then(() => {
+          return sendText('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
+        });
       } else {
-        destroyTaskAndSendNew(task, data, accessToken);
-
-        logger.info('Found transcript/userTranscript with empty fragment_src, objectId: ');
-        logger.info(transcript.toJSON().objectId);
+        // Send text in transcript
+        sendText(content, data, accessToken);
+        // Send voice
+        sendVoiceMessage(transcript, data, accessToken);
       }
     } else {
       logger.info('Did not find transcript with id: ');
@@ -481,60 +462,36 @@ const sendTask = (task, data, accessToken, mode) => {
   });
 };
 
-// Return the text content of a task
-const checkContent = task => {
+const isTaskValid = task => {
   const type = task.get('fragment_type'),
         id = task.get('fragment_id'),
         query = new leanCloud.AV.Query(type);
 
   return query.get(id).then(transcript => {
-    return type === 'Transcript' ? transcript.get('content_baidu') : transcript.get('content');
+    // Check for content
+    const content =  type === 'Transcript' ? transcript.get('content_baidu') : transcript.get('content');
+    if (!content) {
+      return false;
+    }
+    // Check for fragment_src
+    const fragmentSrc = transcript.get('fragment_src');
+    if(!fragmentSrc) {
+      return false;
+    }
+
+    return true;
   });
 };
 
-// mode = 'test' for testing permanent voice material
 const onGetTask = (data, accessToken, mode) => {
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
     if (task) {
       // There is a task in process
-      return task;
+      return sendTask(task, data, accessToken);
     } else {
       // There is no task in process
-      return findNewTaskForUser(userId).then(task => {
-        if (task) {
-          return assignTask(task, userId);
-        } else {
-          return task;
-        }
-      }, err => {
-        logger.info('findNewTaskForUser error:');
-        logger.info(err);
-      });
-    }
-  }, err => {
-    logger.info('findInProcessTaskForUser error:');
-    logger.info(err);
-  }).then(task => {
-    if (task) {
-      if (mode === 'test') {
-        sendTask(task, data, accessToken, 'test');
-      } else {
-        // Check if content_baidu is undefined
-        checkContent(task).then(content => {
-          if (content) {
-            sendTask(task, data, accessToken);
-          } else {
-            destroyTaskAndSendNew(task, data, accessToken);
-          }
-        }, err => {
-          logger.info('checkContent error:');
-          logger.info(err);
-        });
-      }
-    } else {
-      // inform user there is no available task
-      sendText('暂时没有新任务可以领取，请稍后再来！', data, accessToken);
+      return findAndSendNewTaskForUser(data, accessToken);
     }
   });
 };
@@ -607,13 +564,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
     }
   }).then(task => {
     if (task) {
-      checkContent(task).then(content => {
-        if (content) {
-          sendTask(task, data, accessToken);
-        } else {
-          destroyTaskAndSendNew(task, data, accessToken);
-        }
-      });
+      sendTask(task, data, accessToken);
     } else {
       // inform user there is no available task
       return sendText('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
@@ -727,15 +678,28 @@ const findNewTaskForUser = userId => {
 
   let query = _constructQuery('UserTranscript');
 
-  return query.first()
-    .then(task => {
-      if (task){
+  return query.first().then(task => {
+    if (task){
+      return task;
+    } else {
+      query = _constructQuery('Transcript');
+      return query.first();
+    }
+  }).then(task => {
+    // Check if content and fragment_src are empty
+    return isTaskValid(task).then(taskValid => {
+      if (taskValid) {
         return task;
-      } else {
-        query = _constructQuery('Transcript');
-        return query.first();
       }
+      // Destroy the task
+      return task.destroy().then(success => {
+        // Find new task
+        return findNewTaskForUser(userId);
+      }, err => {
+        logError('failed destroying task', err);
+      });
     });
+  });
 };
 
 // const findNextTaskForUser = (userId, task) => {
@@ -811,15 +775,6 @@ const onReceiveCorrect = (data, accessToken, task) => {
   getTranscript(task).then(transcript => {
     transcript.set('wrong_chars', 0);
     transcript.save();
-  });
-};
-
-const getAndChangeUserStatus = (userId, status) => {
-  return getUser(userId).then(user => {
-    if (user) {
-      user.set('status', status);
-      return user.save();
-    } else {return createUser(userId);}
   });
 };
 
