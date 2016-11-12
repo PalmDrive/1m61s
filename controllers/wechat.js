@@ -314,11 +314,11 @@ const sendToUser = {
               media_id: mediaId
             }
           };
-    return sendToUser.message(body, accessToken);
+    return this.message(body, accessToken);
   },
   // Send a text message to user
   text(content, data, accessToken) {
-    return sendToUser.message({
+    return this.message({
       touser: data.fromusername,
       msgtype: 'text',
       text: {content}
@@ -329,7 +329,8 @@ const sendToUser = {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
-          ws = fs.createWriteStream(mediaSrc);
+          ws = fs.createWriteStream(mediaSrc),
+          self = this;
 
     ws.on('finish', () => {
         logger.info('Audio saved in local');
@@ -344,7 +345,7 @@ const sendToUser = {
             fs.unlink(mediaSrc);
 
             // Send the voice message
-            return sendToUser.message({
+            return self.message({
               touser: data.fromusername,
               msgtype: 'voice',
               voice: {media_id: media.media_id}
@@ -361,7 +362,7 @@ const sendToUser = {
     // Save the audio to local
     request(audioURL, (err, res, body) => {
       if (err) {
-        sendToUser.text('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
+        self.text('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
         logger.info('request audio error: ');
         logger.info(err);
         logger.info('audio URL: ');
@@ -374,7 +375,8 @@ const sendToUser = {
     // get Transcript or UserTranscript
     const type = task.get('fragment_type'),
           fragmentId = task.get('fragment_id'),
-          query = new leanCloud.AV.Query(type);
+          query = new leanCloud.AV.Query(type),
+          self = this;
     return query.get(fragmentId).then(transcript => {
       // This transcript can be Transcript or UserTranscript
       if (transcript) {
@@ -388,25 +390,25 @@ const sendToUser = {
                     media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
                   }
                 };
-          sendToUser.message(body, accessToken)
+          self.message(body, accessToken)
           .then(() => {
-            return sendToUser.text('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
+            return self.text('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
           })
           .then(() => {
-            return sendToUser.text('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
+            return self.text('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
           });
         } else {
           // Send text in transcript
-          sendToUser.text(content, data, accessToken);
+          self.text(content, data, accessToken);
           // Send voice
-          sendToUser.voice(transcript, data, accessToken);
+          self.voice(transcript, data, accessToken);
         }
       } else {
         logger.info('Did not find transcript with id: ');
         logger.info(fragmentId);
 
         // Should not get here when normal
-        return sendToUser.text('对不起，系统错误，请联系管理员。', data, accessToken);
+        return self.text('对不起，系统错误，请联系管理员。', data, accessToken);
       }
     }, err => {
       logError('failed getting transcript when sending task', err);
