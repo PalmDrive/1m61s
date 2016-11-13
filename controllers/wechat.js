@@ -384,28 +384,10 @@ const sendToUser = {
       // This transcript can be Transcript or UserTranscript
       if (transcript) {
         const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
-
-        if (mode === 'test') {
-          const body = {
-                  touser: data.fromusername,
-                  msgtype: 'voice',
-                  voice: {
-                    media_id: '4RQ7o1t9-gZT5OjzshdyCKVcPghEdj39ut0MHp2Lw_g'
-                  }
-                };
-          self.message(body, accessToken)
-          .then(() => {
-            return self.text('united states in coordination with the government of nepal he went age your i o n and the governments of australia and canada denmark, ', data, accessToken);
-          })
-          .then(() => {
-            return self.text('请先写修改后的文字，\n然后再写错别字的数量，\n分两次回复，谢谢。', data, accessToken);
-          });
-        } else {
-          // Send text in transcript
-          self.text(content, data, accessToken);
-          // Send voice
-          self.voice(transcript, data, accessToken);
-        }
+        // Send text in transcript
+        self.text(content, data, accessToken);
+        // Send voice
+        self.voice(transcript, data, accessToken);
       } else {
         logger.info('Did not find transcript with id: ');
         logger.info(fragmentId);
@@ -891,13 +873,6 @@ module.exports.postCtrl = (req, res, next) => {
 
   getAccessTokenFromCache().then(accessToken => {
     if (data.msgtype === 'text') {
-      // if (data.content === '回复临时素材') {
-      //   onGetTask(data, accessToken);
-      // } else if (data.content === '回复永久素材') {
-      //   // Test 2: send voice
-      //   onGetTask(data, accessToken, 'test');
-      // }
-
       if (data.content === '网络测试') {
         sendToUser.text('网络测试成功', data, accessToken);
         logger.info('User testing connection: ');
