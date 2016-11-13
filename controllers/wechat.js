@@ -669,19 +669,23 @@ const findNewTaskForUser = userId => {
       return query.first();
     }
   }).then(task => {
-    // Check if content and fragment_src are empty
-    return isTaskValid(task).then(taskValid => {
-      if (taskValid) {
-        return task;
-      }
-      // Destroy the task
-      return task.destroy().then(success => {
-        // Find new task
-        return findNewTaskForUser(userId);
-      }, err => {
-        logError('failed destroying task', err);
+    if (task) {
+      // Check if content and fragment_src are empty
+      return isTaskValid(task).then(taskValid => {
+        if (taskValid) {
+          return task;
+        }
+        // Destroy the task
+        return task.destroy().then(success => {
+          // Find new task
+          return findNewTaskForUser(userId);
+        }, err => {
+          logError('failed destroying task', err);
+        });
       });
-    });
+    } else {
+      return task;
+    }
   });
 };
 
