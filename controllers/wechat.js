@@ -490,20 +490,23 @@ const findInProcessTaskForUser = userId => {
 // task: task user was doing to create this userTranscript
 // transcript: transcript from which the task was created
 const createUserTranscript = (userId, content, task, transcript) => {
-  const UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
+  const type = task.get('fragment_type'),
+        UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
         userTranscript = new UserTranscript();
 
   userTranscript.set('media_id', task.get('media_id'));
   userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
   userTranscript.set('user_open_id', userId);
-  if (transcript) {
+  if (transcript && type === 'Transcript') {
     userTranscript.set('fragment_src', transcript.get('fragment_src'));
+    userTranscript.set('targetTranscript', transcript);
     return userTranscript.save();
   } else {
-    // Get transcript from task
-    return getTranscript(task).then(transcript => {
+    // Get relavent machine transcript from task
+    return getMachineTranscript(task).then(transcript => {
       userTranscript.set('fragment_src', transcript.get('fragment_src'));
+      userTranscript.set('targetTranscript', transcript);
       return userTranscript.save();
     })
   }
@@ -751,6 +754,22 @@ const getTranscript = task => {
         id = task.get('fragment_id'),
         query = new leanCloud.AV.Query(type);
   return query.get(id);
+};
+
+// Get the relavent machine transcript from a task
+const getMachineTranscript = task => {
+  const type = task.get('fragment_type');
+
+  if (type === 'Transcript') {
+    return getTranscript(task);
+  } else {
+    // type === 'UserTranscript'
+    const query = new leanCloud.AV.Query('Transcript');
+    query.equalTo('media_id', task.get('media_id'));
+    query.equalTo('fragment_order', task.get('fragment_order'));
+    query.equalTo('set_type', 'machine');
+    return query.frist();
+  }
 };
 
 const onReceiveCorrect = (data, accessToken, task) => {
