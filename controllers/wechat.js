@@ -472,7 +472,6 @@ const onGetTask = (data, accessToken) => {
       return sendToUser.task(task, data, accessToken);
     } else {
       // There is no task in process
-      logger.info('Debug: no task in process');
       return findAndSendNewTaskForUser(data, accessToken);
     }
   });
@@ -542,7 +541,6 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
     if (task) {
       return assignTask(task, userId);
     } else {
-      logger.info('Debug: no new task');
       return task;
     }
   }).then(task => {
