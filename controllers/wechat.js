@@ -464,7 +464,7 @@ const isTaskValid = task => {
   });
 };
 
-const onGetTask = (data, accessToken, mode) => {
+const onGetTask = (data, accessToken) => {
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
     if (task) {
@@ -472,6 +472,7 @@ const onGetTask = (data, accessToken, mode) => {
       return sendToUser.task(task, data, accessToken);
     } else {
       // There is no task in process
+      logger.info('Debug: no task in process');
       return findAndSendNewTaskForUser(data, accessToken);
     }
   });
@@ -541,6 +542,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
     if (task) {
       return assignTask(task, userId);
     } else {
+      logger.info('Debug: no new task');
       return task;
     }
   }).then(task => {
