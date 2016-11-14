@@ -467,3 +467,36 @@ gulp.task('addTargetTranscript', done => {
     });
   });
 });
+
+gulp.task('addReviewTimes', done => {
+  const query = new leanCloud.AV.Query('UserTranscript');
+  query.doesNotExist('review_times');
+  query.limit(1000);
+  query.find().then(userTranscripts => {
+    Promise.all(userTranscripts.map(userTranscript => {
+      const query = leanCloud.AV.Query('UserTranscript');
+      query.equalTo('media_id', userTranscript.get('media_id'));
+      query.equalTo('fragment_order', userTranscript.get('fragment_order'));
+      return query.first().then(userTranscript2 => {
+        if (userTranscript2) {
+          // Compare createdAt between userTranscript and userTranscript2
+          if (userTranscript.createdAt > userTranscript2.createdAt) {
+            userTranscript.set('review_times', 2);
+            userTranscript2.set('review_times', 1);
+          } else {
+            userTranscript.set('review_times', 1);
+            userTranscript2.set('review_times', 2);
+          }
+          return leanCloud.AV.Object.saveAll([userTranscript, userTranscript2]);
+        } else {
+          // No userTranscript2
+          userTranscript.set('review_times', 1);
+          return userTranscript.save();
+        }
+      });
+    })).then(() => done(), err => {
+      console.log(err);
+      done();
+    });
+  });
+});
