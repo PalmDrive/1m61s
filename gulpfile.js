@@ -453,7 +453,7 @@ gulp.task('addTargetTranscript', done => {
   query.limit(1000);
   query.find().then(userTranscripts => {
     Promise.all(userTranscripts.map(userTranscript => {
-      const query = leanCloud.AV.Query('Transcript');
+      const query = new leanCloud.AV.Query('Transcript');
       query.equalTo('media_id', userTranscript.get('media_id'));
       query.equalTo('fragment_order', userTranscript.get('fragment_order'));
       query.equalTo('set_type', 'machine');
@@ -478,7 +478,7 @@ gulp.task('addReviewTimes', done => {
   query.limit(1000);
   query.find().then(userTranscripts => {
     Promise.all(userTranscripts.map(userTranscript => {
-      const query = leanCloud.AV.Query('UserTranscript');
+      const query = new leanCloud.AV.Query('UserTranscript');
       query.equalTo('media_id', userTranscript.get('media_id'));
       query.equalTo('fragment_order', userTranscript.get('fragment_order'));
       return query.first().then(userTranscript2 => {
