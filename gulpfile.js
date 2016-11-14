@@ -449,9 +449,11 @@ gulp.task('addRoleToUser', done => {
 
 gulp.task('addTargetTranscript', done => {
   const query = new leanCloud.AV.Query('UserTranscript');
+  let count = 0;
   query.doesNotExist('targetTranscript');
   query.limit(1000);
   query.find().then(userTranscripts => {
+    console.log('Should update ' + userTranscripts.length + ' UserTranscript');
     Promise.all(userTranscripts.map(userTranscript => {
       const query = new leanCloud.AV.Query('Transcript');
       query.equalTo('media_id', userTranscript.get('media_id'));
@@ -460,12 +462,17 @@ gulp.task('addTargetTranscript', done => {
       return query.first().then(transcript => {
         if (transcript) {
           userTranscript.set('targetTranscript', transcript);
-          return userTranscript.save();
+          return userTranscript.save().then(() => {
+            return count += 1;
+          });
         } else {
           return false;
         }
       });
-    })).then(() => done(), err => {
+    })).then(() => {
+      console.log('Updated ' + count + ' UserTranscript');
+      done();
+    }, err => {
       console.log(err);
       done();
     });
