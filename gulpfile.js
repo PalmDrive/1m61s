@@ -446,3 +446,24 @@ gulp.task('addRoleToUser', done => {
       done();
     });
 });
+
+gulp.task('addTargetTranscript', done => {
+  const query = new leanCloud.AV.Query('UserTranscript');
+  query.doesNotExist('targetTranscript');
+  query.limit(1000);
+  query.find().then(userTranscripts => {
+    Promise.all(userTranscripts.map(userTranscript => {
+      const query = leanCloud.AV.Query('Transcript');
+      query.equalTo('media_id', userTranscript.get('media_id'));
+      query.equalTo('fragment_order', userTranscript.get('fragment_order'));
+      query.equalTo('set_type', 'machine');
+      return query.first().then(transcript => {
+        userTranscript.set('targetTranscript', transcript);
+        return userTranscript.save();
+      });
+    })).then(() => done(), err => {
+      console.log(err);
+      done();
+    });
+  });
+});
