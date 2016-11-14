@@ -527,7 +527,7 @@ const createUserTranscript = (userId, content, task, transcript) => {
           }
         });
       }
-    })
+    });
   }
 };
 
