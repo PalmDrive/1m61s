@@ -787,7 +787,7 @@ const getMachineTranscript = task => {
     query.equalTo('media_id', task.get('media_id'));
     query.equalTo('fragment_order', task.get('fragment_order'));
     query.equalTo('set_type', 'machine');
-    return query.frist();
+    return query.first();
   }
 };
 
