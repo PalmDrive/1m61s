@@ -498,6 +498,12 @@ const createUserTranscript = (userId, content, task, transcript) => {
   userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
   userTranscript.set('user_open_id', userId);
+  if (type === 'Transcript') {
+    userTranscript.set('review_times', 1);
+  } else {
+    userTranscript.set('review_times', 2);
+  }
+  
   if (transcript && type === 'Transcript') {
     userTranscript.set('fragment_src', transcript.get('fragment_src'));
     userTranscript.set('targetTranscript', transcript);
