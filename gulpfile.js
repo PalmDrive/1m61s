@@ -458,8 +458,12 @@ gulp.task('addTargetTranscript', done => {
       query.equalTo('fragment_order', userTranscript.get('fragment_order'));
       query.equalTo('set_type', 'machine');
       return query.first().then(transcript => {
-        userTranscript.set('targetTranscript', transcript);
-        return userTranscript.save();
+        if (transcript) {
+          userTranscript.set('targetTranscript', transcript);
+          return userTranscript.save();
+        } else {
+          return false;
+        }
       });
     })).then(() => done(), err => {
       console.log(err);
