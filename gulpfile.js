@@ -484,10 +484,12 @@ gulp.task('addReviewTimes', done => {
   query.doesNotExist('review_times');
   query.limit(1000);
   query.find().then(userTranscripts => {
+    console.log('Should update ' + userTranscripts.length + ' UserTranscript');
     Promise.all(userTranscripts.map(userTranscript => {
       const query = new leanCloud.AV.Query('UserTranscript');
       query.equalTo('media_id', userTranscript.get('media_id'));
       query.equalTo('fragment_order', userTranscript.get('fragment_order'));
+      query.notEqualTo('objectId', userTranscript.id);
       return query.first().then(userTranscript2 => {
         if (userTranscript2) {
           // Compare createdAt between userTranscript and userTranscript2
