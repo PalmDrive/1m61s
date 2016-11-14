@@ -527,6 +527,8 @@ const createUserTranscript = (userId, content, task, transcript) => {
           }
         });
       }
+    }, err => {
+      logError('failed getMachineTranscript', err);
     });
   }
 };
