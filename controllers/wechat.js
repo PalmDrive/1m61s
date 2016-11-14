@@ -503,7 +503,7 @@ const createUserTranscript = (userId, content, task, transcript) => {
   } else {
     userTranscript.set('review_times', 2);
   }
-  
+
   if (transcript && type === 'Transcript') {
     userTranscript.set('fragment_src', transcript.get('fragment_src'));
     userTranscript.set('targetTranscript', transcript);
@@ -511,9 +511,22 @@ const createUserTranscript = (userId, content, task, transcript) => {
   } else {
     // Get relavent machine transcript from task
     return getMachineTranscript(task).then(transcript => {
-      userTranscript.set('fragment_src', transcript.get('fragment_src'));
-      userTranscript.set('targetTranscript', transcript);
-      return userTranscript.save();
+      if (transcript) {
+        userTranscript.set('fragment_src', transcript.get('fragment_src'));
+        userTranscript.set('targetTranscript', transcript);
+        return userTranscript.save();
+      } else {
+        logger.info('Error: no machine transcript for task with id ' + task.id);
+        return getTranscript(task).then(transcript => {
+          if (transcript) {
+            userTranscript.set('fragment_src', transcript.get('fragment_src'));
+            return userTranscript.save();
+          } else {
+            logger.info('Error: no transcript for task with id ' + task.id);
+            return false;
+          }
+        });
+      }
     })
   }
 };
@@ -631,7 +644,7 @@ const onReceiveTranscription = (data, accessToken, task) => {
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
         // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
-        if (taskType === 'Transcript') {
+        if (userTranscript && taskType === 'Transcript') {
           // Create new crowdsourcingTask
           createCrowdsourcingTask(userTranscript, userId);
         }
