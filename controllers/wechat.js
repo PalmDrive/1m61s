@@ -9,6 +9,7 @@ const request = require('request'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
+      ffmpeg = require('fluent-ffmpeg'),
       correctContent = '0';
 
 const getAccessTokenFromWechat = () => {
@@ -337,6 +338,14 @@ const sendToUser = {
 
     ws.on('finish', () => {
         logger.info('Audio saved in local');
+
+        ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
+          logger.info('Metadata:');
+          logger.info(metadata);
+          if (err) {
+            logError('ffprobe', err);
+          }
+        });
 
         // Upload the audio as media in Wechat
         uploadMedia(mediaSrc, 'voice', accessToken)
