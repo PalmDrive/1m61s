@@ -367,9 +367,8 @@ const sendToUser = {
                   msgtype: 'voice',
                   voice: {media_id: media.media_id}
                 }, accessToken);
-              }, error => {
-                logger.info('upload media failed: ');
-                logger.info(error);
+              }, err => {
+                logError('failed uploading media', err);
               });
 
           });
