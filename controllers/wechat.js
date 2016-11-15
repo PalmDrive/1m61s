@@ -336,9 +336,9 @@ const sendToUser = {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.wav`,
-          mp3Src = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
+          // mp3Src = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
           ws = fs.createWriteStream(mediaSrc),
-          outStream = fs.createWriteStream(mp3Src);
+          // outStream = fs.createWriteStream(mp3Src);
           self = this;
 
     ws.on('finish', () => {
@@ -346,14 +346,14 @@ const sendToUser = {
         const mediaFile = fs.createReadStream(mediaSrc);
         logger.info('wav file:');
         logger.info(mediaFile);
-        ffmpeg(mediaFile)
-          .on('error', function(err) {
-            logError('error', err);
-          })
-          .on('end', function() {
-            logger.info('Processing finished !');
-          })
-          .pipe(outStream, { end: true });
+        // ffmpeg(mediaFile)
+        //   .on('error', function(err) {
+        //     logError('error', err);
+        //   })
+        //   .on('end', function() {
+        //     logger.info('Processing finished !');
+        //   })
+        //   .pipe(outStream, { end: true });
 
         // ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
         //   logger.info('Metadata:');
@@ -387,32 +387,32 @@ const sendToUser = {
       logger.info(err);
     });
 
-    outStream.on('finish', () => {
-        logger.info('mp3 saved in local');
+    // outStream.on('finish', () => {
+    //     logger.info('mp3 saved in local');
 
-        // Upload the audio as media in Wechat
-        uploadMedia(mp3Src, 'voice', accessToken)
-          .then(media => {
-            logger.info('media uploaded: ');
-            logger.info(media);
+    //     // Upload the audio as media in Wechat
+    //     uploadMedia(mp3Src, 'voice', accessToken)
+    //       .then(media => {
+    //         logger.info('media uploaded: ');
+    //         logger.info(media);
 
-            // Delete local audio file
-            fs.unlink(mediaSrc);
-            fs.unlink(mp3Src);
+    //         // Delete local audio file
+    //         fs.unlink(mediaSrc);
+    //         fs.unlink(mp3Src);
 
-            // Send the voice message
-            return self.message({
-              touser: data.fromusername,
-              msgtype: 'voice',
-              voice: {media_id: media.media_id}
-            }, accessToken);
-          }, err => {
-            logError('failed uploading media', err);
-          });
-    }, err => {
-      logger.info('outStream error: ');
-      logger.info(err);
-    });
+    //         // Send the voice message
+    //         return self.message({
+    //           touser: data.fromusername,
+    //           msgtype: 'voice',
+    //           voice: {media_id: media.media_id}
+    //         }, accessToken);
+    //       }, err => {
+    //         logError('failed uploading media', err);
+    //       });
+    // }, err => {
+    //   logger.info('outStream error: ');
+    //   logger.info(err);
+    // });
 
     // Save the audio to local
     request(audioURL, (err, res, body) => {
