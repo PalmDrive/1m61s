@@ -102,10 +102,13 @@ const uploadMedia = (mediaSrc, type, token) => {
   const url = `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${token}&type=${type}`;
 
   return new Promise((resolve, reject) => {
+    const mediaFile = fs.createReadStream(mediaSrc);
+    logger.info('Media file in uploadMedia:');
+    logger.info(mediaFile);
     request.post({
       url,
       formData: {
-        media: fs.createReadStream(mediaSrc)
+        media: mediaFile
       }
     }, (error, response, body) => {
       if (error) { return reject(error); }
