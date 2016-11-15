@@ -336,42 +336,24 @@ const sendToUser = {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.wav`,
+          mp3Src = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
           ws = fs.createWriteStream(mediaSrc),
+          outStream = fs.createWriteStream(mp3Src);
           self = this;
 
     ws.on('finish', () => {
         logger.info('Audio saved in local');
         const mediaFile = fs.createReadStream(mediaSrc);
-        logger.info('Media:');
+        logger.info('wav file:');
         logger.info(mediaFile);
         ffmpeg(mediaFile)
-          .ffprobe((err, metadata) => {
-            logger.info('metadata:');
-            logger.info(metadata);
-            if (err) {
-              logError('ffprobe', err);
-            }
-
-            // Upload the audio as media in Wechat
-            uploadMedia(mediaSrc, 'voice', accessToken)
-              .then(media => {
-                logger.info('media uploaded: ');
-                logger.info(media);
-
-                // Delete local audio file
-                fs.unlink(mediaSrc);
-
-                // Send the voice message
-                return self.message({
-                  touser: data.fromusername,
-                  msgtype: 'voice',
-                  voice: {media_id: media.media_id}
-                }, accessToken);
-              }, err => {
-                logError('failed uploading media', err);
-              });
-
-          });
+          .on('error', function(err) {
+            logError('error', err);
+          })
+          .on('end', function() {
+            logger.info('Processing finished !');
+          })
+          .pipe(outStream, { end: true });
 
         // ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
         //   logger.info('Metadata:');
@@ -402,6 +384,33 @@ const sendToUser = {
         // });
     }, err => {
       logger.info('voice message ws error: ');
+      logger.info(err);
+    });
+
+    outStream.on('finish', () => {
+        logger.info('mp3 saved in local');
+
+        // Upload the audio as media in Wechat
+        uploadMedia(mp3Src, 'voice', accessToken)
+          .then(media => {
+            logger.info('media uploaded: ');
+            logger.info(media);
+
+            // Delete local audio file
+            fs.unlink(mediaSrc);
+            fs.unlink(mp3Src);
+
+            // Send the voice message
+            return self.message({
+              touser: data.fromusername,
+              msgtype: 'voice',
+              voice: {media_id: media.media_id}
+            }, accessToken);
+          }, err => {
+            logError('failed uploading media', err);
+          });
+    }, err => {
+      logger.info('outStream error: ');
       logger.info(err);
     });
 
