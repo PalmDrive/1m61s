@@ -335,7 +335,7 @@ const sendToUser = {
   voice(transcript, data, accessToken) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
-          mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
+          mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.wav`,
           ws = fs.createWriteStream(mediaSrc),
           self = this;
 
