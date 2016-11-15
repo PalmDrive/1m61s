@@ -356,12 +356,24 @@ const sendToUser = {
         //   .pipe(outStream, { end: true });
         logger.info('mediaSrc:');
         logger.info(mediaSrc);
-        ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
-          logger.info('Metadata:');
-          logger.info(metadata);
-          if (err) {
-            logError('ffprobe', err);
-          }
+
+        const command = ffmpeg(mediaSrc);
+        command.ffprobe(function (err, data) {
+            if (err) {
+              logError('ffprobe', err);
+            }
+            else {
+              logger.info('METADATA:');
+              logger.info(data);
+            }
+        });
+
+        // ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
+        //   logger.info('Metadata:');
+        //   logger.info(metadata);
+        //   if (err) {
+        //     logError('ffprobe', err);
+        //   }
 
         //   // Upload the audio as media in Wechat
         //   uploadMedia(mediaSrc, 'voice', accessToken)
@@ -382,7 +394,7 @@ const sendToUser = {
         //       logger.info('upload media failed: ');
         //       logger.info(error);
         //     });
-        });
+        // });
     }, err => {
       logger.info('voice message ws error: ');
       logger.info(err);
