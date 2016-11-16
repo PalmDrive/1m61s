@@ -102,13 +102,10 @@ const uploadMedia = (mediaSrc, type, token) => {
   const url = `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${token}&type=${type}`;
 
   return new Promise((resolve, reject) => {
-    const mediaFile = fs.createReadStream(mediaSrc);
-    logger.info('Media file in uploadMedia:');
-    logger.info(mediaFile);
     request.post({
       url,
       formData: {
-        media: mediaFile
+        media: fs.createReadStream(mediaSrc)
       }
     }, (error, response, body) => {
       if (error) { return reject(error); }
@@ -335,7 +332,7 @@ const sendToUser = {
   voice(transcript, data, accessToken) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
-          mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.wav`,
+          mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
           // mp3Src = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
           ws = fs.createWriteStream(mediaSrc),
           // outStream = fs.createWriteStream(mp3Src);
@@ -357,47 +354,36 @@ const sendToUser = {
         logger.info('mediaSrc:');
         logger.info(mediaSrc);
 
-        const command = ffmpeg(mediaSrc);
-        command.ffprobe(function (err, data) {
-            if (err) {
-              logError('ffprobe', err);
-            }
-            else {
-              logger.info('METADATA:');
-              logger.info(data);
-            }
+        ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
+
+          if (err) {
+            logError('ffprobe failed', err);
+          } else {
+            logger.info('Metadata:');
+            logger.info(metadata);
+          }
+
+          // Upload the audio as media in Wechat
+          uploadMedia(mediaSrc, 'voice', accessToken)
+            .then(media => {
+              logger.info('media uploaded: ');
+              logger.info(media);
+
+              // Delete local audio file
+              fs.unlink(mediaSrc);
+
+              // Send the voice message
+              return self.message({
+                touser: data.fromusername,
+                msgtype: 'voice',
+                voice: {media_id: media.media_id}
+              }, accessToken);
+            }, err => {
+              logError('upload media failed: ', err);
+            });
         });
-
-        // ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
-        //   logger.info('Metadata:');
-        //   logger.info(metadata);
-        //   if (err) {
-        //     logError('ffprobe', err);
-        //   }
-
-        //   // Upload the audio as media in Wechat
-        //   uploadMedia(mediaSrc, 'voice', accessToken)
-        //     .then(media => {
-        //       logger.info('media uploaded: ');
-        //       logger.info(media);
-
-        //       // Delete local audio file
-        //       fs.unlink(mediaSrc);
-
-        //       // Send the voice message
-        //       return self.message({
-        //         touser: data.fromusername,
-        //         msgtype: 'voice',
-        //         voice: {media_id: media.media_id}
-        //       }, accessToken);
-        //     }, error => {
-        //       logger.info('upload media failed: ');
-        //       logger.info(error);
-        //     });
-        // });
     }, err => {
-      logger.info('voice message ws error: ');
-      logger.info(err);
+      logError.info('voice message ws error: ', err);
     });
 
     // outStream.on('finish', () => {
