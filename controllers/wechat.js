@@ -341,7 +341,7 @@ const sendToUser = {
     ws.on('finish', () => {
         logger.info('Audio saved in local');
         const mediaFile = fs.createReadStream(mediaSrc);
-        logger.info('wav file:');
+        logger.info('media file:');
         logger.info(mediaFile);
         // ffmpeg(mediaFile)
         //   .on('error', function(err) {
