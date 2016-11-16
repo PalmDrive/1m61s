@@ -338,6 +338,15 @@ const sendToUser = {
           // outStream = fs.createWriteStream(mp3Src);
           self = this;
 
+    ffmpeg.ffprobe('/root/dev/1m61s-staging/tmp/5827b8d1a0bb9f00575dc57c.wav', (err, metadata) => {
+      if (err) {
+        logError('ffprobe failed', err);
+      }
+
+      logger.info('Metadata:');
+      logger.info(metadata);
+    });
+
     ws.on('finish', () => {
         logger.info('Audio saved in local');
         const mediaFile = fs.createReadStream(mediaSrc);
@@ -354,34 +363,24 @@ const sendToUser = {
         logger.info('mediaSrc:');
         logger.info(mediaSrc);
 
-        ffmpeg.ffprobe('/root/dev/1m61s-staging/tmp/5827b8d1a0bb9f00575dc57c.wav', (err, metadata) => {
+        // Upload the audio as media in Wechat
+        uploadMedia(mediaSrc, 'voice', accessToken)
+          .then(media => {
+            logger.info('media uploaded: ');
+            logger.info(media);
 
-          if (err) {
-            logError('ffprobe failed', err);
-          }
+            // Delete local audio file
+            fs.unlink(mediaSrc);
 
-          logger.info('Metadata:');
-          logger.info(metadata);
-
-          // Upload the audio as media in Wechat
-          uploadMedia(mediaSrc, 'voice', accessToken)
-            .then(media => {
-              logger.info('media uploaded: ');
-              logger.info(media);
-
-              // Delete local audio file
-              fs.unlink(mediaSrc);
-
-              // Send the voice message
-              return self.message({
-                touser: data.fromusername,
-                msgtype: 'voice',
-                voice: {media_id: media.media_id}
-              }, accessToken);
-            }, err => {
-              logError('upload media failed: ', err);
-            });
-        });
+            // Send the voice message
+            return self.message({
+              touser: data.fromusername,
+              msgtype: 'voice',
+              voice: {media_id: media.media_id}
+            }, accessToken);
+          }, err => {
+            logError('upload media failed: ', err);
+          });        
     }, err => {
       logError('voice message ws', err);
     });
