@@ -354,7 +354,7 @@ const sendToUser = {
         logger.info('mediaSrc:');
         logger.info(mediaSrc);
 
-        ffmpeg.ffprobe(mediaSrc, (err, metadata) => {
+        ffmpeg.ffprobe('/root/dev/1m61s-staging/tmp/5827b8d1a0bb9f00575dc57c.wav', (err, metadata) => {
 
           if (err) {
             logError('ffprobe failed', err);
