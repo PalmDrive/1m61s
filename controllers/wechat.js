@@ -358,10 +358,10 @@ const sendToUser = {
 
           if (err) {
             logError('ffprobe failed', err);
-          } else {
-            logger.info('Metadata:');
-            logger.info(metadata);
           }
+
+          logger.info('Metadata:');
+          logger.info(metadata);
 
           // Upload the audio as media in Wechat
           uploadMedia(mediaSrc, 'voice', accessToken)
