@@ -383,7 +383,7 @@ const sendToUser = {
             });
         });
     }, err => {
-      logError.info('voice message ws error: ', err);
+      logError('voice message ws', err);
     });
 
     // outStream.on('finish', () => {
