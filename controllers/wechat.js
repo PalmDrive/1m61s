@@ -804,14 +804,13 @@ const onReceiveCorrect = (data, accessToken, task) => {
 };
 
 const sendGA = (userId, eventAction) => {
-  const payload = `v=1&t=event&tid=${gaConfig.tid}&cid=${userId}&ec=task&ea=${eventAction}`;
+  const payload = `v=1&t=event&tid=${gaConfig.tid}&cid=${userId}&ec=task&ea=${eventAction}&uid=${userId}`;
   request.post({
     url: 'https://www.google-analytics.com/collect',
     body: payload
   }, (error, response, body) => {
     if (error) {
-      logger.info('Failed sending GA: ');
-      logger.info(error);
+      logError('Failed sending GA', error);
     }
   });
 };
