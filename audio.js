@@ -1,8 +1,8 @@
 'use strict';
 
-const ffmpeg = require('fluent-ffmpeg');
+var ffmpeg = require('fluent-ffmpeg');
 
-ffmpeg.ffprobe('./united_states.mp3', (err, medadata) => {
+ffmpeg.ffprobe('./united_states.mp3', function(err, medadata) {
   if (err) {
     console.log('err:');
     console.log(err);
