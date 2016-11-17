@@ -452,6 +452,15 @@ const sendToUser = {
       }
     }).pipe(ws);
   },
+  // Send an uploaded voice
+  voiceByMediaId(mediaId, userId, accessToken) {
+    const body = {
+            touser: userId,
+            msgtype: 'voice',
+            voice: {media_id: mediaId}
+          };
+    return this.message(body, accessToken);
+  },
   // Send voice and text to the user
   task(task, data, accessToken) {
     // get Transcript or UserTranscript
@@ -491,14 +500,16 @@ const createUser = (userId, tasksDone) => {
 };
 
 const onSubscribe = (data, accessToken) => {
-  const content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
-
   // Send image of task instructions
   sendToUser.image(wechatConfig.imageMediaId.subscribe, data.fromusername, accessToken).then(() => {
-    // Send text in 1s
+    // Send voice in 1s
+    setTimeout(() => {
+      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
+    }, 1000);
+    // Send text in 2s
     setTimeout(() => {
       sendToUser.text(content, data, accessToken);
-    }, 1000);
+    }, 2000);
   });
 
   // Check if the user is in WeChatUser
