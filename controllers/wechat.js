@@ -10,7 +10,6 @@ const request = require('request'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
-      ffmpeg = require('fluent-ffmpeg'),
       correctContent = '0';
 
 const getAccessTokenFromWechat = () => {
