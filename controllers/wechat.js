@@ -651,7 +651,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
       sendToUser.task(task, data, accessToken);
     } else {
       // inform user there is no available task
-      return sendToUser.text('暂时没有新任务了，请稍后再尝试“领取任务”。', data, accessToken);
+      return sendToUser.text('今天的任务已经被领取完啦，每天我们会在早上9点发布任务，欢迎早起来领取～', data, accessToken);
     }
   });
 };
