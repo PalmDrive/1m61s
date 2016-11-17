@@ -399,14 +399,14 @@ const sendToUser = {
                       fs.unlink(splitPath2);
                       fs.unlink(mediaSrc);
 
-                      // Wait 2s to send the voice message
+                      // Wait 1s to send the voice message
                       setTimeout(() => {
                         self.message({
                           touser: data.fromusername,
                           msgtype: 'voice',
                           voice: {media_id: media.media_id}
                         }, accessToken);
-                      }, 2000);
+                      }, 1000);
                     }, err => {
                       logError('upload split media 2 failed', err);
                     });
