@@ -343,19 +343,8 @@ const sendToUser = {
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
           splitPath1 = `${global.APP_ROOT}/tmp/${audioId}_split1.mp3`,
           splitPath2 = `${global.APP_ROOT}/tmp/${audioId}_split2.mp3`,
-          // mp3Src = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
           ws = fs.createWriteStream(mediaSrc),
-          // outStream = fs.createWriteStream(mp3Src);
           self = this;
-
-    // ffmpeg.ffprobe('/root/dev/1m61s-staging/tmp/5827b8d1a0bb9f00575dc57c.wav', (err, metadata) => {
-    //   if (err) {
-    //     logError('ffprobe failed', err);
-    //   }
-
-    //   logger.info('Metadata:');
-    //   logger.info(metadata);
-    // });
 
     ws.on('finish', () => {
         logger.info('Audio saved in local');
@@ -371,37 +360,21 @@ const sendToUser = {
 
           if (duration > 8) {
             const cutPoint = duration / 2;
-            // Split audio to two
-            ffmpeg(mediaSrc)
-            .inputFormat('wav')
-            .duration(cutPoint)
-            .on('error', function(err, stdout, stderr) {
-              logger.info('Cannot process file1: ' + err.message);
-            })
-            .on('end', function() {
-              logger.info('Finished processing file1');
-            })
-            .save(splitPath1);
 
-            ffmpeg(mediaSrc)
-            .inputFormat('wav')
-            .seekInput(cutPoint)
-            .on('error', function(err, stdout, stderr) {
-              logger.info('Cannot process file2: ' + err.message);
-            })
-            .on('end', function() {
-              logger.info('Finished processing file2');
-            })
-            .save(splitPath2);
+            exec(`ffmpeg -f wav -i ${mediaSrc} -t ${cutPoint} ${splitPath1}`, (error, stdout, stderr) => {
+              if (error) {
+                logger.info(`split file 1 exec error: ${error}`);
+                return;
+              }
+              logger.info('Finished split file 1');
 
-            // Upload two audio to Wechat and send to user
-            uploadMedia(splitPath1, 'voice', accessToken)
+              uploadMedia(splitPath1, 'voice', accessToken)
               .then(media => {
-                logger.info('split media 1 uploaded: ');
+                logger.info('split media 1 uploaded:');
                 logger.info(media);
 
                 // Delete local audio file
-                // fs.unlink(splitPath1);
+                fs.unlink(splitPath1);
 
                 // Send the voice message
                 return self.message({
@@ -410,29 +383,37 @@ const sendToUser = {
                   voice: {media_id: media.media_id}
                 }, accessToken);
               }, err => {
-                logError('upload split media 1 failed: ', err);
-              }).then(() => {
-                setTimeout(() => {
-                  uploadMedia(splitPath2, 'voice', accessToken)
-                  .then(media => {
-                    logger.info('split media 2 uploaded:');
-                    logger.info(media);
-
-                    // Delete local audio file
-                    // fs.unlink(mediaSrc);
-                    // fs.unlink(splitPath2);
-
-                    // Send the voice message
-                    return self.message({
-                      touser: data.fromusername,
-                      msgtype: 'voice',
-                      voice: {media_id: media.media_id}
-                    }, accessToken);
-                  }, err => {
-                    logError('upload split media 2 failed: ', err);
-                  });
-                }, 1000);
+                logError('upload split media 1 failed', err);
               });
+
+            });
+
+            exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
+              if (error) {
+                logger.info(`split file 2 exec error: ${error}`);
+                return;
+              }
+              logger.info('Finished split file 2');
+
+              uploadMedia(splitPath2, 'voice', accessToken)
+              .then(media => {
+                logger.info('split media 2 uploaded:');
+                logger.info(media);
+
+                // Delete local audio file
+                fs.unlink(splitPath2);
+
+                // Send the voice message
+                return self.message({
+                  touser: data.fromusername,
+                  msgtype: 'voice',
+                  voice: {media_id: media.media_id}
+                }, accessToken);
+              }, err => {
+                logError('upload split media 2 failed', err);
+              });
+
+            });
           } else {
             // Upload the audio as media in Wechat
             uploadMedia(mediaSrc, 'voice', accessToken)
@@ -441,7 +422,7 @@ const sendToUser = {
                 logger.info(media);
 
                 // Delete local audio file
-                // fs.unlink(mediaSrc);
+                fs.unlink(mediaSrc);
 
                 // Send the voice message
                 return self.message({
@@ -450,7 +431,7 @@ const sendToUser = {
                   voice: {media_id: media.media_id}
                 }, accessToken);
               }, err => {
-                logError('upload media failed: ', err);
+                logError('upload media failed', err);
               });
           }
         });
