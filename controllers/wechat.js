@@ -361,6 +361,7 @@ const sendToUser = {
           if (duration > 8) {
             const cutPoint = duration / 2;
 
+            // First half fragment
             exec(`ffmpeg -f wav -i ${mediaSrc} -t ${cutPoint} ${splitPath1}`, (error, stdout, stderr) => {
               if (error) {
                 logger.info(`split file 1 exec error: ${error}`);
@@ -386,33 +387,35 @@ const sendToUser = {
                 logError('upload split media 1 failed', err);
               });
 
-            });
+              // Second half fragment
+              exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
+                if (error) {
+                  logger.info(`split file 2 exec error: ${error}`);
+                  return;
+                }
+                logger.info('Finished split file 2');
 
-            exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
-              if (error) {
-                logger.info(`split file 2 exec error: ${error}`);
-                return;
-              }
-              logger.info('Finished split file 2');
+                uploadMedia(splitPath2, 'voice', accessToken)
+                .then(media => {
+                  logger.info('split media 2 uploaded:');
+                  logger.info(media);
 
-              uploadMedia(splitPath2, 'voice', accessToken)
-              .then(media => {
-                logger.info('split media 2 uploaded:');
-                logger.info(media);
+                  // Delete local audio file
+                  fs.unlink(splitPath2);
+                  fs.unlink(mediaSrc);
 
-                // Delete local audio file
-                fs.unlink(splitPath2);
-
-                // Send the voice message
-                return self.message({
-                  touser: data.fromusername,
-                  msgtype: 'voice',
-                  voice: {media_id: media.media_id}
-                }, accessToken);
-              }, err => {
-                logError('upload split media 2 failed', err);
+                  // Wait 1s to send the voice message
+                  setTimeout(() => {
+                    self.message({
+                      touser: data.fromusername,
+                      msgtype: 'voice',
+                      voice: {media_id: media.media_id}
+                    }, accessToken);
+                  }, 1000);
+                }, err => {
+                  logError('upload split media 2 failed', err);
+                });
               });
-
             });
           } else {
             // Upload the audio as media in Wechat
