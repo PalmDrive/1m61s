@@ -378,43 +378,43 @@ const sendToUser = {
                 fs.unlink(splitPath1);
 
                 // Send the voice message
-                return self.message({
+                self.message({
                   touser: data.fromusername,
                   msgtype: 'voice',
                   voice: {media_id: media.media_id}
-                }, accessToken);
+                }, accessToken).then(() => {
+                  // Second half fragment
+                  exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
+                    if (error) {
+                      logger.info(`split file 2 exec error: ${error}`);
+                      return;
+                    }
+                    logger.info('Finished split file 2');
+
+                    uploadMedia(splitPath2, 'voice', accessToken)
+                    .then(media => {
+                      logger.info('split media 2 uploaded:');
+                      logger.info(media);
+
+                      // Delete local audio file
+                      fs.unlink(splitPath2);
+                      fs.unlink(mediaSrc);
+
+                      // Wait 2s to send the voice message
+                      setTimeout(() => {
+                        self.message({
+                          touser: data.fromusername,
+                          msgtype: 'voice',
+                          voice: {media_id: media.media_id}
+                        }, accessToken);
+                      }, 2000);
+                    }, err => {
+                      logError('upload split media 2 failed', err);
+                    });
+                  });
+                });
               }, err => {
                 logError('upload split media 1 failed', err);
-              });
-
-              // Second half fragment
-              exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
-                if (error) {
-                  logger.info(`split file 2 exec error: ${error}`);
-                  return;
-                }
-                logger.info('Finished split file 2');
-
-                uploadMedia(splitPath2, 'voice', accessToken)
-                .then(media => {
-                  logger.info('split media 2 uploaded:');
-                  logger.info(media);
-
-                  // Delete local audio file
-                  fs.unlink(splitPath2);
-                  fs.unlink(mediaSrc);
-
-                  // Wait 4s to send the voice message
-                  setTimeout(() => {
-                    self.message({
-                      touser: data.fromusername,
-                      msgtype: 'voice',
-                      voice: {media_id: media.media_id}
-                    }, accessToken);
-                  }, 4000);
-                }, err => {
-                  logError('upload split media 2 failed', err);
-                });
               });
             });
           } else {
