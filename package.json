@@ -24,7 +24,6 @@
     "express-xml-bodyparser": "^0.3.0",
     "firebase": "^2.4.1",
     "firebase-token-generator": "^2.0.0",
-    "fluent-ffmpeg": "^2.1.0",
     "formidable": "^1.0.17",
     "gm": "^1.21.1",
     "jsonwebtoken": "^5.0.2",
