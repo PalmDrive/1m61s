@@ -401,7 +401,7 @@ const sendToUser = {
                 logger.info(media);
 
                 // Delete local audio file
-                fs.unlink(splitPath1);
+                // fs.unlink(splitPath1);
 
                 // Send the voice message
                 return self.message({
@@ -419,8 +419,8 @@ const sendToUser = {
                     logger.info(media);
 
                     // Delete local audio file
-                    fs.unlink(mediaSrc);
-                    fs.unlink(splitPath2);
+                    // fs.unlink(mediaSrc);
+                    // fs.unlink(splitPath2);
 
                     // Send the voice message
                     return self.message({
@@ -441,7 +441,7 @@ const sendToUser = {
                 logger.info(media);
 
                 // Delete local audio file
-                fs.unlink(mediaSrc);
+                // fs.unlink(mediaSrc);
 
                 // Send the voice message
                 return self.message({
