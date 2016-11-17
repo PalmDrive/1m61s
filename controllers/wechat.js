@@ -1,6 +1,7 @@
 'use strict';
 
 const request = require('request'),
+      exec = require('child_process').exec,
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
       xml = require('xml'),
@@ -291,6 +292,13 @@ const uploadMedia = (mediaSrc, type, token) => {
 //     });
 // };
 
+// Return the duration in seconds from ffprobe stdout
+const parseDuration = stdout => {
+  stdout = stdout.slice(18, 20);
+  stdout = parseInt(stdout, 10);
+  return stdout;
+};
+
 const sendToUser = {
   // Send a message using 客服接口
   message(body, accessToken) {
@@ -332,34 +340,105 @@ const sendToUser = {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
+          splitPath1 = `${global.APP_ROOT}/tmp/${audioId}_split1.mp3`,
+          splitPath2 = `${global.APP_ROOT}/tmp/${audioId}_split2.mp3`,
           ws = fs.createWriteStream(mediaSrc),
           self = this;
 
     ws.on('finish', () => {
         logger.info('Audio saved in local');
 
-        // Upload the audio as media in Wechat
-        uploadMedia(mediaSrc, 'voice', accessToken)
-          .then(media => {
-            logger.info('media uploaded: ');
-            logger.info(media);
+        exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
+          if (error) {
+            logError('exec error', error);
+            return;
+          }
+          const duration = parseDuration(stdout);
+          logger.info('Audio length in seconds:');
+          logger.info(duration);
 
-            // Delete local audio file
-            fs.unlink(mediaSrc);
+          if (duration > 8) {
+            const cutPoint = duration / 2;
 
-            // Send the voice message
-            return self.message({
-              touser: data.fromusername,
-              msgtype: 'voice',
-              voice: {media_id: media.media_id}
-            }, accessToken);
-          }, error => {
-            logger.info('upload media failed: ');
-            logger.info(error);
-          });
+            // First half fragment
+            exec(`ffmpeg -f wav -i ${mediaSrc} -t ${cutPoint} ${splitPath1}`, (error, stdout, stderr) => {
+              if (error) {
+                logger.info(`split file 1 exec error: ${error}`);
+                return;
+              }
+              logger.info('Finished split file 1');
+
+              uploadMedia(splitPath1, 'voice', accessToken)
+              .then(media => {
+                logger.info('split media 1 uploaded:');
+                logger.info(media);
+
+                // Delete local audio file
+                fs.unlink(splitPath1);
+
+                // Send the voice message
+                self.message({
+                  touser: data.fromusername,
+                  msgtype: 'voice',
+                  voice: {media_id: media.media_id}
+                }, accessToken).then(() => {
+                  // Second half fragment
+                  exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
+                    if (error) {
+                      logger.info(`split file 2 exec error: ${error}`);
+                      return;
+                    }
+                    logger.info('Finished split file 2');
+
+                    uploadMedia(splitPath2, 'voice', accessToken)
+                    .then(media => {
+                      logger.info('split media 2 uploaded:');
+                      logger.info(media);
+
+                      // Delete local audio file
+                      fs.unlink(splitPath2);
+                      fs.unlink(mediaSrc);
+
+                      // Wait 1s to send the voice message
+                      setTimeout(() => {
+                        self.message({
+                          touser: data.fromusername,
+                          msgtype: 'voice',
+                          voice: {media_id: media.media_id}
+                        }, accessToken);
+                      }, 1000);
+                    }, err => {
+                      logError('upload split media 2 failed', err);
+                    });
+                  });
+                });
+              }, err => {
+                logError('upload split media 1 failed', err);
+              });
+            });
+          } else {
+            // Upload the audio as media in Wechat
+            uploadMedia(mediaSrc, 'voice', accessToken)
+              .then(media => {
+                logger.info('media uploaded: ');
+                logger.info(media);
+
+                // Delete local audio file
+                fs.unlink(mediaSrc);
+
+                // Send the voice message
+                return self.message({
+                  touser: data.fromusername,
+                  msgtype: 'voice',
+                  voice: {media_id: media.media_id}
+                }, accessToken);
+              }, err => {
+                logError('upload media failed', err);
+              });
+          }
+        });
     }, err => {
-      logger.info('voice message ws error: ');
-      logger.info(err);
+      logError('voice message ws', err);
     });
 
     // Save the audio to local
