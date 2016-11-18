@@ -508,15 +508,16 @@ const createUser = (userId, tasksDone) => {
 };
 
 const onSubscribe = (data, accessToken) => {
+  const userId = data.fromusername;
   // Send image of introduction
-  sendToUser.image(wechatConfig.mediaId.image.subscribe, data.fromusername, accessToken).then(() => {
+  sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
       sendToUser.text(FIRST_MIN_CONTENT[0], data, accessToken);
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
-      sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], data, accessToken);
+      sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], userId, accessToken);
     }, 2000);
   });
 };
@@ -1012,7 +1013,7 @@ const onFirstMinTasks = (data, accessToken, user) => {
         sendToUser.text(FIRST_MIN_CONTENT[order], data, accessToken);
         // Send voice in 1s
         setTimeout(() => {
-          sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], data, accessToken);
+          sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken);
         }, 1000);
       });
     } else {
