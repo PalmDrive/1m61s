@@ -509,14 +509,14 @@ const createUser = (userId, tasksDone) => {
 
 const onSubscribe = (data, accessToken) => {
   // Send image of introduction
-  sendToUser.image(wechatConfig.imageMediaId.subscribe, data.fromusername, accessToken).then(() => {
+  sendToUser.image(wechatConfig.mediaId.image.subscribe, data.fromusername, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
       sendToUser.text(FIRST_MIN_CONTENT[0], data, accessToken);
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
-      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_0, data, accessToken);
+      sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], data, accessToken);
     }, 2000);
   });
 };
@@ -845,7 +845,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
     user.set('status', 0);
     user.save().then(user => {
       // Send image to let user add xiaozhushou
-      sendToUser.image(wechatConfig.imageMediaId.xiaozhushou, data.fromusername, accessToken);
+      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken);
     });
   } else {
     // Save WeChatId, ask for confirmation
@@ -1011,9 +1011,8 @@ const onFirstMinTasks = (data, accessToken, user) => {
         // Send text
         sendToUser.text(FIRST_MIN_CONTENT[order], data, accessToken);
         // Send voice in 1s
-        const key = 'subscribe1_' + order;
         setTimeout(() => {
-          sendToUser.voiceByMediaId(wechatConfig.voiceMediaId[key], data, accessToken);
+          sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], data, accessToken);
         }, 1000);
       });
     } else {
