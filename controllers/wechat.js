@@ -4,6 +4,7 @@ const request = require('request'),
       exec = require('child_process').exec,
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
+      UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
@@ -509,13 +510,13 @@ const createUser = (userId, tasksDone) => {
 const onSubscribe = (data, accessToken) => {
   // Send image of introduction
   sendToUser.image(wechatConfig.imageMediaId.subscribe, data.fromusername, accessToken).then(() => {
-    // Send voice in 1s
-    setTimeout(() => {
-      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
-    }, 1000);
-    // Send text in 2s
+    // Send text in 1s
     setTimeout(() => {
       sendToUser.text(FIRST_MIN_CONTENT[0], data, accessToken);
+    }, 1000);
+    // Send voice in 2s
+    setTimeout(() => {
+      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
     }, 2000);
   });
 };
@@ -986,6 +987,43 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
   }
 };
 
+const onFirstMinTasks = (data, accessToken, user) => {
+  const userStatus = user.get('status'),
+        tasksDone = user.get('tasks_done'),
+        order = (userStatus * -1) - 300,
+        userId = user.get('open_id');
+  
+  // Create UserTranscript
+  const userTranscript = new UserTranscript();
+  userTranscript.set('media_id', 'first_min');
+  userTranscript.set('content', data.content);
+  userTranscript.set('fragment_order', order);
+  userTranscript.set('user_open_id', userId);
+  userTranscript.set('review_times', 0);
+  userTranscript.save().then(userTranscript => {
+    // Change user status and tasks_done
+    user.set('status', userStatus - 1);
+    user.set('tasks_done', tasksDone + 1);
+    if (order < 3) {
+      user.save().then(user => {
+        // Send next task
+        // Send text
+        sendToUser.text(FIRST_MIN_CONTENT[order + 1], data, accessToken);
+        // Send voice in 1s
+        setTimeout(() => {
+          sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
+        }, 1000);
+      });
+    } else {
+      // Ask for wechat id
+      sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
+      user.set('status', 1);
+      user.set('need_pay', true);
+      user.save();
+    }
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1019,46 +1057,39 @@ module.exports.postCtrl = (req, res, next) => {
         logger.info('User testing connection: ');
         logger.info(data.fromusername);
       } else {
-        // Get user
-        getUser(userId).then(user => {
-          if (user) {
-            return user;
+        // Check status
+        if (userStatus >= -304 && userStatus <= -300) {
+          // First min tasks
+          onFirstMinTasks(data, accessToken, user);
+        } else if (userStatus === 1) {
+          // Waiting for WeChat ID
+          onReceiveWeChatId(data, accessToken, user);
+        } else if (userStatus === 2) {
+          // Revoke mode
+          onReceiveRevokeTranscription(data, accessToken, user);
+        } else {
+          // User status === 0
+          if (data.content === '修改') {
+            // Enter revoke mode
+            onReceiveRevoke(data, accessToken, user);
+            sendGA(userId, 'revoke');
           } else {
-            return createUser(userId);
-          }
-        }).then(user => {
-          // Check status
-          const userStatus = user.get('status');
-          if (userStatus === 1) {
-            // Waiting for WeChat ID
-            onReceiveWeChatId(data, accessToken, user);
-          } else if (userStatus === 2) {
-            // Revoke mode
-            onReceiveRevokeTranscription(data, accessToken, user);
-          } else {
-            // User status === 0
-            if (data.content === '修改') {
-              // Enter revoke mode
-              onReceiveRevoke(data, accessToken, user);
-              sendGA(userId, 'revoke');
-            } else {
-              findInProcessTaskForUser(userId).then(task => {
-                if (task) {
-                  if (data.content === correctContent) {
-                    onReceiveCorrect(data, accessToken, task);
-                  } else if (data.content === '没有语音') {
-                    onReceiveNoVoice(data, accessToken, task);
-                  } else {
-                    onReceiveTranscription(data, accessToken, task);
-                  }
-
-                  // GA: reply for task
-                  sendGA(userId, 'reply');
+            findInProcessTaskForUser(userId).then(task => {
+              if (task) {
+                if (data.content === correctContent) {
+                  onReceiveCorrect(data, accessToken, task);
+                } else if (data.content === '没有语音') {
+                  onReceiveNoVoice(data, accessToken, task);
+                } else {
+                  onReceiveTranscription(data, accessToken, task);
                 }
-              });
-            }
+
+                // GA: reply for task
+                sendGA(userId, 'reply');
+              }
+            });
           }
-        });
+        }
       }
     } else if (data.msgtype === 'event') {
       if (data.event === 'subscribe') {
