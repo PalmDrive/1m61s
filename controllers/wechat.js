@@ -516,7 +516,7 @@ const onSubscribe = (data, accessToken) => {
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
-      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
+      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_0, data, accessToken);
     }, 2000);
   });
 };
