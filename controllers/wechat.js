@@ -870,8 +870,9 @@ const onReceiveWeChatId = (data, accessToken, user) => {
   const content = data.content;
   if (content === '1') {
     // change status
-    user.set('status', 0);
+    user.set('status', -200);
     user.save().then(user => {
+      // TODO: change the reply
       // Send image to let user add xiaozhushou
       sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken);
     });
