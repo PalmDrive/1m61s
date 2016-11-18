@@ -1047,11 +1047,12 @@ const onFirstMinTasks = (data, accessToken, user) => {
         }, 1000);
       });
     } else {
-      // Ask for wechat id
-      sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
       user.set('status', 1);
       user.set('need_pay', true);
-      user.save();
+      user.save().then(user => {
+        // Ask for wechat id
+        sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
+      });
     }
   });
 };
