@@ -991,8 +991,8 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
 const onFirstMinTasks = (data, accessToken, user) => {
   const userStatus = user.get('status'),
         tasksDone = user.get('tasks_done'),
-        order = (userStatus * -1) - 300,
         userId = user.get('open_id');
+  let order = (userStatus * -1) - 300;
   
   // Create UserTranscript
   const userTranscript = new UserTranscript();
@@ -1006,13 +1006,15 @@ const onFirstMinTasks = (data, accessToken, user) => {
     user.set('status', userStatus - 1);
     user.set('tasks_done', tasksDone + 1);
     if (order < 3) {
+      order += 1;
       user.save().then(user => {
         // Send next task
         // Send text
-        sendToUser.text(FIRST_MIN_CONTENT[order + 1], data, accessToken);
+        sendToUser.text(FIRST_MIN_CONTENT[order], data, accessToken);
         // Send voice in 1s
+        const key = 'subscribe1_' + order;
         setTimeout(() => {
-          sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
+          sendToUser.voiceByMediaId(wechatConfig.voiceMediaId[key], data, accessToken);
         }, 1000);
       });
     } else {
