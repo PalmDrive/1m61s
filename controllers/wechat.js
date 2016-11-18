@@ -1007,6 +1007,9 @@ const onFirstMinTasks = (data, accessToken, user) => {
     user.set('status', userStatus - 1);
     user.set('tasks_done', tasksDone + 1);
     if (order < 3) {
+      // Tell user we received his message
+      sendToUser.text('biu~我已经收到你的回复啦！\n下一个任务正在路上，一般需要1～3秒时间。', data, accessToken);
+
       order += 1;
       user.save().then(user => {
         // Send next task
