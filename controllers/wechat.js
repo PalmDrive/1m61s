@@ -4,6 +4,7 @@ const request = require('request'),
       exec = require('child_process').exec,
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
+      UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
@@ -11,6 +12,13 @@ const request = require('request'),
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
       correctContent = '0';
+
+const FIRST_MIN_CONTENT = [
+  '我今天演讲猪蹄是努力把最简单的事情，最好剩下的就是坚持，我会大概回顾一下在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
+  '知道今天非常冷！我来之前说，这个现场可能这个来的人也会比多，因为大家在这么早的时间就可以来到这里好听分享和交流，也许还有一些人还没有完全打开睡眼，',
+  '她老说你是不是可以带大家一起跳一个健身操啊，我说这个健身操有一点点难，但是我还是希望可以带着大家做一些简单的简单的小的放松，我们先来一场这个身体的奇幻旅程却在可以发现，',
+  '每个人的身体是非常有趣的一件事情，可能通过一些简单的变化，只说一种一种心理和生理上变化，你就会觉得你的身体会发生很多奇妙的变化，如果大家现在方便的话可以一起的，做几个简单的动作好吗？'
+];
 
 const getAccessTokenFromWechat = () => {
   console.log('get access token from wechat...');
@@ -452,6 +460,15 @@ const sendToUser = {
       }
     }).pipe(ws);
   },
+  // Send an uploaded voice
+  voiceByMediaId(mediaId, userId, accessToken) {
+    const body = {
+            touser: userId,
+            msgtype: 'voice',
+            voice: {media_id: mediaId}
+          };
+    return this.message(body, accessToken);
+  },
   // Send voice and text to the user
   task(task, data, accessToken) {
     // get Transcript or UserTranscript
@@ -486,30 +503,21 @@ const createUser = (userId, tasksDone) => {
   tasksDone = tasksDone || 0;
   weChatUser.set('open_id', userId);
   weChatUser.set('tasks_done', tasksDone);
-  weChatUser.set('status', 0);
+  weChatUser.set('status', -300);
   return weChatUser.save();
 };
 
 const onSubscribe = (data, accessToken) => {
-  const content = '请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n请花 10 秒钟阅读上面图片的步骤,\n否则会出错误哦。\n(重要的事儿说三遍~)';
-
-  // Send image of task instructions
+  // Send image of introduction
   sendToUser.image(wechatConfig.imageMediaId.subscribe, data.fromusername, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
-      sendToUser.text(content, data, accessToken);
+      sendToUser.text(FIRST_MIN_CONTENT[0], data, accessToken);
     }, 1000);
-  });
-
-  // Check if the user is in WeChatUser
-  const query = new leanCloud.AV.Query('WeChatUser');
-  query.equalTo('open_id', userId);
-  query.first().then(user => {
-    if (!user) {
-      // User does not exist,
-      // Create object in WeChatUser
-      return createUser(userId);
-    }
+    // Send voice in 2s
+    setTimeout(() => {
+      sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
+    }, 2000);
   });
 };
 
@@ -980,6 +988,43 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
   }
 };
 
+const onFirstMinTasks = (data, accessToken, user) => {
+  const userStatus = user.get('status'),
+        tasksDone = user.get('tasks_done'),
+        order = (userStatus * -1) - 300,
+        userId = user.get('open_id');
+  
+  // Create UserTranscript
+  const userTranscript = new UserTranscript();
+  userTranscript.set('media_id', 'first_min');
+  userTranscript.set('content', data.content);
+  userTranscript.set('fragment_order', order);
+  userTranscript.set('user_open_id', userId);
+  userTranscript.set('review_times', 0);
+  userTranscript.save().then(userTranscript => {
+    // Change user status and tasks_done
+    user.set('status', userStatus - 1);
+    user.set('tasks_done', tasksDone + 1);
+    if (order < 3) {
+      user.save().then(user => {
+        // Send next task
+        // Send text
+        sendToUser.text(FIRST_MIN_CONTENT[order + 1], data, accessToken);
+        // Send voice in 1s
+        setTimeout(() => {
+          sendToUser.voiceByMediaId(wechatConfig.voiceMediaId.subscribe1_1, data, accessToken);
+        }, 1000);
+      });
+    } else {
+      // Ask for wechat id
+      sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
+      user.set('status', 1);
+      user.set('need_pay', true);
+      user.save();
+    }
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -994,57 +1039,64 @@ module.exports.postCtrl = (req, res, next) => {
 
   let scene;
 
-  getAccessTokenFromCache().then(accessToken => {
+  const accessTokenPromise = getAccessTokenFromCache();
+  const userPromise = getUser(userId).then(user => {
+    if (user) {
+      return user;
+    } else {
+      return createUser(userId);
+    }
+  });
+  Promise.all([accessTokenPromise, userPromise]).then(results => {
+    const accessToken = results[0],
+          user = results[1],
+          userStatus = user.get('status');
+  
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
         sendToUser.text('网络测试成功', data, accessToken);
         logger.info('User testing connection: ');
         logger.info(data.fromusername);
       } else {
-        // Get user
-        getUser(userId).then(user => {
-          if (user) {
-            return user;
+        // Check status
+        if (userStatus >= -304 && userStatus <= -300) {
+          // First min tasks
+          onFirstMinTasks(data, accessToken, user);
+        } else if (userStatus === 1) {
+          // Waiting for WeChat ID
+          onReceiveWeChatId(data, accessToken, user);
+        } else if (userStatus === 2) {
+          // Revoke mode
+          onReceiveRevokeTranscription(data, accessToken, user);
+        } else {
+          // User status === 0
+          if (data.content === '修改') {
+            // Enter revoke mode
+            onReceiveRevoke(data, accessToken, user);
+            sendGA(userId, 'revoke');
           } else {
-            return createUser(userId);
-          }
-        }).then(user => {
-          // Check status
-          const userStatus = user.get('status');
-          if (userStatus === 1) {
-            // Waiting for WeChat ID
-            onReceiveWeChatId(data, accessToken, user);
-          } else if (userStatus === 2) {
-            // Revoke mode
-            onReceiveRevokeTranscription(data, accessToken, user);
-          } else {
-            // User status === 0
-            if (data.content === '修改') {
-              // Enter revoke mode
-              onReceiveRevoke(data, accessToken, user);
-              sendGA(userId, 'revoke');
-            } else {
-              findInProcessTaskForUser(userId).then(task => {
-                if (task) {
-                  if (data.content === correctContent) {
-                    onReceiveCorrect(data, accessToken, task);
-                  } else if (data.content === '没有语音') {
-                    onReceiveNoVoice(data, accessToken, task);
-                  } else {
-                    onReceiveTranscription(data, accessToken, task);
-                  }
-
-                  // GA: reply for task
-                  sendGA(userId, 'reply');
+            findInProcessTaskForUser(userId).then(task => {
+              if (task) {
+                if (data.content === correctContent) {
+                  onReceiveCorrect(data, accessToken, task);
+                } else if (data.content === '没有语音') {
+                  onReceiveNoVoice(data, accessToken, task);
+                } else {
+                  onReceiveTranscription(data, accessToken, task);
                 }
-              });
-            }
+
+                // GA: reply for task
+                sendGA(userId, 'reply');
+              }
+            });
           }
-        });
+        }
       }
     } else if (data.msgtype === 'event') {
       if (data.event === 'subscribe') {
-        onSubscribe(data, accessToken);
+        if (userStatus === -300) {
+          onSubscribe(data, accessToken);
+        }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
         // Check if the user has wechat_id recorded if the user has done more than 4 tasks
         getUser(userId).then(user => {
