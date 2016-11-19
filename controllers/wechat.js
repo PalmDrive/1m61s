@@ -1088,7 +1088,7 @@ const onSecondMin = (data, accessToken, user) => {
     order += 1;
     replyMessage = '么么哒~正确！恭喜你成功完成了';
     replyMessage += order;
-    replyMessage += '/6个任务，接下来继续做答吧，';
+    replyMessage += '/6个任务，接下来继续作答吧，';
     replyMessage += '1元红包正在向你招手！';
     user.set('status', userStatus - 1);
     user.save().then(user => {
