@@ -20,6 +20,33 @@ const FIRST_MIN_CONTENT = [
   '每个人的身体是非常有趣的一件事情，可能通过一些简单的变化，只说一种一种心理和生理上变化，你就会觉得你的身体会发生很多奇妙的变化，如果大家现在方便的话可以一起的，做几个简单的动作好吗？'
 ];
 
+const SECOND_MIN = [
+  {
+    q: '第1题：他 v.s 她 v.s 它\n机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要',
+    a: '1'
+  },
+  {
+    q: '第2题：的 v.s 得 v.s 地\n-“的”前面接的是形容词或者名词，是形容名词的；\n-“地”前面是副词，是形容动作哒；\n-“得”…大家自行脑补…\n\n问：“小明今天很开心的完成了作业！”这句话中“的”是否正确？\n1. 正确\n2. 错误',
+    a: '2'
+  },
+  {
+    q: '第3题：英文单词首字母要大写\n比如：stanford要写成Stanford，student要写成Student\n\n问：“uber”这种英文写法是正确还是错误？\n1. 正确\n2. 错误',
+    a: '2'
+  },
+  {
+    q: '第4题：语气词、没有实际意义的口语、重复的话可以自行删减\n比如：主讲人会“…这个…那个…哈…”等\n\n问：“啊，这个，这个，这个…我今天的演讲主题是…”其中“这个”是否应该去掉？\n1. 去掉\n2. 不去掉',
+    a: '1'
+  },
+  {
+    q: '第5题： 加标点\n机器加标点很傻瓜的，大家可以根据语意给文字加标点噢，特别是句子的开头或者结尾，标点一定要慎重，如果不是一句完整的句子就千万不要加标点啦！！\n\n问：“在一段文字最后加标点”这句话是正确还是错误？\n1. 正确\n2. 错误\n3. 看情况，有时候正确，有时候错误',
+    a: '3'
+  },
+  {
+    q: '第6题： 规则\n当不知道一个具体情况该如何处理时，回复“规则”就能蹦出来各种情况下的解决方案啦。\n\n问：请回复一下“规则”。',
+    a: '规则'
+  }
+];
+
 const getAccessTokenFromWechat = () => {
   console.log('get access token from wechat...');
   const APPID = wechatConfig.appId,
@@ -842,11 +869,16 @@ const getUser = userId => {
 const onReceiveWeChatId = (data, accessToken, user) => {
   const content = data.content;
   if (content === '1') {
-    // change status
-    user.set('status', 0);
+    // Change user status
+    user.set('status', -200);
     user.save().then(user => {
+      // TODO: change the reply. Start second min questions
       // Send image to let user add xiaozhushou
-      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken);
+      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken)
+        .then(() => {
+          // Send first question
+          sendToUser.text(SECOND_MIN[0].q, data, accessToken);
+        });
     });
   } else {
     // Save WeChatId, ask for confirmation
@@ -1021,13 +1053,67 @@ const onFirstMinTasks = (data, accessToken, user) => {
         }, 1000);
       });
     } else {
-      // Ask for wechat id
-      sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
       user.set('status', 1);
       user.set('need_pay', true);
-      user.save();
+      user.save().then(user => {
+        // Ask for wechat id
+        sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
+      });
     }
   });
+};
+
+const onSecondMin = (data, accessToken, user) => {
+  const userStatus = user.get('status'),
+        tasksDone = user.get('tasks_done'),
+        userId = user.get('open_id'),
+        content = data.content;
+  let order = (userStatus * -1) - 200,
+      answer,
+      replyMessage;
+
+  // Set the correct answer
+  if (order === 0 || order === 3) {
+    answer = '1';
+  } else if (order === 1 || order === 2) {
+    answer = '2';
+  } else if (order === 4) {
+    answer = '3';
+  } else {
+    answer = '规则';
+  }
+
+  if (content === answer && answer !== '规则') {
+    // User is correct && it isn't the last question
+    order += 1;
+    replyMessage = '么么哒~正确！恭喜你成功完成了';
+    replyMessage += order;
+    replyMessage += '/6个任务，接下来继续做答吧，';
+    replyMessage += '1元红包正在向你招手！';
+    user.set('status', userStatus - 1);
+    user.save().then(user => {
+      sendToUser.text(replyMessage, data, accessToken)
+      .then(() => {
+        sendToUser.text(SECOND_MIN[order].q, data, accessToken);
+      });
+    });
+  } else if (content === answer) {
+    // User is correct && it is the last question
+    // Change user status
+    user.set('status', -100);
+    user.save().then(user => {
+      // Send image
+      sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
+        // Send text
+        const text = '么么哒~正确！恭喜你成功完成所有任务，1元红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
+        sendToUser.text(text, data, accessToken);
+      });
+    });
+  } else {
+    // User is not correct
+    const text = '你肯定是不小心手滑写错了，这个答案是错误的，请再次作答！';
+    sendToUser.text(text, data, accessToken);
+  }
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
@@ -1067,6 +1153,8 @@ module.exports.postCtrl = (req, res, next) => {
         if (userStatus >= -304 && userStatus <= -300) {
           // First min tasks
           onFirstMinTasks(data, accessToken, user);
+        } else if (userStatus >= -206 && userStatus <= -200) {
+          onSecondMin(data, accessToken, user);
         } else if (userStatus === 1) {
           // Waiting for WeChat ID
           onReceiveWeChatId(data, accessToken, user);
