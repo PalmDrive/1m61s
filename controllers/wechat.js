@@ -869,12 +869,16 @@ const getUser = userId => {
 const onReceiveWeChatId = (data, accessToken, user) => {
   const content = data.content;
   if (content === '1') {
-    // change status
+    // Change user status
     user.set('status', -200);
     user.save().then(user => {
       // TODO: change the reply. Start second min questions
       // Send image to let user add xiaozhushou
-      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken);
+      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken)
+        .then(() => {
+          // Send first question
+          sendToUser.text(SECOND_MIN[0].q, data, accessToken);
+        });
     });
   } else {
     // Save WeChatId, ask for confirmation
