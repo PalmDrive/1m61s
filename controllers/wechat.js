@@ -872,7 +872,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
     // change status
     user.set('status', -200);
     user.save().then(user => {
-      // TODO: change the reply
+      // TODO: change the reply. Start second min questions
       // Send image to let user add xiaozhushou
       sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken);
     });
@@ -1058,6 +1058,59 @@ const onFirstMinTasks = (data, accessToken, user) => {
   });
 };
 
+const onSecondMin = (data, accessToken, user) => {
+  const userStatus = user.get('status'),
+        tasksDone = user.get('tasks_done'),
+        userId = user.get('open_id'),
+        content = data.content;
+  let order = (userStatus * -1) - 200,
+      answer,
+      replyMessage;
+
+  // Set the correct answer
+  if (order === 0 || order === 3) {
+    answer = '1';
+  } else if (order === 1 || order === 2) {
+    answer = '2';
+  } else if (order === 4) {
+    answer = '3';
+  } else {
+    answer = '规则';
+  }
+
+  if (content === answer && answer !== '规则') {
+    // User is correct && it isn't the last question
+    order += 1;
+    replyMessage = '么么哒~正确！恭喜你成功完成了';
+    replyMessage += order;
+    replyMessage += '/6个任务，接下来继续做答吧，';
+    replyMessage += '1元红包正在向你招手！';
+    user.set('status', userStatus - 1);
+    user.save().then(user => {
+      sendToUser.text(replyMessage, data, accessToken)
+      .then(() => {
+        sendToUser.text(SECOND_MIN[order].q, data, accessToken);
+      });
+    });
+  } else if (content === answer) {
+    // User is correct && it is the last question
+    // Change user status
+    user.set('status', -100);
+    user.save().then(user => {
+      // Send image
+      sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
+        // Send text
+        const text = '么么哒~正确！恭喜你成功完成所有任务，1元红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
+        sendToUser.text(text, data, accessToken);
+      });
+    });
+  } else {
+    // User is not correct
+    const text = '你肯定是不小心手滑写错了，这个答案是错误的，请再次作答！';
+    sendToUser.text(text, data, accessToken);
+  }
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1095,6 +1148,8 @@ module.exports.postCtrl = (req, res, next) => {
         if (userStatus >= -304 && userStatus <= -300) {
           // First min tasks
           onFirstMinTasks(data, accessToken, user);
+        } else if (userStatus >= -206 && userStatus <= -200) {
+          onSecondMin(data, accessToken, user);
         } else if (userStatus === 1) {
           // Waiting for WeChat ID
           onReceiveWeChatId(data, accessToken, user);
