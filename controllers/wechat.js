@@ -1147,8 +1147,10 @@ module.exports.postCtrl = (req, res, next) => {
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
         sendToUser.text('网络测试成功', data, accessToken);
-        logger.info('User testing connection: ');
-        logger.info(data.fromusername);
+        logger.info('User testing connection:');
+        logger.info(userId);
+      } else if (data.content === '规则' && userStatus !== -205) {
+        sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken);
       } else {
         // Check status
         if (userStatus >= -304 && userStatus <= -300) {
