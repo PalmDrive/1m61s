@@ -1140,7 +1140,9 @@ module.exports.postCtrl = (req, res, next) => {
   Promise.all([accessTokenPromise, userPromise]).then(results => {
     const accessToken = results[0],
           user = results[1],
-          userStatus = user.get('status');
+          userStatus = user.get('status'),
+          wechatId = user.get('wechat_id'),
+          tasksDone = user.get('tasks_done');
   
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
@@ -1191,24 +1193,22 @@ module.exports.postCtrl = (req, res, next) => {
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
         // Check if the user has wechat_id recorded if the user has done more than 4 tasks
-        getUser(userId).then(user => {
-          if (user) {
-            return user;
-          } else {
-            return createUser(userId);
-          }
-        }).then(user => {
-          const wechatId = user.get('wechat_id');
-          if (user.get('tasks_done') >= 4 && !wechatId) {
-            sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
+        if (userStatus === 0 && tasksDone >= 4 && !wechatId) {
+          sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
 
-            // Change user status to 1
-            user.set('status', 1);
-            user.save();
-          } else {
-            onGetTask(data, accessToken);
-          }
-        });
+          // Change user status to 1
+          user.set('status', 1);
+          user.save();
+        } else if (userStatus === 0) {
+          onGetTask(data, accessToken);
+        } else if (userStatus === 1) {
+          sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。');
+        } else if (userStatus === 2) {
+          sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
+        } else {
+          // User has not finished the first 3 mins
+          sendToUser.text('biu~尚未解锁“领取任务”功能。请先完成当前步骤噢。', data, accessToken);
+        }
       } else if (data.event === 'SCAN') {
         // onQRCodeScanned(data, accessToken, res);
       }
