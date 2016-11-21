@@ -1197,40 +1197,51 @@ module.exports.postCtrl = (req, res, next) => {
         sendToUser.text('网络测试成功', data, accessToken);
         logger.info('User testing connection:');
         logger.info(userId);
+        sendGA(userId, 'test_internet');
       } else if (data.content === '规则' && userStatus !== -205) {
         sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken);
+        sendGA(userId, 'rule');
       } else {
         // Check status
         if (userStatus >= -304 && userStatus <= -300) {
           // First min tasks
           onFirstMin(data, accessToken, user);
+          sendGA(userId, 'reply_first_min');
         } else if (userStatus >= -206 && userStatus <= -200) {
           onSecondMin(data, accessToken, user);
+          sendGA(userId, 'reply_second_min');
         } else if (userStatus >= -104 && userStatus <= -100) {
           onThirdMin(data, accessToken, user);
+          sendGA(userId, 'reply_third_min');
         } else if (userStatus === 1) {
           // Waiting for WeChat ID
           onReceiveWeChatId(data, accessToken, user);
+          sendGA(userId, 'reply_wechat_id');
         } else if (userStatus === 2) {
           // Revoke mode
           onReceiveRevokeTranscription(data, accessToken, user);
+          sendGA(userId, 'reply_revoke');
         } else {
           // User status === 0
           if (data.content === '修改') {
             // Enter revoke mode
             onReceiveRevoke(data, accessToken, user);
-            sendGA(userId, 'revoke');
+            sendGA(userId, 'enter_revoke_mode');
           } else {
             findInProcessTaskForUser(userId).then(task => {
               if (task) {
                 if (data.content === correctContent) {
                   onReceiveCorrect(data, accessToken, task);
+                  sendGA(userId, 'reply_original_text');
                 } else if (data.content === '没有语音') {
                   onReceiveNoVoice(data, accessToken, task);
+                  sendGA(userId, 'reply_no_voice');
                 } else {
                   onReceiveTranscription(data, accessToken, task);
+                  sendGA(userId, 'reply');
                 }
-                sendGA(userId, 'reply');
+              } else {
+                sendGA(userId, 'not_anything');
               }
             });
           }
@@ -1240,6 +1251,9 @@ module.exports.postCtrl = (req, res, next) => {
       if (data.event === 'subscribe') {
         if (userStatus === -300) {
           onSubscribe(data, accessToken);
+          sendGA(userId, 'new_subscription');
+        } else {
+          sendGA(userId, 'return_subscription');
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
         // Check if the user has wechat_id recorded if the user has done more than 4 tasks
@@ -1266,6 +1280,7 @@ module.exports.postCtrl = (req, res, next) => {
           // User has not finished the first 3 mins
           sendToUser.text('biu~尚未解锁“领取任务”功能。请先完成当前步骤噢。', data, accessToken);
         }
+        sendGA(userId, 'click_get_task');
       } else if (data.event === 'SCAN') {
         // onQRCodeScanned(data, accessToken, res);
       }
