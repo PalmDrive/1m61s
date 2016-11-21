@@ -1257,6 +1257,13 @@ module.exports.postCtrl = (req, res, next) => {
           sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。');
         } else if (userStatus === 2) {
           sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
+        } else if (userStatus >= -104 && userStatus <= -100) {
+          sendToUser.text(savedContent.thirdMin[-100 - userStatus], data, accessToken)
+            .then(() => {
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[-100 - userStatus], userId, accessToken);
+            });
+        } else if (userStatus === -1) {
+          sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
         } else {
           // User has not finished the first 3 mins
           sendToUser.text('biu~尚未解锁“领取任务”功能。请先完成当前步骤噢。', data, accessToken);
