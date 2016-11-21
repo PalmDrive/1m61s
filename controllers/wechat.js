@@ -1230,8 +1230,6 @@ module.exports.postCtrl = (req, res, next) => {
                 } else {
                   onReceiveTranscription(data, accessToken, task);
                 }
-
-                // GA: reply for task
                 sendGA(userId, 'reply');
               }
             });
