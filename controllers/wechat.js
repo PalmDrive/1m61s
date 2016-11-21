@@ -932,8 +932,7 @@ const sendGA = (userId, eventAction) => {
     body: payload
   }, (error, response, body) => {
     if (error) {
-      logger.info('Failed sending GA: ');
-      logger.info(error);
+      logError('failed sending GA', error);
     }
   });
 };
