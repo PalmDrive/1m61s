@@ -13,14 +13,14 @@ const request = require('request'),
       redisClient = require('../redis_client'),
       correctContent = '0';
 
-const FIRST_MIN_CONTENT = [
+const savedContent = {};
+savedContent.firstMin = [
   '我今天演讲猪蹄是努力把最简单的事情，最好剩下的就是坚持，我会大概回顾一下在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
   '知道今天非常冷！我来之前说，这个现场可能这个来的人也会比多，因为大家在这么早的时间就可以来到这里好听分享和交流，也许还有一些人还没有完全打开睡眼，',
   '她老说你是不是可以带大家一起跳一个健身操啊，我说这个健身操有一点点难，但是我还是希望可以带着大家做一些简单的简单的小的放松，我们先来一场这个身体的奇幻旅程却在可以发现，',
   '每个人的身体是非常有趣的一件事情，可能通过一些简单的变化，只说一种一种心理和生理上变化，你就会觉得你的身体会发生很多奇妙的变化，如果大家现在方便的话可以一起的，做几个简单的动作好吗？'
 ];
-
-const SECOND_MIN = [
+savedContent.secondMin = [
   {
     q: '第1题：他 v.s 她 v.s 它\n机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要',
     a: '1'
@@ -46,6 +46,8 @@ const SECOND_MIN = [
     a: '规则'
   }
 ];
+// TODO: fill the content
+savedContent.thirdMin = ['3-0', '3-1', '3-2', '3-3'];
 
 const getAccessTokenFromWechat = () => {
   console.log('get access token from wechat...');
@@ -540,7 +542,7 @@ const onSubscribe = (data, accessToken) => {
   sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken).then(() => {
     // Send text in 1s
     setTimeout(() => {
-      sendToUser.text(FIRST_MIN_CONTENT[0], data, accessToken);
+      sendToUser.text(savedContent.firstMin[0], data, accessToken);
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
@@ -877,7 +879,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
       sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken)
         .then(() => {
           // Send first question
-          sendToUser.text(SECOND_MIN[0].q, data, accessToken);
+          sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
         });
     });
   } else {
@@ -1021,7 +1023,7 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
   }
 };
 
-const onFirstMinTasks = (data, accessToken, user) => {
+const onFirstMin = (data, accessToken, user) => {
   const userStatus = user.get('status'),
         tasksDone = user.get('tasks_done'),
         userId = user.get('open_id');
@@ -1046,7 +1048,7 @@ const onFirstMinTasks = (data, accessToken, user) => {
       user.save().then(user => {
         // Send next task
         // Send text
-        sendToUser.text(FIRST_MIN_CONTENT[order], data, accessToken);
+        sendToUser.text(savedContent.firstMin[order], data, accessToken);
         // Send voice in 1s
         setTimeout(() => {
           sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken);
@@ -1094,7 +1096,7 @@ const onSecondMin = (data, accessToken, user) => {
     user.save().then(user => {
       sendToUser.text(replyMessage, data, accessToken)
       .then(() => {
-        sendToUser.text(SECOND_MIN[order].q, data, accessToken);
+        sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
       });
     });
   } else if (content === answer) {
@@ -1114,6 +1116,50 @@ const onSecondMin = (data, accessToken, user) => {
     const text = '你肯定是不小心手滑写错了，这个答案是错误的，请再次作答！';
     sendToUser.text(text, data, accessToken);
   }
+};
+
+const onThirdMin = (data, accessToken, user) => {
+  const userStatus = user.get('status'),
+        tasksDone = user.get('tasks_done'),
+        userId = user.get('open_id');
+  let order = (userStatus * -1) - 100;
+  
+  // Create UserTranscript
+  const userTranscript = new UserTranscript();
+  userTranscript.set('media_id', 'third_min');
+  userTranscript.set('content', data.content);
+  userTranscript.set('fragment_order', order);
+  userTranscript.set('user_open_id', userId);
+  userTranscript.set('review_times', 0);
+  userTranscript.save().then(userTranscript => {
+    // Change user status and tasks_done
+    user.set('status', userStatus - 1);
+    user.set('tasks_done', tasksDone + 1);
+    if (order < 3) {
+      // Tell user we received his message
+      sendToUser.text('biu~我已经收到你的回复啦！\n下一个任务正在路上，一般需要1～3秒时间。', data, accessToken);
+
+      order += 1;
+      user.save().then(user => {
+        // Send next task
+        // Send text
+        sendToUser.text(savedContent.thirdMin[order], data, accessToken)
+          .then(() => {
+            // Send voice in 1s
+            setTimeout(() => {
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken);
+            }, 1000);
+          });
+      });
+    } else {
+      user.set('status', -1);
+      user.set('need_pay', true);
+      user.save().then(user => {
+        // Ask for wechat id
+        sendToUser.text('锁定后的回复', data, accessToken);
+      });
+    }
+  });
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
@@ -1156,9 +1202,11 @@ module.exports.postCtrl = (req, res, next) => {
         // Check status
         if (userStatus >= -304 && userStatus <= -300) {
           // First min tasks
-          onFirstMinTasks(data, accessToken, user);
+          onFirstMin(data, accessToken, user);
         } else if (userStatus >= -206 && userStatus <= -200) {
           onSecondMin(data, accessToken, user);
+        } else if (userStatus >= -104 && userStatus <= -100) {
+          onThirdMin(data, accessToken, user);
         } else if (userStatus === 1) {
           // Waiting for WeChat ID
           onReceiveWeChatId(data, accessToken, user);
