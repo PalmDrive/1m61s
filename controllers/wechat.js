@@ -1102,6 +1102,8 @@ const onSecondMin = (data, accessToken, user) => {
     // User is correct && it is the last question
     // Change user status
     user.set('status', -100);
+    user.set('tasks_done', tasksDone + 4);
+    user.set('need_pay', true);
     user.save().then(user => {
       // Send image
       sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
