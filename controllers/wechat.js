@@ -1156,8 +1156,7 @@ const onThirdMin = (data, accessToken, user) => {
       user.set('status', -1);
       user.set('need_pay', true);
       user.save().then(user => {
-        // Ask for wechat id
-        sendToUser.text('锁定后的回复', data, accessToken);
+        sendToUser.text('你好，恭喜完成了1分钟的片段，我们将对你的内容进行审核，审核期间将无法领取任务，最快时间1天就能审核结束～', data, accessToken);
       });
     }
   });
