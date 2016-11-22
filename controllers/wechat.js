@@ -22,7 +22,7 @@ savedContent.firstMin = [
 ];
 savedContent.secondMin = [
   {
-    q: '第1题：他 v.s 她 v.s 它\n机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要',
+    q: '第1题：他 v.s 她 v.s 它\n机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要\n\n回复数字“1” 或“2” 即可。',
     a: '1'
   },
   {
@@ -878,12 +878,14 @@ const onReceiveWeChatId = (data, accessToken, user) => {
     // Change user status
     user.set('status', -200);
     user.save().then(user => {
-      // TODO: change the reply. Start second min questions
       // Send image to let user add xiaozhushou
       sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken)
         .then(() => {
-          // Send first question
-          sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
+          sendToUser.text('接下来的1分钟我们将出6道题来帮助你在1分钟内掌握一些修改错别字的规则，完成6道题会有1元红包奖励哦！（99%的童鞋都全对～）', data, accessToken)
+            .then(() => {
+              // Send first question
+              sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
+            });
         });
     });
   } else {
