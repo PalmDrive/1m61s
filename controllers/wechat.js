@@ -526,6 +526,12 @@ const sendToUser = {
       }
     }, err => {
       logError('failed getting transcript when sending task', err);
+
+      task.destroy().then(success => {
+        findAndSendNewTaskForUser(data, accessToken);
+      }, err => {
+        logError('failed destroying task', err);
+      });
     });
   }
 };
