@@ -716,7 +716,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
     // Check for tasks done
     if (tasksDone === 4) {
       // User has just completed 4 tasks
-      sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将1元奖励发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
+      sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将现金红包发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
       // Change user status to 1
       user.set('status', 1);
@@ -725,7 +725,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
       user.save();
     } else if (tasksDone % 4 === 0) {
       // User has completed another 4 tasks. Send text
-      sendToUser.text('么么哒，恭喜你又完成了4个任务，我们会将1元奖励发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
+      sendToUser.text('么么哒，恭喜你又完成了4个任务，我们会将现金红包发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
       setNeedPay(user);
       user.save();
@@ -1063,7 +1063,7 @@ const onFirstMin = (data, accessToken, user) => {
       user.set('need_pay', true);
       user.save().then(user => {
         // Ask for wechat id
-        sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将1元奖励发送给你！', data, accessToken);
+        sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将现金红包发送给你！', data, accessToken);
       });
     }
   });
@@ -1095,7 +1095,7 @@ const onSecondMin = (data, accessToken, user) => {
     replyMessage = '么么哒~正确！恭喜你成功完成了';
     replyMessage += order;
     replyMessage += '/6个任务，接下来继续作答吧，';
-    replyMessage += '1元红包正在向你招手！';
+    replyMessage += '现金红包正在向你招手！';
     user.set('status', userStatus - 1);
     user.save().then(user => {
       sendToUser.text(replyMessage, data, accessToken)
@@ -1113,7 +1113,7 @@ const onSecondMin = (data, accessToken, user) => {
       // Send image
       sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
         // Send text
-        const text = '么么哒~正确！恭喜你成功完成所有任务，1元红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
+        const text = '么么哒~正确！恭喜你成功完成所有任务，现金红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
         sendToUser.text(text, data, accessToken);
       });
     });
