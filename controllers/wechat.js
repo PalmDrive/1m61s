@@ -276,7 +276,7 @@ const uploadMedia = (mediaSrc, type, token) => {
  * @param  {Dict} data
  * @param  {String} data.tousername
  * @param  {String} data.fromusername
- * @param {Number} data.createtime
+ * @param  {Number} data.createtime
  * @param  {String='event'} data.msgtype
  * @param  {String='subscribe', 'SCAN'} data.event
  * @param  {String} data.eventkey
@@ -1167,6 +1167,18 @@ const onThirdMin = (data, accessToken, user) => {
   });
 };
 
+const setPrice = (data, user) => {
+  const sceneId = +(data.eventkey.replace('qrscene_', '')),
+        price = sceneId / 10;
+  user.set('price', price);
+  user.save().then(user => {
+    logger.info('Price setted for open_id:');
+    logger.info(user.get('open_id'));
+  }, err => {
+    logError('failed setting price', err);
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1259,6 +1271,10 @@ module.exports.postCtrl = (req, res, next) => {
           sendGA(userId, 'new_subscription');
         } else {
           sendGA(userId, 'return_subscription');
+        }
+
+        if (data.eventkey) {
+          setPrice(data, user);
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
         // Check if the user has wechat_id recorded if the user has done more than 4 tasks
