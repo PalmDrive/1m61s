@@ -881,11 +881,10 @@ const onReceiveWeChatId = (data, accessToken, user) => {
       // Send image to let user add xiaozhushou
       sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken)
         .then(() => {
-          sendToUser.text('接下来的1分钟我们将出6道题来帮助你在1分钟内掌握一些修改错别字的规则，完成6道题会有1元红包奖励哦！（99%的童鞋都全对～）', data, accessToken)
-            .then(() => {
-              // Send first question
-              sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
-            });
+          setTimeout(() => {
+            // Send first question
+            sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
+          }, 2000);
         });
     });
   } else {
