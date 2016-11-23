@@ -1282,7 +1282,7 @@ module.exports.postCtrl = (req, res, next) => {
           sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
         } else {
           // User has not finished the first 3 mins
-          sendToUser.text('biu~尚未解锁“领取任务”功能。请先完成当前步骤噢。', data, accessToken);
+          sendToUser.text('biu~尚未解锁“领取任务”功能，请听上面这段语音，然后将文段内错别字改正过来', data, accessToken);
         }
         sendGA(userId, 'click_get_task');
       } else if (data.event === 'SCAN') {
