@@ -1195,6 +1195,7 @@ module.exports.postCtrl = (req, res, next) => {
           userStatus = user.get('status'),
           wechatId = user.get('wechat_id'),
           tasksDone = user.get('tasks_done');
+    let order;
   
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
@@ -1274,15 +1275,27 @@ module.exports.postCtrl = (req, res, next) => {
         } else if (userStatus === 2) {
           sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
         } else if (userStatus >= -104 && userStatus <= -100) {
-          sendToUser.text(savedContent.thirdMin[-100 - userStatus], data, accessToken)
+          order = -100 - userStatus;
+          sendToUser.text(savedContent.thirdMin[order], data, accessToken)
             .then(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[-100 - userStatus], userId, accessToken);
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken);
             });
+        } else if (userStatus >= -304 && userStatus <= -300) {
+          order = -300 - userStatus;
+          // Send text
+          sendToUser.text(savedContent.firstMin[order], data, accessToken);
+          // Send voice in 1s
+          setTimeout(() => {
+            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken);
+          }, 1000);
+        } else if (userStatus >= -206 && userStatus <= -200) {
+          order = -200 - userStatus;
+          sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
         } else if (userStatus === -1) {
           sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
         } else {
-          // User has not finished the first 3 mins
-          sendToUser.text('biu~尚未解锁“领取任务”功能，请听上面这段语音，然后将文段内错别字改正过来', data, accessToken);
+          // Should not get here
+          logger.info('Error: need get task handler');
         }
         sendGA(userId, 'click_get_task');
       } else if (data.event === 'SCAN') {
