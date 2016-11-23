@@ -1271,7 +1271,7 @@ module.exports.postCtrl = (req, res, next) => {
         } else if (userStatus === 0) {
           onGetTask(data, accessToken);
         } else if (userStatus === 1) {
-          sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。');
+          sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
         } else if (userStatus === 2) {
           sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
         } else if (userStatus >= -104 && userStatus <= -100) {
