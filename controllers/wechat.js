@@ -1119,7 +1119,9 @@ const onSecondMin = (data, accessToken, user) => {
       sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
         // Send text
         const text = '么么哒~正确！恭喜你成功完成所有任务，现金红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
-        sendToUser.text(text, data, accessToken);
+        setTimeout(() => {
+          sendToUser.text(text, data, accessToken);
+        }, 2000);
       });
     });
   } else {
