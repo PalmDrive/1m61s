@@ -518,10 +518,9 @@ const sendToUser = {
         // Send voice
         self.voice(transcript, data, accessToken);
       } else {
+        // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
         logger.info(fragmentId);
-
-        // Should not get here when normal
         return self.text('对不起，系统错误，请联系管理员。', data, accessToken);
       }
     }, err => {
