@@ -13,6 +13,8 @@ const request = require('request'),
       redisClient = require('../redis_client'),
       correctContent = '0';
 
+const taskTimers = {};
+
 const savedContent = {};
 savedContent.firstMin = [
   '我今天演讲猪蹄是努力把最简单的事情做到最好，剩下的就是坚持，我会大概回顾一下KEEP在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
@@ -563,9 +565,26 @@ const onSubscribe = (data, accessToken) => {
 // Assign the task to the user in database
 const assignTask = (task, userId) => {
   task.set('user_id', userId);
-  return task.save().catch(error => {
-    logger.info('assign task error: ');
-    logger.info(error);
+  return task.save().then(task => {
+    // Cancel this user's last timer
+    if (taskTimers[userId]) {
+      clearTimeout(taskTimers[userId]);
+    }
+    // Set new 1-hour timer
+    // TODO: change time to 1 hour
+    taskTimers[userId] = setTimeout(() => {
+      const query = new leanCloud.AV.Query('CrowdsourcingTask');
+      query.get(task.id).then(task => {
+        if (task.get('status') === 0) {
+          task.unset('user_id');
+          task.save();
+        }
+      });
+    }, 60000);
+
+    return task;
+  }, err => {
+    logError('assign task error', err);
   });
 };
 
