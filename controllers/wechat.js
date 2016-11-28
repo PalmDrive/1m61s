@@ -532,7 +532,10 @@ const sendToUser = {
         logError('failed destroying task', err);
       });
     });
-  }
+  },
+  //luckyMoney(amount, data, accessToken){
+  //
+  //},
 };
 
 const createUser = (userId, tasksDone) => {
@@ -675,13 +678,20 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
     return newTask.save();
 };
 
+
 // Set user's need_pay
 const setNeedPay = user => {
   const minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
   if (minutesDone - amountPaid >= 1) {
     user.set('need_pay', true);
+
+    const money = 1;
+    // TODO: @rufeng,need to get money amonut to send
+    payMoney(1);
+
   }
+
 };
 
 // Very similar to onGetTask, however doesn't check for in process task
