@@ -563,7 +563,8 @@ const onSubscribe = (data, accessToken) => {
 };
 
 // Assign the task to the user in database
-const assignTask = (task, userId) => {
+const assignTask = (task, data, accessToken) => {
+  const userId = data.fromusername;
   task.set('user_id', userId);
   return task.save().then(task => {
     // Cancel this user's last timer
@@ -571,16 +572,17 @@ const assignTask = (task, userId) => {
       clearTimeout(taskTimers[userId]);
     }
     // Set new 1-hour timer
-    // TODO: change time to 1 hour
     taskTimers[userId] = setTimeout(() => {
       const query = new leanCloud.AV.Query('CrowdsourcingTask');
       query.get(task.id).then(task => {
         if (task.get('status') === 0) {
           task.unset('user_id');
-          task.save();
+          task.save().then(task => {
+            sendToUser.text('biu～1个小时过去啦，任务已经失效，如果要领取新的任务，请点击“领取任务”', data, accessToken);
+          });
         }
       });
-    }, 60000);
+    }, 3600000);
 
     return task;
   }, err => {
@@ -708,7 +710,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
   const userId = data.fromusername;
   findNewTaskForUser(userId).then(task => {
     if (task) {
-      return assignTask(task, userId);
+      return assignTask(task, data, accessToken);
     } else {
       return task;
     }
