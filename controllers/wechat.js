@@ -1388,14 +1388,12 @@ const onReceivePrevNext = (data, accessToken, task) => {
 };
 
 const onReceivePass = (data, accessToken, task) => {
+  const userId = data.fromusername;
   // Tell user we received request
-  sendText('biu~收到“跳过”请求，新的任务正在路上。');
+  sendText('biu~正在跳过任务...');
   // Set original task to unassigned status
-  const passedUserList = task.get('passed_users') || [];
-  passedUserList.push(data.fromusername);
-  task.set('status', 0);
   task.unset('user_id');
-  task.set('passed_users', passedUserList);
+  task.addUnique('passed_users', userId);
   task.save().then(task => {
     findAndSendNewTaskForUser(data, accessToken);
   });
