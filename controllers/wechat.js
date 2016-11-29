@@ -22,7 +22,7 @@ savedContent.firstMin = [
 ];
 savedContent.secondMin = [
   {
-    q: '第1题：他 v.s 她 v.s 它\n机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要\n\n回复数字“1” 或“2” 即可。',
+    q: '第1题：他 v.s 她 v.s 它\n你收到的文字都是机器转移的，机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要\n\n回复数字“1” 或“2” 即可。',
     a: '1'
   },
   {
@@ -42,7 +42,7 @@ savedContent.secondMin = [
     a: '3'
   },
   {
-    q: '第6题： 规则\n任何时候当你想不起来一个具体情况该如何处理时，回复“规则”就能蹦出来所有文字修改规则啦（同时修改规则在不断更新噢~）\n\n问：你不知道一个具体情况该如何处理时要怎么办？',
+    q: '第6题： 规则\n任何时候当你想不起来一个具体情况该如何处理时，回复“规则”就能蹦出来所有文字修改规则啦（同时修改规则在不断更新噢~）\n\n问：当你不知道一个具体情况该如何处理时，回复什么?',
     a: '规则'
   }
 ];
@@ -745,7 +745,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
       }
 
       replyContent += '啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。';
-      
+
       sendToUser.text(replyContent, data, accessToken);
 
       findAndSendNewTaskForUser(data, accessToken);
@@ -955,7 +955,7 @@ const onReceiveNoVoice = (data, accessToken, task) => {
   task.save();
 
   const replyContent = 'biu~谢谢你的反馈。正在为你寻找新的任务...';
-  
+
   sendToUser.text(replyContent, data, accessToken);
 
   findAndSendNewTaskForUser(data, accessToken);
@@ -1037,7 +1037,7 @@ const onFirstMin = (data, accessToken, user) => {
         tasksDone = user.get('tasks_done'),
         userId = user.get('open_id');
   let order = (userStatus * -1) - 300;
-  
+
   // Create UserTranscript
   const userTranscript = new UserTranscript();
   userTranscript.set('media_id', 'first_min');
@@ -1136,7 +1136,7 @@ const onThirdMin = (data, accessToken, user) => {
         tasksDone = user.get('tasks_done'),
         userId = user.get('open_id');
   let order = (userStatus * -1) - 100;
-  
+
   // Create UserTranscript
   const userTranscript = new UserTranscript();
   userTranscript.set('media_id', 'third_min');
@@ -1215,7 +1215,7 @@ module.exports.postCtrl = (req, res, next) => {
           wechatId = user.get('wechat_id'),
           tasksDone = user.get('tasks_done');
     let order;
-  
+
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
         sendToUser.text('网络测试成功', data, accessToken);
