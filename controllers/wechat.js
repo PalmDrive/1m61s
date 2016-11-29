@@ -878,6 +878,7 @@ const getTask = user => {
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
     query.equalTo('level', taskLevel);
+    query.notEqualTo('passed_users', userId);
     return query;
   };
 
@@ -1319,9 +1320,6 @@ const onReceivePass = (data, accessToken, task) => {
   task.save().then(task => {
     findAndSendNewTaskForUser(data, accessToken);
   });
-
-
-  // TODO: Check for passed_users when finding new task
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
