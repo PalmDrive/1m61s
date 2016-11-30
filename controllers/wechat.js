@@ -678,10 +678,11 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
 
 
 const pay = (user) => {
-  const amount = user.get('price',1), //元
+  const amount = user.get('price') || 1, //元 @rufeng
         openId = user.get('open_id'),
         minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
+
   if (minutesDone - amountPaid >= 1) {
     //user.set('need_pay', true);
     wechat_pay.fnSendMoney({re_openid:openId,total_amount:amount *1000},(ret)=>{
