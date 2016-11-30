@@ -544,6 +544,7 @@ const createUser = (userId, tasksDone) => {
   weChatUser.set('open_id', userId);
   weChatUser.set('tasks_done', tasksDone);
   weChatUser.set('status', -300);
+  weChatUser.set('price', 0.5);
   return weChatUser.save();
 };
 
