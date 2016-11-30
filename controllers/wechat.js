@@ -578,11 +578,13 @@ const assignTask = (task, data, accessToken) => {
         if (task.get('status') === 0) {
           task.unset('user_id');
           task.save().then(task => {
+            logger.info('Task recycled:');
+            logger.info(task.id);
             sendToUser.text('biu～1个小时过去啦，任务已经失效，如果要领取新的任务，请点击“领取任务”', data, accessToken);
           });
         }
       });
-    }, 3600000);
+    }, 60000);
 
     return task;
   }, err => {
