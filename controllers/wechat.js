@@ -11,6 +11,7 @@ const request = require('request'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
+      wechat_pay = require('../lib/wechat_pay.js'),
       correctContent = '0';
 
 const savedContent = {};
@@ -679,19 +680,25 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
 };
 
 
-// Set user's need_pay
+const pay = (user) => {
+  const price = user.get("price",1), //元
+        openId = user.get("opend_id");
+  wechat_pay.fnSendMoney({re_openid:openId,total_amount:amount *1000},(ret)=>{
+    if (ret){
+      user.set("amount_paid",amountPaid+price);
+    }else{
+      logger.info("付款失败..")
+    }
+  });//分
+};
+
 const setNeedPay = user => {
   const minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
   if (minutesDone - amountPaid >= 1) {
-    user.set('need_pay', true);
-
-    const money = 1;
-    // TODO: @rufeng,need to get money amonut to send
-    payMoney(1);
-
+    //user.set('need_pay', true);
+    pay(user);
   }
-
 };
 
 // Very similar to onGetTask, however doesn't check for in process task
@@ -1075,7 +1082,8 @@ const onFirstMin = (data, accessToken, user) => {
       });
     } else {
       user.set('status', 1);
-      user.set('need_pay', true);
+      //user.set('need_pay', true);
+      pay(user);
       user.save().then(user => {
         // Ask for wechat id
         sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将现金红包发送给你！', data, accessToken);
@@ -1123,7 +1131,8 @@ const onSecondMin = (data, accessToken, user) => {
     // Change user status
     user.set('status', -100);
     user.set('tasks_done', tasksDone + 4);
-    user.set('need_pay', true);
+    //user.set('need_pay', true);
+    pay(user);
     user.save().then(user => {
       // Send image
       sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
@@ -1176,7 +1185,8 @@ const onThirdMin = (data, accessToken, user) => {
       });
     } else {
       user.set('status', -1);
-      user.set('need_pay', true);
+      //user.set('need_pay', true);
+      pay(user);
       user.save().then(user => {
         sendToUser.text('你好，恭喜完成了1分钟的片段，我们将对你的内容进行审核，审核期间将无法领取任务，最快时间1天就能审核结束～', data, accessToken);
       });
