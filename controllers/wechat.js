@@ -533,10 +533,7 @@ const sendToUser = {
         logError('failed destroying task', err);
       });
     });
-  },
-  //luckyMoney(amount, data, accessToken){
-  //
-  //},
+  }
 };
 
 const createUser = (userId, tasksDone) => {
@@ -681,23 +678,19 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
 
 
 const pay = (user) => {
-  const price = user.get("price",1), //元
-        openId = user.get("opend_id");
-  wechat_pay.fnSendMoney({re_openid:openId,total_amount:amount *1000},(ret)=>{
-    if (ret){
-      user.set("amount_paid",amountPaid+price);
-    }else{
-      logger.info("付款失败..")
-    }
-  });//分
-};
-
-const setNeedPay = user => {
-  const minutesDone = user.get('tasks_done') / 4,
+  const amount = user.get('price',1), //元
+        openId = user.get('open_id'),
+        minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
   if (minutesDone - amountPaid >= 1) {
     //user.set('need_pay', true);
-    pay(user);
+    wechat_pay.fnSendMoney({re_openid:openId,total_amount:amount *1000},(ret)=>{
+      if (ret){
+        user.set('amount_paid',amountPaid+price);
+      }else{
+        logger.info('付款失败..');
+      }
+    });//分
   }
 };
 
@@ -743,13 +736,13 @@ const completeTaskAndReply = (task, data, accessToken) => {
       // Change user status to 1
       user.set('status', 1);
 
-      setNeedPay(user);
+      pay(user);
       user.save();
     } else if (tasksDone % 4 === 0) {
       // User has completed another 4 tasks. Send text
       sendToUser.text('么么哒，恭喜你又完成了4个任务，我们会将现金红包发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
-      setNeedPay(user);
+      pay(user);
       user.save();
     } else {
       // User has not completed 4 tasks
