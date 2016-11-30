@@ -584,7 +584,7 @@ const assignTask = (task, data, accessToken) => {
           });
         }
       });
-    }, 60000);
+    }, 3600000);
 
     return task;
   }, err => {
