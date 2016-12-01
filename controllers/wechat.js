@@ -761,9 +761,9 @@ const createUserTranscript = (userId, content, task, transcript) => {
 
 // userTranscript: on which the task is based
 // lastUserId: user who created this task
-// toRole: the role which the task should be sent to
-const createCrowdsourcingTask = (userTranscript, lastUserId, toRole) => {
-  toRole = toRole || 0;
+// taskLevel: crowdsourcingTask.level
+const createCrowdsourcingTask = (userTranscript, lastUserId, taskLevel) => {
+  taskLevel = taskLevel || 0;
   const CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
         newTask = new CrowdsourcingTask();
 
@@ -773,7 +773,7 @@ const createCrowdsourcingTask = (userTranscript, lastUserId, toRole) => {
     newTask.set('status', 0);
     newTask.set('media_id', userTranscript.get('media_id'));
     newTask.set('last_user', lastUserId);
-    newTask.set('to_role', toRole);
+    newTask.set('to_role', taskLevel);
     return newTask.save();
 };
 
@@ -862,7 +862,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
         content = data.content,
         hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
         userRole = user.get('role');
-  let toRole = 0;
+  let taskLevel = 0;
 
   completeTaskAndReply(task, data, accessToken);
 
@@ -884,13 +884,13 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
         if (userTranscript) {
           if (hasXX && userRole === 0) {
             // Task for 帮主
-            toRole = 1;
+            taskLevel = 1;
           } else if (hasXX && userRole === 1) {
             // Task for admin
-            toRole = 100;
+            taskLevel = 100;
           }
           // Create new crowdsourcingTask
-          createCrowdsourcingTask(userTranscript, userId, toRole);
+          createCrowdsourcingTask(userTranscript, userId, taskLevel);
         }
       });
     });
