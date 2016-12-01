@@ -882,16 +882,22 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
         if (userTranscript) {
-          if (hasXX && userRole === 0) {
-            // Task for 帮主
-            taskLevel = 1;
-          } else if (hasXX && userRole === 1) {
-            // Task for admin
-            taskLevel = 100;
+          if (userRole === 0) {
+            taskLevel = 2;
+          } else if (userRole === 1 && hasXX) {
+            taskLevel = 3;
+          } else if (userRole === 2 && hasXX) {
+            taskLevel = 4;
+          } else if (userRole === 3 && hasXX) {
+            taskLevel = 5;
           }
-          // Create new crowdsourcingTask
-          createCrowdsourcingTask(userTranscript, userId, taskLevel);
+
+          if (taskLevel) {
+            createCrowdsourcingTask(userTranscript, userId, taskLevel);
+          }
         }
+      }, err => {
+        logError('createUserTranscript', err);
       });
     });
   });
