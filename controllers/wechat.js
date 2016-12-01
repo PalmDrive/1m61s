@@ -719,7 +719,7 @@ const createCrowdsourcingTask = (userTranscript, lastUserId, taskLevel) => {
     newTask.set('status', 0);
     newTask.set('media_id', userTranscript.get('media_id'));
     newTask.set('last_user', lastUserId);
-    newTask.set('to_role', taskLevel);
+    newTask.set('level', taskLevel);
     return newTask.save();
 };
 
