@@ -11,6 +11,7 @@ const request = require('request'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
+      wechat_pay = require('../lib/wechat_pay.js'),
       correctContent = '0';
 
 const taskTimers = {};
@@ -50,7 +51,7 @@ savedContent.secondMin = [
 ];
 savedContent.thirdMin = [
   '首先大家不知道有没有做过，这种像这种拉伸得运动，就是用用最长用用你最大的幅度来去勾你的脚ok，等待可以看一下，并且记录一下，你现在可以触碰到的位置',
-  '最高的，可以触碰到的最高的限度是多少？对，可能有得同学可以触碰到地面，但是有地同学可能这个由于韧带的问题可能并不会触碰到地面，对，ok，',
+  '最高的，可以触碰到的最高的限度是多少？对，可能有得同学可以触碰 到地面，但是有地同学可能这个由于韧带的问题可能并不会触碰到地面，对，ok，',
   '大家记住自己可以下呀的最大的幅度，所有人都闭上的眼睛，眼球，哦，顺时针转五圈一下用于自己眼球顺时针转五圈，',
   '当你闭上眼睛的时候，重新转五圈眼球得时候再下去，下了的时候你会发现你可以突破你之前的极限。这的一个很有意思的小的实验，第二小的实验大家所有人双脚与肩同宽，然后伸出自己的左手，'
 ];
@@ -699,12 +700,22 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
     return newTask.save();
 };
 
-// Set user's need_pay
-const setNeedPay = user => {
-  const minutesDone = user.get('tasks_done') / 4,
+
+const pay = (user) => {
+  const amount = user.get('price') || 1, //元 @rufeng
+        openId = user.get('open_id'),
+        minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
+
   if (minutesDone - amountPaid >= 1) {
-    user.set('need_pay', true);
+    //user.set('need_pay', true);
+    wechat_pay.fnSendMoney({re_openid:openId,total_amount:amount *1000},(ret)=>{
+      if (ret){
+        user.set('amount_paid',amountPaid+price);
+      }else{
+        logger.info('付款失败..');
+      }
+    });//分
   }
 };
 
@@ -750,13 +761,13 @@ const completeTaskAndReply = (task, data, accessToken) => {
       // Change user status to 1
       user.set('status', 1);
 
-      setNeedPay(user);
+      pay(user);
       user.save();
     } else if (tasksDone % 4 === 0) {
       // User has completed another 4 tasks. Send text
       sendToUser.text('么么哒，恭喜你又完成了4个任务，我们会将现金红包发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
-      setNeedPay(user);
+      pay(user);
       user.save();
     } else {
       // User has not completed 4 tasks
@@ -1089,7 +1100,8 @@ const onFirstMin = (data, accessToken, user) => {
       });
     } else {
       user.set('status', 1);
-      user.set('need_pay', true);
+      //user.set('need_pay', true);
+      pay(user);
       user.save().then(user => {
         // Ask for wechat id
         sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将现金红包发送给你！', data, accessToken);
@@ -1137,7 +1149,8 @@ const onSecondMin = (data, accessToken, user) => {
     // Change user status
     user.set('status', -100);
     user.set('tasks_done', tasksDone + 4);
-    user.set('need_pay', true);
+    //user.set('need_pay', true);
+    pay(user);
     user.save().then(user => {
       // Send image
       sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
@@ -1190,7 +1203,8 @@ const onThirdMin = (data, accessToken, user) => {
       });
     } else {
       user.set('status', -1);
-      user.set('need_pay', true);
+      //user.set('need_pay', true);
+      pay(user);
       user.save().then(user => {
         sendToUser.text('你好，恭喜完成了1分钟的片段，我们将对你的内容进行审核，审核期间将无法领取任务，最快时间1天就能审核结束～', data, accessToken);
       });
