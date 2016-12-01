@@ -707,7 +707,9 @@ const createUserTranscript = (userId, content, task, transcript) => {
 
 // userTranscript: on which the task is based
 // lastUserId: user who created this task
-const createCrowdsourcingTask = (userTranscript, lastUserId) => {
+// toRole: the role which the task should be sent to
+const createCrowdsourcingTask = (userTranscript, lastUserId, toRole) => {
+  toRole = toRole || 0;
   const CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
         newTask = new CrowdsourcingTask();
 
@@ -717,7 +719,7 @@ const createCrowdsourcingTask = (userTranscript, lastUserId) => {
     newTask.set('status', 0);
     newTask.set('media_id', userTranscript.get('media_id'));
     newTask.set('last_user', lastUserId);
-
+    newTask.set('to_role', toRole);
     return newTask.save();
 };
 
@@ -801,9 +803,12 @@ const completeTaskAndReply = (task, data, accessToken) => {
   });
 };
 
-const onReceiveTranscription = (data, accessToken, task) => {
+const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
-        content = data.content;
+        content = data.content,
+        hasXX = content.indexOf('XX') !== -1,
+        userRole = user.get('role');
+  let toRole = 0;
 
   completeTaskAndReply(task, data, accessToken);
 
@@ -821,8 +826,15 @@ const onReceiveTranscription = (data, accessToken, task) => {
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
         // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
         if (userTranscript && taskType === 'Transcript') {
+          if (hasXX && userRole === 0) {
+            // Task for 帮主
+            toRole = 1;
+          } else if (hasXX && userRole === 1) {
+            // Task for admin
+            toRole = 100;
+          }
           // Create new crowdsourcingTask
-          createCrowdsourcingTask(userTranscript, userId);
+          createCrowdsourcingTask(userTranscript, userId, toRole);
         }
       });
 
@@ -1325,7 +1337,7 @@ module.exports.postCtrl = (req, res, next) => {
                   onReceiveNoVoice(data, accessToken, task);
                   sendGA(userId, 'reply_no_voice');
                 } else {
-                  onReceiveTranscription(data, accessToken, task);
+                  onReceiveTranscription(data, accessToken, task, user);
                   sendGA(userId, 'reply');
                 }
               } else {
