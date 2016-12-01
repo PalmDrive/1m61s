@@ -860,7 +860,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
 const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
-        hasXX = content.indexOf('XX') !== -1,
+        hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
         userRole = user.get('role');
   let toRole = 0;
 
