@@ -811,7 +811,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
         hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
-        userRole = user.get('role');
+        userRole = user.get('role') || 0;
   let taskLevel = 0;
 
   completeTaskAndReply(task, data, accessToken);
@@ -867,7 +867,7 @@ const findLastTaskForUser = userId => {
 // Used in findNewTaskForUser, get the task before testing if it is valid
 const getTask = user => {
   const userId = user.get('open_id'),
-        userRole = user.get('role');
+        userRole = user.get('role') || 0;
 
   const _constructQuery = taskLevel => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask');
