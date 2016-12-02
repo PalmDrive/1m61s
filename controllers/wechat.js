@@ -925,7 +925,7 @@ const getTask = user => {
     query = _constructQuery(6);
     return query.first();
   } else {
-    logger.info('Error: invalid role for user with open id: ${userId}');
+    logger.info(`Error: invalid role for user with open id: ${userId}`);
     return Promise.resolve(false);
   }
 };
