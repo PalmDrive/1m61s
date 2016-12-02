@@ -520,7 +520,7 @@ const sendToUser = {
     return this.message(body, accessToken);
   },
   // Send voice and text to the user
-  task(task, data, accessToken) {
+  task(task, data, accessToken, user) {
     // get Transcript or UserTranscript
     const type = task.get('fragment_type'),
           fragmentId = task.get('fragment_id'),
@@ -546,7 +546,7 @@ const sendToUser = {
       logError('failed getting transcript when sending task', err);
       logger.info(`--- At ${getTime(_startedAt)} error: find transcript with id : ${fragmentId}`);
       task.destroy().then(success => {
-        findAndSendNewTaskForUser(data, accessToken);
+        findAndSendNewTaskForUser(data, accessToken, user);
       }, err => {
         logError('failed destroying task', err);
       });
@@ -635,16 +635,16 @@ const isTaskValid = (task, _startedAt) => {
   });
 };
 
-const onGetTask = (data, accessToken) => {
+const onGetTask = (data, accessToken, user) => {
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
     logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
     if (task) {
       // There is a task in process
-      return sendToUser.task(task, data, accessToken);
+      return sendToUser.task(task, data, accessToken, user);
     } else {
       // There is no task in process
-      return findAndSendNewTaskForUser(data, accessToken);
+      return findAndSendNewTaskForUser(data, accessToken, user);
     }
   });
 };
@@ -732,10 +732,9 @@ const setNeedPay = user => {
   }
 };
 
-// Very similar to onGetTask, however doesn't check for in process task
-const findAndSendNewTaskForUser = (data, accessToken) => {
+const findAndSendNewTaskForUser = (data, accessToken, user) => {
   const userId = data.fromusername;
-  findNewTaskForUser(userId, data._startedAt).then(task => {
+  findNewTaskForUser(user, data._startedAt).then(task => {
     if (task) {
       return assignTask(task, data, accessToken);
     } else {
@@ -743,7 +742,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
     }
   }).then(task => {
     if (task) {
-      sendToUser.task(task, data, accessToken);
+      sendToUser.task(task, data, accessToken, user);
     } else {
       // inform user there is no available task
       return sendToUser.text('今天的任务已经被领取完啦，每天我们会在早上9点发布任务，欢迎早起来领取～', data, accessToken);
@@ -798,7 +797,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
 
       sendToUser.text(replyContent, data, accessToken);
 
-      findAndSendNewTaskForUser(data, accessToken);
+      findAndSendNewTaskForUser(data, accessToken, user);
     }
   });
 };
@@ -860,49 +859,120 @@ const findLastTaskForUser = userId => {
   return query.first();
 };
 
-const findNewTaskForUser = (userId, _startedAt) => {
-  const _constructQuery = fragmentType => {
+// Used in findNewTaskForUser, get the task before testing if it is valid
+const getTask = userRole => {
+  const _constructQuery = taskLevel => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask');
-    // query.equalTo('is_head', true);
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
-    query.equalTo('fragment_type', fragmentType);
+    query.equalTo('level', taskLevel);
     return query;
   };
 
-  let query = _constructQuery('UserTranscript');
-
-  return query.first().then(task => {
-    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / <fragment_type = UserTranscript > with userId: ${userId}`);
-    if (task){
-      return task;
-    } else {
-      query = _constructQuery('Transcript');
+  let query;
+  if (userRole === 0) {
+    // B类用户
+    query = _constructQuery(0);
+    return query.first();
+  } else if (userRole === 1) {
+    // A类用户
+    query = _constructQuery(1);
+    return query.first().then(task => {
+      if (task) return task;
+      query = _constructQuery(0);
       return query.first();
-    }
-  }).then(task => {
-    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / <fragment_type = Transcript > with userId: ${userId}`);
-    if (task) {
-      // Check if content and fragment_src are empty
-      return isTaskValid(task, _startedAt).then(taskValid => {
-        if (taskValid) {
-          return task;
-        }
-        // Destroy the task
-        return task.destroy().then(success => {
-          logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / task.destroy() with userId: ${userId}`);
-          // Find new task
-          return findNewTaskForUser(userId, _startedAt);
-        }, err => {
-          logError('failed destroying task', err);
+    });
+  } else if (userRole === 2) {
+    // 帮主
+    query = _constructQuery(4);
+    return query.first().then(task => {
+      if (task) return task;
+      query = _constructQuery(3);
+      return query.first().then(task => {
+        if (task) return task;
+        query = _constructQuery(2);
+        return query.first().then(task => {
+          if (task) return task;
+          query = _constructQuery(1);
+          return query.first().then(task => {
+            if (task) return task;
+            query = _constructQuery(0);
+            return query.first();
+          });
         });
       });
-    } else {
-      return task;
-    }
-  });
+    });
+  } else if (userRole === 3) {
+    // 工作人员
+    query = _constructQuery(5);
+    return query.first().then(task => {
+      if (task) return task;
+      query = _constructQuery(0);
+      return query.first();
+    });
+  } else if (userRole === 4) {
+    // B端用户
+    query = _constructQuery(6);
+    return query.first();
+  }
+};
+
+const findNewTaskForUser = (user, _startedAt) => {
+  const userRole = user.get('role') || 0;
+  // TODO: new logic to find task
+  const _constructQuery = taskLevel => {
+    const query = new leanCloud.AV.Query('CrowdsourcingTask');
+    query.ascending('createdAt');
+    query.equalTo('status',0);
+    query.doesNotExist('user_id');
+    query.notEqualTo('last_user', userId);
+    query.equalTo('level', taskLevel);
+    return query;
+  };
+
+  let query;
+  if (userRole === 0) {
+    query = _constructQuery(0);
+    return query.first().then(task => {
+      if (task) {
+        // Check if content and fragment_src are empty
+        return isTaskValid(task).then(taskValid => {
+          if (taskValid) {
+            return task;
+          }
+          // Destroy the task
+          return task.destroy().then(success => {
+            // Find new task
+            return findNewTaskForUser(user);
+          }, err => {
+            logError('failed destroying task', err);
+          });
+        });
+      } else {
+        return task;
+      }
+    });
+  } else if (userRole === 1) {
+    query = _constructQuery(1);
+    return query.first().then(task => {
+      if (task) {
+        return task;
+      } else {
+        query = _constructQuery(0);
+        return query.first();
+      }
+    }).then(task => {
+
+    });
+  } else if (userRole === 2) {
+
+  } else if (userRole === 3) {
+
+  } else if (userRole === 4) {
+
+  }
 };
 
 // const findNextTaskForUser = (userId, task) => {
@@ -1018,7 +1088,7 @@ const sendGA = (userId, eventAction) => {
   });
 };
 
-const onReceiveNoVoice = (data, accessToken, task) => {
+const onReceiveNoVoice = (data, accessToken, task, user) => {
   const userId = data.fromusername;
 
   // Change task status to 1
@@ -1029,7 +1099,7 @@ const onReceiveNoVoice = (data, accessToken, task) => {
 
   sendToUser.text(replyContent, data, accessToken);
 
-  findAndSendNewTaskForUser(data, accessToken);
+  findAndSendNewTaskForUser(data, accessToken, user);
 };
 
 const logError = (message, err) => {
@@ -1063,7 +1133,7 @@ const onReceiveRevoke = (data, accessToken, user) => {
           });
         } else {
           // No user's content
-          sendToUser.task(task, data, accessToken);
+          sendToUser.task(task, data, accessToken, user);
         }
       });
     }, err => {
@@ -1339,7 +1409,7 @@ module.exports.postCtrl = (req, res, next) => {
                   onReceiveCorrect(data, accessToken, task);
                   sendGA(userId, 'reply_original_text');
                 } else if (data.content === '没有语音') {
-                  onReceiveNoVoice(data, accessToken, task);
+                  onReceiveNoVoice(data, accessToken, task, user);
                   sendGA(userId, 'reply_no_voice');
                 } else {
                   onReceiveTranscription(data, accessToken, task, user);
@@ -1373,7 +1443,7 @@ module.exports.postCtrl = (req, res, next) => {
           user.set('status', 1);
           user.save();
         } else if (userStatus === 0) {
-          onGetTask(data, accessToken);
+          onGetTask(data, accessToken, user);
         } else if (userStatus === 1) {
           sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
         } else if (userStatus === 2) {
