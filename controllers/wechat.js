@@ -11,7 +11,7 @@ const request = require('request'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
-      wechat_pay = require('../lib/wechat_pay.js'),
+      wechatPay = require('../lib/wechat_pay.js'),
       correctContent = '0';
 
 const savedContent = {};
@@ -683,16 +683,21 @@ const pay = (user) => {
         minutesDone = user.get('tasks_done') / 4,
         amountPaid = user.get('amount_paid');
 
-  if (minutesDone - amountPaid >= 1) {
-    //user.set('need_pay', true);
-    wechat_pay.fnSendMoney({re_openid:openId,total_amount:amount *1000},(ret)=>{
-      if (ret){
-        user.set('amount_paid',amountPaid+price);
-      }else{
-        logger.info('付款失败..');
-      }
-    });//分
-  }
+  return new Promise((resolve, reject) => {
+      //user.set('need_pay', true);
+      wechatPay.fnSendMoney({re_openid:openId,total_amount:amount *100},(ret)=>{
+        if (ret){
+          user.set('amount_paid',amountPaid+price);
+          user.save();
+          resolve(user);
+
+        }else{
+          logger.info('付款失败..');
+          reject(user);
+        }
+      });//分
+
+  });
 };
 
 // Very similar to onGetTask, however doesn't check for in process task
