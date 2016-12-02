@@ -707,7 +707,12 @@ const createUserTranscript = (userId, content, task, transcript) => {
         UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
         userTranscript = new UserTranscript(),
         needContent = content === '0';
-
+  let lastReviewTimes;
+  if (transcript) {
+    lastReviewTimes = transcript.get('review_times') || 0;
+  } else {
+    lastReviewTimes = 0;
+  }
   userTranscript.set('media_id', task.get('media_id'));
   if (!needContent) userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
@@ -715,7 +720,7 @@ const createUserTranscript = (userId, content, task, transcript) => {
   if (type === 'Transcript') {
     userTranscript.set('review_times', 1);
   } else {
-    userTranscript.set('review_times', 2);
+    userTranscript.set('review_times', lastReviewTimes + 1);
   }
 
   if (transcript && type === 'Transcript') {
@@ -1168,7 +1173,9 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
           userTranscript.set('content', data.content);
           return userTranscript.save();
         } else {
-          return createUserTranscript(user.get('open_id'), data.content, task);
+          return getTranscript(task).then(transcript => {
+            return createUserTranscript(user.get('open_id'), data.content, task, transcript);
+          });
         }
       });
     }).then(userTranscript => {
