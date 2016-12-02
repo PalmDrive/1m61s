@@ -982,6 +982,7 @@ const getTask = userRole => {
 const findNewTaskForUser = (user, _startedAt) => {
   const userRole = user.get('role') || 0;
   return getTask(userRole).then(task => {
+    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / user open id: ${user.get('open_id')}`);
     if (task) {
       // Check if content and fragment_src are empty
       return isTaskValid(task).then(taskValid => {
