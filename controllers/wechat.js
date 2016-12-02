@@ -155,7 +155,7 @@ const uploadMedia = (mediaSrc, type, token, _startedAt) => {
         media: fs.createReadStream(mediaSrc)
       }
     }, (error, response, body) => {
-      logger.info(`--- At ${_startedAt} uploadMedia / url: ${url}`);
+      logger.info(`--- At ${getTime(_startedAt)} uploadMedia / url: ${url}`);
       if (error) { return reject(error); }
 
       const parsedBody = JSON.parse(body);
