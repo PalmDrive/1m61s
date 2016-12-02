@@ -887,9 +887,9 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
           } else if (userRole === 1 && hasXX) {
             taskLevel = 3;
           } else if (userRole === 2 && hasXX) {
-            taskLevel = 4;
-          } else if (userRole === 3 && hasXX) {
             taskLevel = 5;
+          } else if (userRole === 3 && hasXX) {
+            taskLevel = 6;
           }
 
           if (taskLevel) {
