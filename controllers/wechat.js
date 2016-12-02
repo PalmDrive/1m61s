@@ -926,7 +926,7 @@ const getTask = user => {
     return query.first();
   } else {
     logger.info('Error: invalid user role');
-    return false;
+    return Promise.resolve(false);
   }
 };
 
