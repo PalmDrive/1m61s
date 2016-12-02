@@ -1,9 +1,5 @@
 'use strict';
 
-const getTime = (startedAt) => {
-  return (new Date() - startedAt) + ' ms';
-};
-
 const request = require('request'),
       exec = require('child_process').exec,
       fs = require('fs'),
@@ -18,6 +14,10 @@ const request = require('request'),
       correctContent = '0';
 
 const taskTimers = {};
+
+const getTime = (startedAt) => {
+  return (new Date() - startedAt) + ' ms';
+};
 
 const savedContent = {};
 savedContent.firstMin = [
@@ -404,7 +404,7 @@ const sendToUser = {
 
         exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
           if (error) {
-            logError('--- At ${getTime(_startedAt)} exec error', error);
+            logError(`--- At ${getTime(_startedAt)} exec error`, error);
             return;
           }
           const duration = parseDuration(stdout);
@@ -619,7 +619,7 @@ const isTaskValid = (task, _startedAt) => {
         query = new leanCloud.AV.Query(type);
 
   return query.get(id).then(transcript => {
-    logger.info(`--- At ${getTime(_startedAt)} isTaskValid / get task with task.id : ${id}`);
+    logger.info(`--- At ${getTime(_startedAt)} isTaskValid / get task with fragment_id : ${id}`);
     // Check for content
     const content =  type === 'Transcript' ? transcript.get('content_baidu') : transcript.get('content');
     if (!content) {
