@@ -865,7 +865,10 @@ const findLastTaskForUser = userId => {
 };
 
 // Used in findNewTaskForUser, get the task before testing if it is valid
-const getTask = userRole => {
+const getTask = user => {
+  const userId = user.get('open_id'),
+        userRole = user.get('role');
+
   const _constructQuery = taskLevel => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask');
     query.ascending('createdAt');
@@ -928,17 +931,18 @@ const getTask = userRole => {
 };
 
 const findNewTaskForUser = (user, _startedAt) => {
-  const userRole = user.get('role') || 0;
-  return getTask(userRole).then(task => {
-    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / user open id: ${user.get('open_id')}`);
+  const userId = user.get('open_id');
+  return getTask(user).then(task => {
+    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / get task with userOpenId: ${userId}`);
     if (task) {
       // Check if content and fragment_src are empty
-      return isTaskValid(task).then(taskValid => {
+      return isTaskValid(task, _startedAt).then(taskValid => {
         if (taskValid) return task;
         // Destroy the task
         return task.destroy().then(success => {
+          logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / task.destroy() with userOpenId: ${userId}`);
           // Find new task
-          return findNewTaskForUser(user);
+          return findNewTaskForUser(user, _startedAt);
         }, err => {
           logError('failed destroying task', err);
         });
