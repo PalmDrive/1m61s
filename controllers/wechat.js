@@ -916,63 +916,31 @@ const getTask = userRole => {
     // B端用户
     query = _constructQuery(6);
     return query.first();
+  } else {
+    logger.info('Error: invalid user role');
+    return false;
   }
 };
 
 const findNewTaskForUser = (user, _startedAt) => {
   const userRole = user.get('role') || 0;
-  // TODO: new logic to find task
-  const _constructQuery = taskLevel => {
-    const query = new leanCloud.AV.Query('CrowdsourcingTask');
-    query.ascending('createdAt');
-    query.equalTo('status',0);
-    query.doesNotExist('user_id');
-    query.notEqualTo('last_user', userId);
-    query.equalTo('level', taskLevel);
-    return query;
-  };
-
-  let query;
-  if (userRole === 0) {
-    query = _constructQuery(0);
-    return query.first().then(task => {
-      if (task) {
-        // Check if content and fragment_src are empty
-        return isTaskValid(task).then(taskValid => {
-          if (taskValid) {
-            return task;
-          }
-          // Destroy the task
-          return task.destroy().then(success => {
-            // Find new task
-            return findNewTaskForUser(user);
-          }, err => {
-            logError('failed destroying task', err);
-          });
+  return getTask(userRole).then(task => {
+    if (task) {
+      // Check if content and fragment_src are empty
+      return isTaskValid(task).then(taskValid => {
+        if (taskValid) return task;
+        // Destroy the task
+        return task.destroy().then(success => {
+          // Find new task
+          return findNewTaskForUser(user);
+        }, err => {
+          logError('failed destroying task', err);
         });
-      } else {
-        return task;
-      }
-    });
-  } else if (userRole === 1) {
-    query = _constructQuery(1);
-    return query.first().then(task => {
-      if (task) {
-        return task;
-      } else {
-        query = _constructQuery(0);
-        return query.first();
-      }
-    }).then(task => {
-
-    });
-  } else if (userRole === 2) {
-
-  } else if (userRole === 3) {
-
-  } else if (userRole === 4) {
-
-  }
+      });
+    } else {
+      return task;
+    }
+  });
 };
 
 // const findNextTaskForUser = (userId, task) => {
