@@ -355,15 +355,15 @@ const sendToUser = {
         url: `https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=${accessToken}`,
         json: true,
         body
-      }, (error, response, body) => {
+      }, (error, response, responseBody) => {
 
         logger.info(`--- At ${getTime(body._startedAt)} sending message to user ${body.touser}`);
 
         if (error) { return reject(error); }
-        if (body.errcode) {
-          reject(body);
+        if (responseBody.errcode) {
+          reject(responseBody);
         } else {
-          resolve(body);
+          resolve(responseBody);
         }
       });
     });
