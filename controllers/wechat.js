@@ -601,8 +601,6 @@ const assignTask = (task, data, accessToken) => {
           task.unset('user_id');
           task.save().then(task => {
             logger.info(`--- At ${getTime(data._startedAt)} Assign task / Task recycled with task.id : ${task.id}`);
-            logger.info('Task recycled:');
-            logger.info(task.id);
             sendToUser.text('biu~每次任务如果在1个小时内没有被解决掉，它就会被自动分配给其它童鞋呢，现在你的任务已经失效，如果要领取新的任务，请点击“领取任务”（每天9点发布新的任务哦）', data, accessToken);
           });
         }
