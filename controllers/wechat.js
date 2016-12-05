@@ -1310,7 +1310,7 @@ const setPrice = (data, user) => {
   });
 };
 
-const onReceivePass = (data, accessToken, task) => {
+const onReceivePass = (data, accessToken, task, user) => {
   const userId = data.fromusername;
   // Tell user we received request
   sendText('biu~正在跳过任务...');
@@ -1318,7 +1318,7 @@ const onReceivePass = (data, accessToken, task) => {
   task.unset('user_id');
   task.addUnique('passed_users', userId);
   task.save().then(task => {
-    findAndSendNewTaskForUser(data, accessToken);
+    findAndSendNewTaskForUser(data, accessToken, user);
   });
 };
 
@@ -1407,7 +1407,7 @@ module.exports.postCtrl = (req, res, next) => {
                   onReceiveNoVoice(data, accessToken, task, user);
                   sendGA(userId, 'reply_no_voice');
                 } else if (data.content === '过') {
-                  onReceivePass(data, accessToken, task);
+                  onReceivePass(data, accessToken, task, user);
                   sendGA(userId, 'reply_pass');
                 } else {
                   onReceiveTranscription(data, accessToken, task, user);
