@@ -434,7 +434,8 @@ const sendToUser = {
                 self.message({
                   touser: data.fromusername,
                   msgtype: 'voice',
-                  voice: {media_id: media.media_id}
+                  voice: {media_id: media.media_id},
+                  _startedAt: _startedAt
                 }, accessToken).then(() => {
                   // Second half fragment
                   exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
