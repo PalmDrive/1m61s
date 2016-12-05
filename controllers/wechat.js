@@ -601,8 +601,6 @@ const assignTask = (task, data, accessToken) => {
           task.unset('user_id');
           task.save().then(task => {
             logger.info(`--- At ${getTime(data._startedAt)} Assign task / Task recycled with task.id : ${task.id}`);
-            logger.info('Task recycled:');
-            logger.info(task.id);
             sendToUser.text('biu~每次任务如果在1个小时内没有被解决掉，它就会被自动分配给其它童鞋呢，现在你的任务已经失效，如果要领取新的任务，请点击“领取任务”（每天9点发布新的任务哦）', data, accessToken);
           });
         }
@@ -878,6 +876,7 @@ const getTask = user => {
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
     query.equalTo('level', taskLevel);
+    query.notEqualTo('passed_users', userId);
     return query;
   };
 
@@ -1309,6 +1308,20 @@ const setPrice = (data, user) => {
   });
 };
 
+const onReceivePass = (data, accessToken, task, user) => {
+  const userId = data.fromusername,
+        userRole = user.get('role') || 0;
+  // Set original task to unassigned status
+  task.unset('user_id');
+  task.addUnique('passed_users', userId);
+  if (userRole === 1) task.set('level', 3);
+  if (userRole === 2) task.set('level', 5);
+  if (userRole === 3) task.set('level', 6);
+  task.save().then(task => {
+    findAndSendNewTaskForUser(data, accessToken, user);
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1393,6 +1406,9 @@ module.exports.postCtrl = (req, res, next) => {
                 } else if (data.content === '没有语音') {
                   onReceiveNoVoice(data, accessToken, task, user);
                   sendGA(userId, 'reply_no_voice');
+                } else if (data.content === '过') {
+                  onReceivePass(data, accessToken, task, user);
+                  sendGA(userId, 'reply_pass');
                 } else {
                   onReceiveTranscription(data, accessToken, task, user);
                   sendGA(userId, 'reply');
