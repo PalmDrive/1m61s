@@ -1439,10 +1439,6 @@ const onReceivePrevNext = (data, accessToken, task) => {
   });
 };
 
-module.exports.getAccessToken = getAccessTokenFromCache;
-// module.exports.findTaskForUser = findTaskForUser;
-module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
-
 module.exports.postCtrl = (req, res, next) => {
   // Reply success to avoid error and repeated request
   res.send('success');
@@ -1611,3 +1607,6 @@ module.exports.postCtrl = (req, res, next) => {
 module.exports.getCtrl = (req, res, next) => {
   res.send(req.query.echostr);
 };
+module.exports.getAccessToken = getAccessTokenFromCache;
+// module.exports.findTaskForUser = findTaskForUser;
+module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
