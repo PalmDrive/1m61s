@@ -1413,7 +1413,30 @@ const onReceiveNotMatch = (data, accessToken, task, user) => {
       });
     }
   });
-  // Send text
+};
+
+const onReceivePrevNext = (data, accessToken, task) => {
+  // Get the prev/next transcript
+  const mediaId = task.get('media_id'),
+        query = new leanCloud.AV.Query('Transcript'),
+        content = 'biu~抱歉，没有找到所请求的片段。';
+  let order = task.get('fragment_order');
+  if (data.content === '前') {
+    order -= 1;
+  } else {
+    order += 1;
+  }
+  query.equalTo('media_id', mediaId);
+  query.equalTo('fragment_order', order);
+  query.equalTo('set_type', 'machine');
+  query.first().then(transcript => {
+    if (transcript) {
+      // Send audio
+      sendToUser.singleVoice(transcript, data, accessToken);
+    } else {
+      sendToUser.text(content, data, accessToken);
+    }
+  });
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
@@ -1512,6 +1535,12 @@ module.exports.postCtrl = (req, res, next) => {
                 } else if (data.content === '不对应') {
                   onReceiveNotMatch(data, accessToken, task, user);
                   sendGA(userId, 'reply_not_match');
+                } else if (data.content === '前') {
+                  onReceivePrevNext(data, accessToken, task);
+                  sendGA(userId, 'reply_prev');
+                } else if (data.content === '后') {
+                  onReceivePrevNext(data, accessToken, task);
+                  sendGA(userId, 'reply_next');
                 } else {
                   onReceiveTranscription(data, accessToken, task, user);
                   sendGA(userId, 'reply');
