@@ -1242,6 +1242,21 @@ const setPrice = (data, user) => {
   });
 };
 
+const onReceiveNotMatch = (data, accessToken, task, user) => {
+  // Get machine content
+  getMachineTranscript(task).then(transcript => {
+    if (transcript) {
+      // Send content to user
+      const content = transcript.get('content_baidu')[0];
+      sendToUser.text(content, data, accessToken).then(() => {
+        setTimeout(() => {
+          sendToUser.text('biu~上面是我们对于这段语音翻译到最好的程度啦，只能帮你到这里了~', data, accessToken);
+        }, 2000);
+      });
+    }
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1326,6 +1341,9 @@ module.exports.postCtrl = (req, res, next) => {
                 } else if (data.content === '没有语音') {
                   onReceiveNoVoice(data, accessToken, task);
                   sendGA(userId, 'reply_no_voice');
+                } else if (data.content === '不对应') {
+                  onReceiveNotMatch(data, accessToken, task, user);
+                  sendGA(userId, 'reply_not_match');
                 } else {
                   onReceiveTranscription(data, accessToken, task);
                   sendGA(userId, 'reply');
