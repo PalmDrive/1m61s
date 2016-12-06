@@ -388,7 +388,7 @@ const sendToUser = {
       _startedAt: data._startedAt
     }, accessToken);
   },
-  // Send a voice message to user
+  // Send a voice message to user, if audio length > 8s, split audio into two
   voice(transcript, data, accessToken) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
@@ -487,7 +487,7 @@ const sendToUser = {
                   touser: data.fromusername,
                   msgtype: 'voice',
                   voice: {media_id: media.media_id},
-                  _startedAt: _startedAt
+                  _startedAt
                 }, accessToken);
               }, err => {
                 logError('upload media failed', err);
@@ -500,14 +500,11 @@ const sendToUser = {
 
     // Save the audio to local
     request(audioURL, (err, res, body) => {
-      logger.info(`--- At ${getTime(_startedAt)} request audio:  `);
+      logger.info(`--- At ${getTime(_startedAt)} request audio URL:`);
       logger.info(audioURL);
       if (err) {
         self.text('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
-        logger.info('request audio error: ');
-        logger.info(err);
-        logger.info('audio URL: ');
-        logger.info(audioURL);
+        logError('request audio error', err);
       }
     }).pipe(ws);
   },
@@ -520,6 +517,49 @@ const sendToUser = {
             _startedAt: _startedAt
           };
     return this.message(body, accessToken);
+  },
+  // Send a voice message without splitting audio
+  singleVoice(transcript, data, accessToken) {
+    const audioURL = transcript.get('fragment_src'),
+          audioId = transcript.id,
+          mediaSrc = `${global.APP_ROOT}/tmp/single_${audioId}.mp3`,
+          ws = fs.createWriteStream(mediaSrc),
+          self = this,
+          _startedAt = data._startedAt;
+    ws.on('finish', () => {
+      logger.info(`--- At ${getTime(_startedAt)} Audio saved in local`);
+      // Upload the audio as media in Wechat
+      uploadMedia(mediaSrc, 'voice', accessToken, _startedAt)
+        .then(media => {
+          logger.info(`--- At ${getTime(_startedAt)} media uploaded:`);
+          logger.info(media);
+
+          // Delete local audio file
+          fs.unlink(mediaSrc);
+
+          // Send the voice message
+          return self.message({
+            touser: data.fromusername,
+            msgtype: 'voice',
+            voice: {media_id: media.media_id},
+            _startedAt
+          }, accessToken);
+        }, err => {
+          logError('upload media failed', err);
+        });
+    }, err => {
+      logError('voice message ws', err);
+    });
+
+    // Save the audio to local
+    request(audioURL, (err, res, body) => {
+      logger.info(`--- At ${getTime(_startedAt)} request audio URL:`);
+      logger.info(audioURL);
+      if (err) {
+        self.text('biu~抱歉，获取语音出现问题。', data, accessToken);
+        logError('request audio error', err);
+      }
+    }).pipe(ws);
   },
   // Send voice and text to the user
   task(task, data, accessToken, user) {
@@ -1335,7 +1375,30 @@ const onReceiveNotMatch = (data, accessToken, task, user) => {
       });
     }
   });
-  // Send text
+};
+
+const onReceivePrevNext = (data, accessToken, task) => {
+  // Get the prev/next transcript
+  const mediaId = task.get('media_id'),
+        query = new leanCloud.AV.Query('Transcript'),
+        content = 'biu~抱歉，没有找到所请求的片段。';
+  let order = task.get('fragment_order');
+  if (data.content === '前') {
+    order -= 1;
+  } else {
+    order += 1;
+  }
+  query.equalTo('media_id', mediaId);
+  query.equalTo('fragment_order', order);
+  query.equalTo('set_type', 'machine');
+  query.first().then(transcript => {
+    if (transcript) {
+      // Send audio
+      sendToUser.singleVoice(transcript, data, accessToken);
+    } else {
+      sendToUser.text(content, data, accessToken);
+    }
+  });
 };
 
 module.exports.getAccessToken = getAccessTokenFromCache;
@@ -1428,6 +1491,12 @@ module.exports.postCtrl = (req, res, next) => {
                 } else if (data.content === '不对应') {
                   onReceiveNotMatch(data, accessToken, task, user);
                   sendGA(userId, 'reply_not_match');
+                } else if (data.content === '前') {
+                  onReceivePrevNext(data, accessToken, task);
+                  sendGA(userId, 'reply_prev');
+                } else if (data.content === '后') {
+                  onReceivePrevNext(data, accessToken, task);
+                  sendGA(userId, 'reply_next');
                 } else {
                   onReceiveTranscription(data, accessToken, task, user);
                   sendGA(userId, 'reply');
