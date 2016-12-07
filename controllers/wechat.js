@@ -795,11 +795,11 @@ const onReceiveTranscription = (data, accessToken, task) => {
       // New content
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
-        // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
-        if (userTranscript && taskType === 'Transcript') {
-          // Create new crowdsourcingTask
-          createCrowdsourcingTask(userTranscript, userId);
-        }
+        // // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
+        // if (userTranscript && taskType === 'Transcript') {
+        //   // Create new crowdsourcingTask
+        //   createCrowdsourcingTask(userTranscript, userId);
+        // }
       });
 
       // Mark the transcript wrong_chars = 21
