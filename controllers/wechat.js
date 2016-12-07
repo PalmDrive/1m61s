@@ -868,21 +868,21 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
       // New content
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
-        if (userTranscript) {
-          if (userRole === 0) {
-            taskLevel = 2;
-          } else if (userRole === 1 && hasXX) {
-            taskLevel = 3;
-          } else if (userRole === 2 && hasXX) {
-            taskLevel = 5;
-          } else if (userRole === 3 && hasXX) {
-            taskLevel = 6;
-          }
+        // if (userTranscript) {
+        //   if (userRole === 0) {
+        //     taskLevel = 2;
+        //   } else if (userRole === 1 && hasXX) {
+        //     taskLevel = 3;
+        //   } else if (userRole === 2 && hasXX) {
+        //     taskLevel = 5;
+        //   } else if (userRole === 3 && hasXX) {
+        //     taskLevel = 6;
+        //   }
 
-          if (taskLevel) {
-            createCrowdsourcingTask(userTranscript, userId, taskLevel);
-          }
-        }
+        //   if (taskLevel) {
+        //     createCrowdsourcingTask(userTranscript, userId, taskLevel);
+        //   }
+        // }
       }, err => {
         logError('createUserTranscript', err);
       });
