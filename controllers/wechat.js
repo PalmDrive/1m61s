@@ -20,7 +20,7 @@ const getTime = (startedAt) => {
 };
 
 const calculateWrongWords = () => {
-
+  
 };
 const sendModelMessage = accessToken => {
   logger.info('sendModelMessage-- start');
