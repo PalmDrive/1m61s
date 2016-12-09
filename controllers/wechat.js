@@ -1001,15 +1001,22 @@ const getTask = user => {
 
   } else if (userRole === 'A' && userField) {
     // 帮主
-    // TODO: 加入A做过的任务
+    // 1. 自己专业领域的机器任务
     query = _constructQuery({field: userField});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery({noField: true});
+      // 2. 自己专业领域的，帮众做完带XX或者“过”的
+      query = _constructQuery({field: userField, source: 1});
       return query.first().then(task => {
         if (task) return task;
-        query = _constructQuery({notField: userField});
-        return query.first();
+        // 3. 没有任何专业领域的机器任务
+        query = _constructQuery({noField: true});
+        return query.first().then(task => {
+          if (task) return task;
+          // 4. 其他专业领域的机器任务
+          query = _constructQuery({notField: userField});
+          return query.first();
+        });
       });
     });
   } else if (userRole === 'A') {
