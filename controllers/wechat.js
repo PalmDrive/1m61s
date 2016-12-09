@@ -851,7 +851,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
         hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
-        userRole = user.get('role') || 0;
+        userRole = user.get('role') || 'B';// TODO: userRole relavant change
   let taskLevel = 0;
 
   completeTaskAndReply(task, data, accessToken);
@@ -907,64 +907,62 @@ const findLastTaskForUser = userId => {
 // Used in findNewTaskForUser, get the task before testing if it is valid
 const getTask = user => {
   const userId = user.get('open_id'),
-        userRole = user.get('role') || 0;
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
 
-  const _constructQuery = taskLevel => {
-    const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  const _constructQuery = options => {
+    const query = new leanCloud.AV.Query('CrowdsourcingTask'),
+          source = options.source || 0;
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
-    query.equalTo('level', taskLevel);
     query.notEqualTo('passed_users', userId);
+    query.equalTo('source', source);
+    if (options.field) query.equalTo('fields', options.field);
+    if (options.noField) query.doesNotExist('fields');
+    if (options.notField) query.notEqualTo('fields', options.notField);
+
     return query;
   };
 
   let query;
-  if (userRole === 0) {
-    // B类用户
-    query = _constructQuery(0);
-    return query.first();
-  } else if (userRole === 1) {
-    // A类用户
-    query = _constructQuery(1);
-    return query.first().then(task => {
-      if (task) return task;
-      query = _constructQuery(0);
-      return query.first();
-    });
-  } else if (userRole === 2) {
+  if (userRole === 'B' || userRole === 'C') {
+    // TODO: B类用户 && C类用户
+
+  } else if (userRole === 'A' && userField) {
     // 帮主
-    query = _constructQuery(4);
+    // TODO: 加入A做过的任务
+    query = _constructQuery({field: userField});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery(3);
+      query = _constructQuery({noField: true});
       return query.first().then(task => {
         if (task) return task;
-        query = _constructQuery(2);
-        return query.first().then(task => {
-          if (task) return task;
-          query = _constructQuery(1);
-          return query.first().then(task => {
-            if (task) return task;
-            query = _constructQuery(0);
-            return query.first();
-          });
-        });
+        query = _constructQuery({notField: userField});
+        return query.first();
       });
     });
-  } else if (userRole === 3) {
-    // 工作人员
-    query = _constructQuery(5);
+  } else if (userRole === 'A') {
+    // 帮众
+    query = _constructQuery({noField: true});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery(0);
+      query = _constructQuery({});
       return query.first();
     });
-  } else if (userRole === 4) {
-    // B端用户
-    query = _constructQuery(6);
-    return query.first();
+  } else if (userRole === '工作人员') {
+    // TODO: 工作人员
+    // query = _constructQuery(5);
+    // return query.first().then(task => {
+    //   if (task) return task;
+    //   query = _constructQuery(0);
+    //   return query.first();
+    // });
+  } else if (userRole === 'B端用户') {
+    // TODO: B端用户
+    // query = _constructQuery(6);
+    // return query.first();
   } else {
     logger.info(`Error: invalid role for user with open id: ${userId}`);
     return Promise.resolve(false);
@@ -1350,7 +1348,7 @@ const setPrice = (data, user) => {
 
 const onReceivePass = (data, accessToken, task, user) => {
   const userId = data.fromusername,
-        userRole = user.get('role') || 0;
+        userRole = user.get('role') || 'B';// TODO: userRole relavant change
   // Set original task to unassigned status
   task.unset('user_id');
   task.addUnique('passed_users', userId);
