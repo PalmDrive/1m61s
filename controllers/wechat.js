@@ -20,7 +20,7 @@ const getTime = (startedAt) => {
 };
 
 const sendModelMessage = (accessToken) => {
-  logger.info(`sendModelMessage-- start`);
+  logger.info('sendModelMessage-- start');
   const data = {
     touser: 'oXrsBv-Gl6tjcwTIlCCqQzEAYoWg',
     money: '100',
