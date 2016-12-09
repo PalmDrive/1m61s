@@ -21,7 +21,7 @@ const getTime = (startedAt) => {
 const sendModelMessage = (accessToken) => {
 
   const data = {
-    touser: 'oslYRxAmiWdvmXHs3p11gTJS0RC4',
+    touser: 'oXrsBv-Gl6tjcwTIlCCqQzEAYoWg',
     money: '100',
     totalAmount: '25',
     errorAmount: '3',
@@ -1526,9 +1526,6 @@ module.exports.postCtrl = (req, res, next) => {
     logger.info('user:');
     logger.info(user.toJSON());
 
-    // 发送模板消息
-    sendModelMessage(accessToken);
-
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
         sendToUser.text('网络测试成功', data, accessToken);
@@ -1538,6 +1535,9 @@ module.exports.postCtrl = (req, res, next) => {
       } else if (data.content === '规则' && userStatus !== -205) {
         sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
+      }  else if (data.content === '模板消息测试') {
+        // 发送模板消息
+        sendModelMessage(accessToken);
       } else {
         // Check status
         if (userStatus >= -304 && userStatus <= -300) {
