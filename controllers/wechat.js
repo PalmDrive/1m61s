@@ -1028,13 +1028,25 @@ const getTask = user => {
       return query.first();
     });
   } else if (userRole === '工作人员') {
-    // TODO: 工作人员
-    // query = _constructQuery(5);
-    // return query.first().then(task => {
-    //   if (task) return task;
-    //   query = _constructQuery(0);
-    //   return query.first();
-    // });
+    // 工作人员
+    // 1. 帮主做完带XX或者“过”的
+    query = _constructQuery({source: 2});
+    return query.first().then(task => {
+      if (task) return task;
+      // 2. 没有任何专业领域的，帮众做完带XX或者“过”的
+      query = _constructQuery({noField: true, source: 1});
+      return query.first().then(task => {
+        if (task) return task;
+        // 3. 有专业领域的，帮众做完带XX或者“过”的
+        query = _constructQuery({source: 1});
+        return query.first().then(task => {
+          if (task) return task;
+          // 4. 任何机器任务
+          query = _constructQuery({});
+          return query.first();
+        });
+      });
+    });
   } else if (userRole === 'B端用户') {
     // TODO: B端用户
     // query = _constructQuery(6);
