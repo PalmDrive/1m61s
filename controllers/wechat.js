@@ -19,6 +19,9 @@ const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
 };
 
+const calculateWrongWords = () => {
+
+};
 const sendModelMessage = (accessToken) => {
   logger.info('sendModelMessage-- start');
   const data = {
@@ -69,7 +72,7 @@ const sendModelMessage = (accessToken) => {
   }, (error, response, body) => {
     logger.info(`sendModelMessage--response: ${response}`);
     logger.info(`sendModelMessage--body: ${body}`);
-    logError('sendModelMessage--err: ', error);
+    if (error) logError('sendModelMessage--err: ', error);
     // if (error) return reject(error);
     
   });
@@ -461,8 +464,7 @@ const sendToUser = {
 
         exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
           if (error) {
-            logger.info(`--- At ${getTime(_startedAt)}`);
-            logError(' exec error', error);
+            logError(`--- At ${getTime(_startedAt)} exec error`, error);
             return;
           }
           const duration = parseDuration(stdout);
