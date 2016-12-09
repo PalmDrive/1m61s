@@ -910,7 +910,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
         hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
-        userRole = user.get('role') || 0;
+        userRole = user.get('role') || 'B';// TODO: userRole relavant change
   let taskLevel = 0;
 
   completeTaskAndReply(task, data, accessToken);
@@ -966,66 +966,81 @@ const findLastTaskForUser = userId => {
 // Used in findNewTaskForUser, get the task before testing if it is valid
 const getTask = user => {
   const userId = user.get('open_id'),
-        userRole = user.get('role') || 0;
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
 
-  const _constructQuery = taskLevel => {
-    const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  const _constructQuery = options => {
+    const query = new leanCloud.AV.Query('CrowdsourcingTask'),
+          source = options.source || 0;
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
-    query.equalTo('level', taskLevel);
     query.notEqualTo('passed_users', userId);
+    query.equalTo('source', source);
+    if (options.field) query.equalTo('fields', options.field);
+    if (options.noField) query.doesNotExist('fields');
+    if (options.notField) query.notEqualTo('fields', options.notField);
+
     return query;
   };
 
   let query;
-  if (userRole === 0) {
-    // B类用户
-    query = _constructQuery(0);
-    return query.first();
-  } else if (userRole === 1) {
-    // A类用户
-    query = _constructQuery(1);
-    return query.first().then(task => {
-      if (task) return task;
-      query = _constructQuery(0);
-      return query.first();
-    });
-  } else if (userRole === 2) {
+  if (userRole === 'A' && userField) {
     // 帮主
-    query = _constructQuery(4);
+    // 1. 自己专业领域的机器任务
+    query = _constructQuery({field: userField});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery(3);
+      // 2. 自己专业领域的，帮众做完带XX或者“过”的
+      query = _constructQuery({field: userField, source: 1});
       return query.first().then(task => {
         if (task) return task;
-        query = _constructQuery(2);
+        // 3. 没有任何专业领域的机器任务
+        query = _constructQuery({noField: true});
         return query.first().then(task => {
           if (task) return task;
-          query = _constructQuery(1);
-          return query.first().then(task => {
-            if (task) return task;
-            query = _constructQuery(0);
-            return query.first();
-          });
+          // 4. 其他专业领域的机器任务
+          query = _constructQuery({notField: userField});
+          return query.first();
         });
       });
     });
-  } else if (userRole === 3) {
-    // 工作人员
-    query = _constructQuery(5);
+  } else if (userRole === 'A') {
+    // 帮众
+    query = _constructQuery({noField: true});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery(0);
+      query = _constructQuery({});
       return query.first();
     });
-  } else if (userRole === 4) {
+  } else if (userRole === '工作人员') {
+    // 工作人员
+    // 1. 帮主做完带XX或者“过”的
+    query = _constructQuery({source: 2});
+    return query.first().then(task => {
+      if (task) return task;
+      // 2. 没有任何专业领域的，帮众做完带XX或者“过”的
+      query = _constructQuery({noField: true, source: 1});
+      return query.first().then(task => {
+        if (task) return task;
+        // 3. 有专业领域的，帮众做完带XX或者“过”的
+        query = _constructQuery({source: 1});
+        return query.first().then(task => {
+          if (task) return task;
+          // 4. 任何机器任务
+          query = _constructQuery({});
+          return query.first();
+        });
+      });
+    });
+  } else if (userRole === 'B端用户') {
     // B端用户
-    query = _constructQuery(6);
+    // 工作人员做完带XX或者“过”的
+    query = _constructQuery({source: 3});
     return query.first();
   } else {
-    logger.info(`Error: invalid role for user with open id: ${userId}`);
+    logger.info(`Error: invalid role to get task. User role: ${userRole}. User open id: ${userId}`);
     return Promise.resolve(false);
   }
 };
@@ -1409,7 +1424,7 @@ const setPrice = (data, user) => {
 
 const onReceivePass = (data, accessToken, task, user) => {
   const userId = data.fromusername,
-        userRole = user.get('role') || 0;
+        userRole = user.get('role') || 'B';// TODO: userRole relavant change
   // Set original task to unassigned status
   task.unset('user_id');
   task.addUnique('passed_users', userId);
