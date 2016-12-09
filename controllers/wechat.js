@@ -22,7 +22,7 @@ const getTime = (startedAt) => {
 const calculateWrongWords = () => {
 
 };
-const sendModelMessage = (accessToken) => {
+const sendModelMessage = accessToken => {
   logger.info('sendModelMessage-- start');
   const data = {
     touser: 'oXrsBv-Gl6tjcwTIlCCqQzEAYoWg',
@@ -46,37 +46,33 @@ const sendModelMessage = (accessToken) => {
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
     json: true,
     body:  {
-       "touser":data.touser,
-       "template_id":"YtKBy61jPuJvpLkws0hgOv_ilTriMfBKvZBS9OTbSh4",
-       "url":"http://weixin.qq.com/download",            
-       "data":{
-         "first": {
-             "value":`Biu~你今天赚取到${data.money}元红包[测试]：`,
-             "color":"#173177"
-         },
-         "keynote1":{
-             "value":"任务反馈",
-             "color":"#173177"
-         },
-         "keynote2": {
-             "value":`${data.money}元红包`,
-             "color":"#173177"
-         },
-         "remark":{
-             "value":"下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个 \n\n 点击查看详情）",
-             "color":"#000000"
-         }
-       }
+      "touser":data.touser,
+      "template_id":"YtKBy61jPuJvpLkws0hgOv_ilTriMfBKvZBS9OTbSh4",
+      "url":"http://weixin.qq.com/download",            
+      "data":{
+        "first": {
+          "value":`Biu~你今天赚取到${data.money}元红包[测试]：`,
+          "color":"#173177"
+        },
+        "keynote1":{
+          "value":"任务反馈",
+          "color":"#173177"
+        },
+        "keynote2": {
+          "value":`${data.money}元红包`,
+          "color":"#173177"
+        },
+        "remark":{
+          "value":"下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个 \n\n 点击查看详情）",
+          "color":"#000000"
+        }
       }
     }
   }, (error, response, body) => {
     logger.info(`sendModelMessage--response: ${response}`);
     logger.info(`sendModelMessage--body: ${body}`);
-    if (error) logError('sendModelMessage--err: ', error);
-    // if (error) return reject(error);
-    
+    if (error) logError('sendModelMessage--err: ', error);    
   });
-  
 };
 
 const savedContent = {};
