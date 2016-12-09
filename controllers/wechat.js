@@ -19,8 +19,11 @@ const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
 };
 
-const sendModelMessage = (accessToken) => {
+const calculateWrongWords = () => {
 
+};
+const sendModelMessage = (accessToken) => {
+  logger.info('sendModelMessage-- start');
   const data = {
     touser: 'oXrsBv-Gl6tjcwTIlCCqQzEAYoWg',
     money: '100',
@@ -38,6 +41,7 @@ const sendModelMessage = (accessToken) => {
     ]
   };
 
+  logger.info(`sendModelMessage-- data:${data}`);
   request.post({
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
     json: true,
@@ -66,9 +70,11 @@ const sendModelMessage = (accessToken) => {
       }
     }
   }, (error, response, body) => {
-    if (error) return reject(error);
-    console.log(`sendModelMessage--response: ${response}`);
-    console.log(`sendModelMessage--body: ${body}`);
+    logger.info(`sendModelMessage--response: ${response}`);
+    logger.info(`sendModelMessage--body: ${body}`);
+    if (error) logError('sendModelMessage--err: ', error);
+    // if (error) return reject(error);
+    
   });
   
 };
