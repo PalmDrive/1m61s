@@ -996,10 +996,7 @@ const getTask = user => {
   };
 
   let query;
-  if (userRole === 'B' || userRole === 'C') {
-    // TODO: B类用户 && C类用户
-
-  } else if (userRole === 'A' && userField) {
+  if (userRole === 'A' && userField) {
     // 帮主
     // 1. 自己专业领域的机器任务
     query = _constructQuery({field: userField});
