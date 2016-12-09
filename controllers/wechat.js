@@ -19,7 +19,10 @@ const getTime = (startedAt) => {
 };
 
 const calculateWrongWords = () => {
-  
+  let query = new leanCloud.AV.Query('WeChatUser');
+  query.find(results => {
+    debugger;
+  });
 };
 const sendModelMessage = accessToken => {
   logger.info('sendModelMessage-- start');
@@ -40,7 +43,7 @@ const sendModelMessage = accessToken => {
     ]
   };
 
-  logger.info(`sendModelMessage-- data:${data.toJSON()}`);
+  logger.info(`sendModelMessage-- data:${JSON.stringify(data)}`);
   request.post({
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
     json: true,
@@ -68,8 +71,8 @@ const sendModelMessage = accessToken => {
       }
     }
   }, (error, response, body) => {
-    logger.info(`sendModelMessage--response: ${response.toJSON()}`);
-    logger.info(`sendModelMessage--body: ${body.toJSON()}`);
+    logger.info(`sendModelMessage--response: ${JSON.stringify(response)}`);
+    logger.info(`sendModelMessage--body: ${JSON.stringify(body)}`);
     if (error) logError('sendModelMessage--err: ', error);    
   });
 };
