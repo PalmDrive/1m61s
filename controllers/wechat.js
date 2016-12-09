@@ -40,7 +40,7 @@ const sendModelMessage = accessToken => {
     ]
   };
 
-  logger.info(`sendModelMessage-- data:${data}`);
+  logger.info(`sendModelMessage-- data:${data.toJSON()}`);
   request.post({
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
     json: true,
@@ -68,8 +68,8 @@ const sendModelMessage = accessToken => {
       }
     }
   }, (error, response, body) => {
-    logger.info(`sendModelMessage--response: ${response}`);
-    logger.info(`sendModelMessage--body: ${body}`);
+    logger.info(`sendModelMessage--response: ${response.toJSON()}`);
+    logger.info(`sendModelMessage--body: ${body.toJSON()}`);
     if (error) logError('sendModelMessage--err: ', error);    
   });
 };
