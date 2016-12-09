@@ -18,6 +18,60 @@ const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
 };
 
+const sendModelMessage = (accessToken) => {
+
+  const data = {
+    touser: 'oslYRxAmiWdvmXHs3p11gTJS0RC4',
+    money: '100',
+    totalAmount: '25',
+    errorAmount: '3',
+    error: [
+      {
+        type: '首字母大写',
+        amount: '5'
+      },
+      {
+        type: '缺漏词语',
+        amount: '2'
+      }
+    ]
+  };
+
+  request.post({
+    url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
+    json: true,
+    body:  {
+       "touser":data.touser,
+       "template_id":"YtKBy61jPuJvpLkws0hgOv_ilTriMfBKvZBS9OTbSh4",
+       "url":"http://weixin.qq.com/download",            
+       "data":{
+         "first": {
+             "value":`Biu~你今天赚取到${data.money}元红包[测试]：`,
+             "color":"#173177"
+         },
+         "keynote1":{
+             "value":"任务反馈",
+             "color":"#173177"
+         },
+         "keynote2": {
+             "value":`${data.money}元红包`,
+             "color":"#173177"
+         },
+         "remark":{
+             "value":"下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个 \n\n 点击查看详情）",
+             "color":"#000000"
+         }
+       }
+      }
+    }
+  }, (error, response, body) => {
+    if (error) return reject(error);
+    console.log(`sendModelMessage--response: ${response}`);
+    console.log(`sendModelMessage--body: ${body}`);
+  });
+  
+};
+
 const savedContent = {};
 savedContent.firstMin = [
   '我今天演讲猪蹄是努力把最简单的事情做到最好，剩下的就是坚持，我会大概回顾一下KEEP在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
@@ -1471,6 +1525,9 @@ module.exports.postCtrl = (req, res, next) => {
     logger.info(`--- At ${getTime(startedAt)} get user ${userId} data from leancloud.`);
     logger.info('user:');
     logger.info(user.toJSON());
+
+    // 发送模板消息
+    sendModelMessage(accessToken);
 
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
