@@ -69,7 +69,7 @@ const sendModelMessage = (accessToken) => {
     logger.info(`sendModelMessage--response: ${response}`);
     logger.info(`sendModelMessage--body: ${body}`);
     logger.info(`sendModelMessage--err: ${error}`);
-    if (error) return reject(error);
+    // if (error) return reject(error);
     
   });
   
