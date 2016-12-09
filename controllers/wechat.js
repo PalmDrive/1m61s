@@ -461,7 +461,7 @@ const sendToUser = {
         exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
           if (error) {
             logger.info(`--- At ${getTime(_startedAt)}`);
-            logError('--- At exec error', error);
+            logError(' exec error', error);
             return;
           }
           const duration = parseDuration(stdout);
