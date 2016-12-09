@@ -15,6 +15,10 @@ const request = require('request'),
 
 const taskTimers = {};
 
+const getTime = (startedAt) => {
+  return (new Date() - startedAt) + ' ms';
+};
+
 const savedContent = {};
 savedContent.firstMin = [
   '我今天演讲猪蹄是努力把最简单的事情做到最好，剩下的就是坚持，我会大概回顾一下KEEP在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
@@ -76,7 +80,7 @@ const getAccessTokenFromWechat = () => {
   });
 };
 
-const getAccessTokenFromCache = (options) => {
+const getAccessTokenFromCache = (options, startedAt) => {
   console.log('get access token from cache...');
   options = options || {};
   const name = 'wechat_access_token';
@@ -106,7 +110,7 @@ const getAccessTokenFromCache = (options) => {
           // Set redis expire time as 1min less than actual access token expire time
           redisClient.expire(name, data.expires_in - 60);
 
-          logger.info(data.access_token);
+          logger.info(`--- At ${startedAt} getAccessTokenFromWechat / access_token: ${data.access_token}`);
           resolve(data.access_token);
         }, err => reject(err));
       }
@@ -141,7 +145,7 @@ const getAccessTokenFromCache = (options) => {
 //   });
 // };
 
-const uploadMedia = (mediaSrc, type, token) => {
+const uploadMedia = (mediaSrc, type, token, _startedAt) => {
   const url = `https://api.weixin.qq.com/cgi-bin/media/upload?access_token=${token}&type=${type}`;
 
   return new Promise((resolve, reject) => {
@@ -151,6 +155,7 @@ const uploadMedia = (mediaSrc, type, token) => {
         media: fs.createReadStream(mediaSrc)
       }
     }, (error, response, body) => {
+      logger.info(`--- At ${getTime(_startedAt)} uploadMedia / url: ${url}`);
       if (error) { return reject(error); }
 
       const parsedBody = JSON.parse(body);
@@ -350,23 +355,27 @@ const sendToUser = {
         url: `https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=${accessToken}`,
         json: true,
         body
-      }, (error, response, body) => {
+      }, (error, response, responseBody) => {
+
+        logger.info(`--- At ${getTime(body._startedAt)} sending message to user ${body.touser}`);
+
         if (error) { return reject(error); }
-        if (body.errcode) {
-          reject(body);
+        if (responseBody.errcode) {
+          reject(responseBody);
         } else {
-          resolve(body);
+          resolve(responseBody);
         }
       });
     });
   },
-  image(mediaId, userId, accessToken) {
+  image(mediaId, userId, accessToken, _startedAt) {
     const body = {
             touser: userId,
             msgtype: 'image',
             image: {
               media_id: mediaId
-            }
+            },
+            _startedAt: _startedAt
           };
     return this.message(body, accessToken);
   },
@@ -375,10 +384,11 @@ const sendToUser = {
     return this.message({
       touser: data.fromusername,
       msgtype: 'text',
-      text: {content}
+      text: {content},
+      _startedAt: data._startedAt
     }, accessToken);
   },
-  // Send a voice message to user
+  // Send a voice message to user, if audio length > 8s, split audio into two
   voice(transcript, data, accessToken) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
@@ -386,18 +396,19 @@ const sendToUser = {
           splitPath1 = `${global.APP_ROOT}/tmp/${audioId}_split1.mp3`,
           splitPath2 = `${global.APP_ROOT}/tmp/${audioId}_split2.mp3`,
           ws = fs.createWriteStream(mediaSrc),
-          self = this;
+          self = this,
+          _startedAt = data._startedAt;
 
     ws.on('finish', () => {
-        logger.info('Audio saved in local');
+        logger.info(`--- At ${getTime(_startedAt)} Audio saved in local`);
 
         exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
           if (error) {
-            logError('exec error', error);
+            logError(`--- At ${getTime(_startedAt)} exec error`, error);
             return;
           }
           const duration = parseDuration(stdout);
-          logger.info('Audio length in seconds:');
+          logger.info(`--- At ${getTime(_startedAt)} Audio length in seconds:`);
           logger.info(duration);
 
           if (duration > 8) {
@@ -406,14 +417,14 @@ const sendToUser = {
             // First half fragment
             exec(`ffmpeg -f wav -i ${mediaSrc} -t ${cutPoint} ${splitPath1}`, (error, stdout, stderr) => {
               if (error) {
-                logger.info(`split file 1 exec error: ${error}`);
+                logger.info(`--- At ${getTime(_startedAt)} split file 1 exec error: ${error}`);
                 return;
               }
-              logger.info('Finished split file 1');
+              logger.info(`--- At ${getTime(_startedAt)} Finished split file 1`);
 
-              uploadMedia(splitPath1, 'voice', accessToken)
+              uploadMedia(splitPath1, 'voice', accessToken, _startedAt)
               .then(media => {
-                logger.info('split media 1 uploaded:');
+                logger.info(`--- At ${getTime(_startedAt)} split media 1 uploaded:`);
                 logger.info(media);
 
                 // Delete local audio file
@@ -423,19 +434,20 @@ const sendToUser = {
                 self.message({
                   touser: data.fromusername,
                   msgtype: 'voice',
-                  voice: {media_id: media.media_id}
+                  voice: {media_id: media.media_id},
+                  _startedAt
                 }, accessToken).then(() => {
                   // Second half fragment
                   exec(`ffmpeg -f wav -ss ${cutPoint} -i ${mediaSrc} ${splitPath2}`, (error, stdout, stderr) => {
                     if (error) {
-                      logger.info(`split file 2 exec error: ${error}`);
+                      logger.info(`--- At ${getTime(_startedAt)} split file 2 exec error: ${error}`);
                       return;
                     }
-                    logger.info('Finished split file 2');
+                    logger.info(`--- At ${getTime(_startedAt)} Finished split file 2`);
 
-                    uploadMedia(splitPath2, 'voice', accessToken)
+                    uploadMedia(splitPath2, 'voice', accessToken, _startedAt)
                     .then(media => {
-                      logger.info('split media 2 uploaded:');
+                      logger.info(`--- At ${getTime(_startedAt)} split media 2 uploaded:`);
                       logger.info(media);
 
                       // Delete local audio file
@@ -447,7 +459,8 @@ const sendToUser = {
                         self.message({
                           touser: data.fromusername,
                           msgtype: 'voice',
-                          voice: {media_id: media.media_id}
+                          voice: {media_id: media.media_id},
+                          _startedAt
                         }, accessToken);
                       }, 1000);
                     }, err => {
@@ -461,9 +474,9 @@ const sendToUser = {
             });
           } else {
             // Upload the audio as media in Wechat
-            uploadMedia(mediaSrc, 'voice', accessToken)
+            uploadMedia(mediaSrc, 'voice', accessToken, _startedAt)
               .then(media => {
-                logger.info('media uploaded: ');
+                logger.info(`--- At ${getTime(_startedAt)} media uploaded: `);
                 logger.info(media);
 
                 // Delete local audio file
@@ -473,7 +486,8 @@ const sendToUser = {
                 return self.message({
                   touser: data.fromusername,
                   msgtype: 'voice',
-                  voice: {media_id: media.media_id}
+                  voice: {media_id: media.media_id},
+                  _startedAt
                 }, accessToken);
               }, err => {
                 logError('upload media failed', err);
@@ -486,23 +500,66 @@ const sendToUser = {
 
     // Save the audio to local
     request(audioURL, (err, res, body) => {
+      logger.info(`--- At ${getTime(_startedAt)} request audio URL:`);
+      logger.info(audioURL);
       if (err) {
         self.text('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
-        logger.info('request audio error: ');
-        logger.info(err);
-        logger.info('audio URL: ');
-        logger.info(audioURL);
+        logError('request audio error', err);
       }
     }).pipe(ws);
   },
   // Send an uploaded voice
-  voiceByMediaId(mediaId, userId, accessToken) {
+  voiceByMediaId(mediaId, userId, accessToken, _startedAt) {
     const body = {
             touser: userId,
             msgtype: 'voice',
-            voice: {media_id: mediaId}
+            voice: {media_id: mediaId},
+            _startedAt: _startedAt
           };
     return this.message(body, accessToken);
+  },
+  // Send a voice message without splitting audio
+  singleVoice(transcript, data, accessToken) {
+    const audioURL = transcript.get('fragment_src'),
+          audioId = transcript.id,
+          mediaSrc = `${global.APP_ROOT}/tmp/single_${audioId}.mp3`,
+          ws = fs.createWriteStream(mediaSrc),
+          self = this,
+          _startedAt = data._startedAt;
+    ws.on('finish', () => {
+      logger.info(`--- At ${getTime(_startedAt)} Audio saved in local`);
+      // Upload the audio as media in Wechat
+      uploadMedia(mediaSrc, 'voice', accessToken, _startedAt)
+        .then(media => {
+          logger.info(`--- At ${getTime(_startedAt)} media uploaded:`);
+          logger.info(media);
+
+          // Delete local audio file
+          fs.unlink(mediaSrc);
+
+          // Send the voice message
+          return self.message({
+            touser: data.fromusername,
+            msgtype: 'voice',
+            voice: {media_id: media.media_id},
+            _startedAt
+          }, accessToken);
+        }, err => {
+          logError('upload media failed', err);
+        });
+    }, err => {
+      logError('voice message ws', err);
+    });
+
+    // Save the audio to local
+    request(audioURL, (err, res, body) => {
+      logger.info(`--- At ${getTime(_startedAt)} request audio URL:`);
+      logger.info(audioURL);
+      if (err) {
+        self.text('biu~抱歉，获取语音出现问题。', data, accessToken);
+        logError('request audio error', err);
+      }
+    }).pipe(ws);
   },
   // Send voice and text to the user
   task(task, data, accessToken) {
@@ -510,9 +567,11 @@ const sendToUser = {
     const type = task.get('fragment_type'),
           fragmentId = task.get('fragment_id'),
           query = new leanCloud.AV.Query(type),
-          self = this;
+          self = this,
+          _startedAt = data._startedAt;
     return query.get(fragmentId).then(transcript => {
       // This transcript can be Transcript or UserTranscript
+      logger.info(`--- At ${getTime(_startedAt)} find transcript with id : ${fragmentId}`);
       if (transcript) {
         const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
         // Send text in transcript
@@ -527,7 +586,7 @@ const sendToUser = {
       }
     }, err => {
       logError('failed getting transcript when sending task', err);
-
+      logger.info(`--- At ${getTime(_startedAt)} error: find transcript with id : ${fragmentId}`);
       task.destroy().then(success => {
         findAndSendNewTaskForUser(data, accessToken);
       }, err => {
@@ -551,14 +610,14 @@ const createUser = (userId, tasksDone) => {
 const onSubscribe = (data, accessToken) => {
   const userId = data.fromusername;
   // Send image of introduction
-  sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken).then(() => {
+  sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken, data._startedAt).then(() => {
     // Send text in 1s
     setTimeout(() => {
       sendToUser.text(savedContent.firstMin[0], data, accessToken);
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
-      sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], userId, accessToken);
+      sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], userId, accessToken, data._startedAt);
     }, 2000);
   });
 };
@@ -568,6 +627,7 @@ const assignTask = (task, data, accessToken) => {
   const userId = data.fromusername;
   task.set('user_id', userId);
   return task.save().then(task => {
+    logger.info(`--- At ${getTime(data._startedAt)} Assign task / task.save with userid : ${userId}`);
     // Cancel this user's last timer
     if (taskTimers[userId]) {
       clearTimeout(taskTimers[userId]);
@@ -576,9 +636,11 @@ const assignTask = (task, data, accessToken) => {
     taskTimers[userId] = setTimeout(() => {
       const query = new leanCloud.AV.Query('CrowdsourcingTask');
       query.get(task.id).then(task => {
+        logger.info(`--- At ${getTime(data._startedAt)} Assign task / query.get(task.id) with task.id : ${task.id}`);
         if (task.get('status') === 0) {
           task.unset('user_id');
           task.save().then(task => {
+            logger.info(`--- At ${getTime(data._startedAt)} Assign task / Task recycled with task.id : ${task.id}`);
             logger.info('Task recycled:');
             logger.info(task.id);
             sendToUser.text('biu~每次任务如果在1个小时内没有被解决掉，它就会被自动分配给其它童鞋呢，现在你的任务已经失效，如果要领取新的任务，请点击“领取任务”（每天9点发布新的任务哦）', data, accessToken);
@@ -593,12 +655,13 @@ const assignTask = (task, data, accessToken) => {
   });
 };
 
-const isTaskValid = task => {
+const isTaskValid = (task, _startedAt) => {
   const type = task.get('fragment_type'),
         id = task.get('fragment_id'),
         query = new leanCloud.AV.Query(type);
 
   return query.get(id).then(transcript => {
+    logger.info(`--- At ${getTime(_startedAt)} isTaskValid / get task with fragment_id : ${id}`);
     // Check for content
     const content =  type === 'Transcript' ? transcript.get('content_baidu') : transcript.get('content');
     if (!content) {
@@ -617,6 +680,7 @@ const isTaskValid = task => {
 const onGetTask = (data, accessToken) => {
   const userId = data.fromusername;
   findInProcessTaskForUser(userId).then(task => {
+    logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
     if (task) {
       // There is a task in process
       return sendToUser.task(task, data, accessToken);
@@ -711,7 +775,7 @@ const setNeedPay = user => {
 // Very similar to onGetTask, however doesn't check for in process task
 const findAndSendNewTaskForUser = (data, accessToken) => {
   const userId = data.fromusername;
-  findNewTaskForUser(userId).then(task => {
+  findNewTaskForUser(userId, data._startedAt).then(task => {
     if (task) {
       return assignTask(task, data, accessToken);
     } else {
@@ -736,12 +800,14 @@ const completeTaskAndReply = (task, data, accessToken) => {
 
   // Find user object
   getUser(userId).then(user => {
+    logger.info(`--- At ${getTime(data._startedAt)} completeTaskAndReply / getUser(userId) with userId : ${userId}`);
     // Add 1 to user's tasks done
     const tasksDone = user.get('tasks_done');
     user.set('tasks_done', tasksDone + 1);
     return user.save();
   }).then(user => {
     const tasksDone = user.get('tasks_done');
+    logger.info(`--- At ${getTime(data._startedAt)} completeTaskAndReply / 获取完成任务数量 userId : ${userId} / 完成数量: ${tasksDone}`);
     // Check for tasks done
     if (tasksDone === 4) {
       // User has just completed 4 tasks
@@ -819,7 +885,7 @@ const findLastTaskForUser = userId => {
   return query.first();
 };
 
-const findNewTaskForUser = userId => {
+const findNewTaskForUser = (userId, _startedAt) => {
   const _constructQuery = fragmentType => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask');
     // query.equalTo('is_head', true);
@@ -834,6 +900,7 @@ const findNewTaskForUser = userId => {
   let query = _constructQuery('UserTranscript');
 
   return query.first().then(task => {
+    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / <fragment_type = UserTranscript > with userId: ${userId}`);
     if (task){
       return task;
     } else {
@@ -841,16 +908,18 @@ const findNewTaskForUser = userId => {
       return query.first();
     }
   }).then(task => {
+    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / <fragment_type = Transcript > with userId: ${userId}`);
     if (task) {
       // Check if content and fragment_src are empty
-      return isTaskValid(task).then(taskValid => {
+      return isTaskValid(task, _startedAt).then(taskValid => {
         if (taskValid) {
           return task;
         }
         // Destroy the task
         return task.destroy().then(success => {
+          logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / task.destroy() with userId: ${userId}`);
           // Find new task
-          return findNewTaskForUser(userId);
+          return findNewTaskForUser(userId, _startedAt);
         }, err => {
           logError('failed destroying task', err);
         });
@@ -907,8 +976,9 @@ const onReceiveWeChatId = (data, accessToken, user) => {
     // Change user status
     user.set('status', -200);
     user.save().then(user => {
+      logger.info(`--- At ${getTime(data._startedAt)} onReceiveWeChatId / set status -200 `);
       // Send image to let user add xiaozhushou
-      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken)
+      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken, data._startedAt)
         .then(() => {
           setTimeout(() => {
             // Send first question
@@ -920,6 +990,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
     // Save WeChatId, ask for confirmation
     user.set('wechat_id', content);
     user.save().then(user => {
+      logger.info(`--- At ${getTime(data._startedAt)} onReceiveWeChatId / set wechat_id :${content}`);
       sendToUser.text(`微信号：${content}。确认请回复1，修改请回复新的微信号。`, data, accessToken);
     });
   }
@@ -954,6 +1025,7 @@ const onReceiveCorrect = (data, accessToken, task) => {
 
   // Mark the transcript wrong_chars = 0
   getTranscript(task).then(transcript => {
+    logger.info(`--- At ${getTime(data._startedAt)} onReceiveCorrect / set wrong_chars : 0`);
     transcript.set('wrong_chars', 0);
     transcript.save();
   });
@@ -1084,7 +1156,7 @@ const onFirstMin = (data, accessToken, user) => {
         sendToUser.text(savedContent.firstMin[order], data, accessToken);
         // Send voice in 1s
         setTimeout(() => {
-          sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken);
+          sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, data._startedAt);
         }, 1000);
       });
     } else {
@@ -1140,7 +1212,7 @@ const onSecondMin = (data, accessToken, user) => {
     user.set('need_pay', true);
     user.save().then(user => {
       // Send image
-      sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken).then(() => {
+      sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, data._startedAt).then(() => {
         // Send text
         const text = '么么哒~正确！恭喜你成功完成所有任务，现金红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
         setTimeout(() => {
@@ -1184,7 +1256,7 @@ const onThirdMin = (data, accessToken, user) => {
           .then(() => {
             // Send voice in 1s
             setTimeout(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken);
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, data._startedAt);
             }, 1000);
           });
       });
@@ -1210,6 +1282,45 @@ const setPrice = (data, user) => {
   });
 };
 
+const onReceiveNotMatch = (data, accessToken, task, user) => {
+  // Get machine content
+  getMachineTranscript(task).then(transcript => {
+    if (transcript) {
+      // Send content to user
+      const content = transcript.get('content_baidu')[0];
+      sendToUser.text(content, data, accessToken).then(() => {
+        setTimeout(() => {
+          sendToUser.text('biu~上面是我们对于这段语音翻译到最好的程度啦，只能帮你到这里了~', data, accessToken);
+        }, 2000);
+      });
+    }
+  });
+};
+
+const onReceivePrevNext = (data, accessToken, task) => {
+  // Get the prev/next transcript
+  const mediaId = task.get('media_id'),
+        query = new leanCloud.AV.Query('Transcript'),
+        content = 'biu~抱歉，没有找到所请求的片段。';
+  let order = task.get('fragment_order');
+  if (data.content === '前') {
+    order -= 1;
+  } else {
+    order += 1;
+  }
+  query.equalTo('media_id', mediaId);
+  query.equalTo('fragment_order', order);
+  query.equalTo('set_type', 'machine');
+  query.first().then(transcript => {
+    if (transcript) {
+      // Send audio
+      sendToUser.singleVoice(transcript, data, accessToken);
+    } else {
+      sendToUser.text(content, data, accessToken);
+    }
+  });
+};
+
 module.exports.getAccessToken = getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
@@ -1224,7 +1335,11 @@ module.exports.postCtrl = (req, res, next) => {
 
   let scene;
 
-  const accessTokenPromise = getAccessTokenFromCache();
+  const startedAt = new Date();
+  data._startedAt = startedAt;
+  logger.info(`--- At ${startedAt} get user ${userId} response`);
+
+  const accessTokenPromise = getAccessTokenFromCache(undefined, startedAt);
   const userPromise = getUser(userId).then(user => {
     if (user) {
       return user;
@@ -1232,6 +1347,7 @@ module.exports.postCtrl = (req, res, next) => {
       return createUser(userId);
     }
   });
+
   Promise.all([accessTokenPromise, userPromise]).then(results => {
     const accessToken = results[0],
           user = results[1],
@@ -1240,6 +1356,10 @@ module.exports.postCtrl = (req, res, next) => {
           tasksDone = user.get('tasks_done');
     let order;
 
+    logger.info(`--- At ${getTime(startedAt)} get user ${userId} data from leancloud.`);
+    logger.info('user:');
+    logger.info(user.toJSON());
+
     if (data.msgtype === 'text') {
       if (data.content === '网络测试') {
         sendToUser.text('网络测试成功', data, accessToken);
@@ -1247,7 +1367,7 @@ module.exports.postCtrl = (req, res, next) => {
         logger.info(userId);
         sendGA(userId, 'test_internet');
       } else if (data.content === '规则' && userStatus !== -205) {
-        sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken);
+        sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
       } else {
         // Check status
@@ -1277,6 +1397,7 @@ module.exports.postCtrl = (req, res, next) => {
             sendGA(userId, 'enter_revoke_mode');
           } else {
             findInProcessTaskForUser(userId).then(task => {
+              logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
               if (task) {
                 if (data.content === correctContent) {
                   onReceiveCorrect(data, accessToken, task);
@@ -1284,6 +1405,15 @@ module.exports.postCtrl = (req, res, next) => {
                 } else if (data.content === '没有语音') {
                   onReceiveNoVoice(data, accessToken, task);
                   sendGA(userId, 'reply_no_voice');
+                } else if (data.content === '不对应') {
+                  onReceiveNotMatch(data, accessToken, task, user);
+                  sendGA(userId, 'reply_not_match');
+                } else if (data.content === '前') {
+                  onReceivePrevNext(data, accessToken, task);
+                  sendGA(userId, 'reply_prev');
+                } else if (data.content === '后') {
+                  onReceivePrevNext(data, accessToken, task);
+                  sendGA(userId, 'reply_next');
                 } else {
                   onReceiveTranscription(data, accessToken, task);
                   sendGA(userId, 'reply');
@@ -1325,7 +1455,7 @@ module.exports.postCtrl = (req, res, next) => {
           order = -100 - userStatus;
           sendToUser.text(savedContent.thirdMin[order], data, accessToken)
             .then(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken);
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, startedAt);
             });
         } else if (userStatus >= -304 && userStatus <= -300) {
           order = -300 - userStatus;
@@ -1333,7 +1463,7 @@ module.exports.postCtrl = (req, res, next) => {
           sendToUser.text(savedContent.firstMin[order], data, accessToken);
           // Send voice in 1s
           setTimeout(() => {
-            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken);
+            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, startedAt);
           }, 1000);
         } else if (userStatus >= -206 && userStatus <= -200) {
           order = -200 - userStatus;
@@ -1351,7 +1481,6 @@ module.exports.postCtrl = (req, res, next) => {
     }
   });
 };
-
 module.exports.getCtrl = (req, res, next) => {
   res.send(req.query.echostr);
 };
