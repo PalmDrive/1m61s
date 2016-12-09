@@ -979,9 +979,10 @@ const getTask = user => {
       });
     });
   } else if (userRole === 'B端用户') {
-    // TODO: B端用户
-    // query = _constructQuery(6);
-    // return query.first();
+    // B端用户
+    // 工作人员做完带XX或者“过”的
+    query = _constructQuery({source: 3});
+    return query.first();
   } else {
     logger.info(`Error: invalid role for user with open id: ${userId}`);
     return Promise.resolve(false);
