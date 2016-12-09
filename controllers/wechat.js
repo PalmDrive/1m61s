@@ -19,7 +19,7 @@ const getTime = (startedAt) => {
 };
 
 const sendModelMessage = (accessToken) => {
-
+  console.log(`sendModelMessage-- start`);
   const data = {
     touser: 'oXrsBv-Gl6tjcwTIlCCqQzEAYoWg',
     money: '100',
@@ -37,6 +37,7 @@ const sendModelMessage = (accessToken) => {
     ]
   };
 
+  console.log(`sendModelMessage-- data:${data}`);
   request.post({
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
     json: true,
@@ -65,9 +66,11 @@ const sendModelMessage = (accessToken) => {
       }
     }
   }, (error, response, body) => {
-    if (error) return reject(error);
     console.log(`sendModelMessage--response: ${response}`);
     console.log(`sendModelMessage--body: ${body}`);
+    console.log(`sendModelMessage--err: ${error}`);
+    if (error) return reject(error);
+    
   });
   
 };
