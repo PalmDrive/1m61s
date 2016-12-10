@@ -5,6 +5,7 @@ const request = require('request'),
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
       UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
+      CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
@@ -823,20 +824,19 @@ const createUserTranscript = (userId, content, task, transcript) => {
 
 // userTranscript: on which the task is based
 // lastUserId: user who created this task
-// taskLevel: crowdsourcingTask.level
-const createCrowdsourcingTask = (userTranscript, lastUserId, taskLevel) => {
-  taskLevel = taskLevel || 0;
-  const CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
-        newTask = new CrowdsourcingTask();
-
-    newTask.set('fragment_id', userTranscript.id);
-    newTask.set('fragment_type', 'UserTranscript');
-    newTask.set('fragment_order', userTranscript.get('fragment_order'));
-    newTask.set('status', 0);
-    newTask.set('media_id', userTranscript.get('media_id'));
-    newTask.set('last_user', lastUserId);
-    newTask.set('level', taskLevel);
-    return newTask.save();
+// source: CrowdsourcingTask.source
+// lastTask: the task user did before creating this one
+const createCrowdsourcingTask = (userTranscript, lastUserId, source, lastTask) => {
+  const newTask = new CrowdsourcingTask();
+  newTask.set('fragment_id', userTranscript.id);
+  newTask.set('fragment_type', 'UserTranscript');
+  newTask.set('fragment_order', userTranscript.get('fragment_order'));
+  newTask.set('status', 0);
+  newTask.set('media_id', userTranscript.get('media_id'));
+  newTask.set('last_user', lastUserId);
+  newTask.set('source', source);
+  newTask.set('fields', lastTask.get('fields'));
+  return newTask.save();
 };
 
 // Set user's need_pay
@@ -922,8 +922,9 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
         hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
-        userRole = user.get('role') || 'B';// TODO: userRole relavant change
-  let taskLevel = 0;
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
+  let source = 0;
 
   completeTaskAndReply(task, data, accessToken);
 
@@ -942,21 +943,19 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
     transcript.save().then(transcript => {
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
-        // if (userTranscript) {
-        //   if (userRole === 0) {
-        //     taskLevel = 2;
-        //   } else if (userRole === 1 && hasXX) {
-        //     taskLevel = 3;
-        //   } else if (userRole === 2 && hasXX) {
-        //     taskLevel = 5;
-        //   } else if (userRole === 3 && hasXX) {
-        //     taskLevel = 6;
-        //   }
+        if (userTranscript) {
+          if (userRole === 'A' && userField && hasXX) {
+            source = 2;
+          } else if (userRole === 'A' && hasXX) {
+            source = 1;
+          } else if (userRole === '工作人员' && hasXX) {
+            source = 3;
+          }
 
-        //   if (taskLevel) {
-        //     createCrowdsourcingTask(userTranscript, userId, taskLevel);
-        //   }
-        // }
+          if (source) {
+            createCrowdsourcingTask(userTranscript, userId, source, task);
+          }
+        }
       }, err => {
         logError('createUserTranscript', err);
       });
