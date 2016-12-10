@@ -1424,13 +1424,20 @@ const setPrice = (data, user) => {
 
 const onReceivePass = (data, accessToken, task, user) => {
   const userId = data.fromusername,
-        userRole = user.get('role') || 'B';// TODO: userRole relavant change
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
   // Set original task to unassigned status
   task.unset('user_id');
   task.addUnique('passed_users', userId);
-  if (userRole === 1) task.set('level', 3);
-  if (userRole === 2) task.set('level', 5);
-  if (userRole === 3) task.set('level', 6);
+  if (userRole === 'A' && userField) {
+    task.set('source', 2);
+  } else if (userRole === 'A') {
+    task.set('source', 1);
+  } else if (userRole === '工作人员') {
+    task.set('source', 3);
+  } else if (userRole !== 'B端用户') {
+    logger.info('Error: user with invalid role is passing a task. User open id: ${userId}. User role: ${userRole}');
+  }
   task.save().then(task => {
     findAndSendNewTaskForUser(data, accessToken, user);
   });
