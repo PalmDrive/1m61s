@@ -705,10 +705,11 @@ const findInProcessTaskForUser = userId => {
 const createUserTranscript = (userId, content, task, transcript) => {
   const type = task.get('fragment_type'),
         UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
-        userTranscript = new UserTranscript();
+        userTranscript = new UserTranscript(),
+        needContent = content === '0';
 
   userTranscript.set('media_id', task.get('media_id'));
-  userTranscript.set('content', content);
+  if (!needContent) userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
   userTranscript.set('user_open_id', userId);
   if (type === 'Transcript') {
@@ -720,6 +721,10 @@ const createUserTranscript = (userId, content, task, transcript) => {
   if (transcript && type === 'Transcript') {
     userTranscript.set('fragment_src', transcript.get('fragment_src'));
     userTranscript.set('targetTranscript', transcript);
+    if (needContent) {
+      content = transcript.get('content_baidu')[0];
+      userTranscript.set('content', content);
+    }
     return userTranscript.save();
   } else {
     // Get relavent machine transcript from task
@@ -727,12 +732,20 @@ const createUserTranscript = (userId, content, task, transcript) => {
       if (transcript) {
         userTranscript.set('fragment_src', transcript.get('fragment_src'));
         userTranscript.set('targetTranscript', transcript);
+        if (needContent) {
+          content = transcript.get('content_baidu')[0];
+          userTranscript.set('content', content);
+        }
         return userTranscript.save();
       } else {
         logger.info('Error: no machine transcript for task with id ' + task.id);
         return getTranscript(task).then(transcript => {
           if (transcript) {
             userTranscript.set('fragment_src', transcript.get('fragment_src'));
+            if (needContent) {
+              content = transcript.get('content');
+              userTranscript.set('content', content);
+            }
             return userTranscript.save();
           } else {
             logger.info('Error: no transcript for task with id ' + task.id);
