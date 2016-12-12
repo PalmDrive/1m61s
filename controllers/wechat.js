@@ -805,7 +805,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
 
 const completeTaskAndReply = (task, data, accessToken) => {
   const userId = data.fromusername,
-        isCorrect = data.content === '0' ? true : false;
+        isCorrect = data.content === '0';
   // Change task status to 1
   task.set('status', 1);
   task.save();
