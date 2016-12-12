@@ -10,8 +10,7 @@ const request = require('request'),
       logger = require('../lib/logger'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
-      redisClient = require('../redis_client'),
-      correctContent = '0';
+      redisClient = require('../redis_client');
 
 const taskTimers = {};
 
@@ -706,10 +705,11 @@ const findInProcessTaskForUser = userId => {
 const createUserTranscript = (userId, content, task, transcript) => {
   const type = task.get('fragment_type'),
         UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
-        userTranscript = new UserTranscript();
+        userTranscript = new UserTranscript(),
+        needContent = content === '0';
 
   userTranscript.set('media_id', task.get('media_id'));
-  userTranscript.set('content', content);
+  if (!needContent) userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
   userTranscript.set('user_open_id', userId);
   if (type === 'Transcript') {
@@ -721,6 +721,10 @@ const createUserTranscript = (userId, content, task, transcript) => {
   if (transcript && type === 'Transcript') {
     userTranscript.set('fragment_src', transcript.get('fragment_src'));
     userTranscript.set('targetTranscript', transcript);
+    if (needContent) {
+      content = transcript.get('content_baidu')[0];
+      userTranscript.set('content', content);
+    }
     return userTranscript.save();
   } else {
     // Get relavent machine transcript from task
@@ -728,12 +732,20 @@ const createUserTranscript = (userId, content, task, transcript) => {
       if (transcript) {
         userTranscript.set('fragment_src', transcript.get('fragment_src'));
         userTranscript.set('targetTranscript', transcript);
+        if (needContent) {
+          content = transcript.get('content_baidu')[0];
+          userTranscript.set('content', content);
+        }
         return userTranscript.save();
       } else {
         logger.info('Error: no machine transcript for task with id ' + task.id);
         return getTranscript(task).then(transcript => {
           if (transcript) {
             userTranscript.set('fragment_src', transcript.get('fragment_src'));
+            if (needContent) {
+              content = transcript.get('content');
+              userTranscript.set('content', content);
+            }
             return userTranscript.save();
           } else {
             logger.info('Error: no transcript for task with id ' + task.id);
@@ -793,7 +805,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
 
 const completeTaskAndReply = (task, data, accessToken) => {
   const userId = data.fromusername,
-        isCorrect =  data.content === correctContent ? true : false;
+        isCorrect = data.content === '0';
   // Change task status to 1
   task.set('status', 1);
   task.save();
@@ -853,12 +865,15 @@ const onReceiveTranscription = (data, accessToken, task) => {
   getTranscript(task).then(transcript => {
     const taskType = task.get('fragment_type'),
           oldContent = taskType === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
-    if (content === oldContent) {
+    if (content === oldContent || content === '0') {
       // Mark the transcript wrong_chars = 0
       transcript.set('wrong_chars', 0);
-      transcript.save();
     } else {
-      // New content
+      // Mark the transcript wrong_chars = 21
+      // Why 21? Because before we use 0-20, 21 is distinct
+      transcript.set('wrong_chars', 21);
+    }
+    transcript.save().then(transcript => {
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
         // // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
@@ -867,12 +882,7 @@ const onReceiveTranscription = (data, accessToken, task) => {
         //   createCrowdsourcingTask(userTranscript, userId);
         // }
       });
-
-      // Mark the transcript wrong_chars = 21
-      // Why 21? Because before we use 0-20, 21 is distinct
-      transcript.set('wrong_chars', 21);
-      transcript.save();
-    }
+    });
   });
 };
 
@@ -1018,17 +1028,6 @@ const getMachineTranscript = task => {
     query.equalTo('set_type', 'machine');
     return query.first();
   }
-};
-
-const onReceiveCorrect = (data, accessToken, task) => {
-  completeTaskAndReply(task, data, accessToken);
-
-  // Mark the transcript wrong_chars = 0
-  getTranscript(task).then(transcript => {
-    logger.info(`--- At ${getTime(data._startedAt)} onReceiveCorrect / set wrong_chars : 0`);
-    transcript.set('wrong_chars', 0);
-    transcript.save();
-  });
 };
 
 const sendGA = (userId, eventAction) => {
@@ -1399,10 +1398,7 @@ module.exports.postCtrl = (req, res, next) => {
             findInProcessTaskForUser(userId).then(task => {
               logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
               if (task) {
-                if (data.content === correctContent) {
-                  onReceiveCorrect(data, accessToken, task);
-                  sendGA(userId, 'reply_original_text');
-                } else if (data.content === '没有语音') {
+                if (data.content === '没有语音') {
                   onReceiveNoVoice(data, accessToken, task);
                   sendGA(userId, 'reply_no_voice');
                 } else if (data.content === '不对应') {
