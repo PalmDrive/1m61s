@@ -25,56 +25,57 @@ const calculateWrongWords = () => {
     debugger;
   });
 };
-const sendModelMessage = accessToken => {
+const sendModelMessage = (data, accessToken) => {
   logger.info('sendModelMessage-- start');
-  const data = {
-    touser: 'oXrsBv-Gl6tjcwTIlCCqQzEAYoWg',
-    money: '100',
-    totalAmount: '25',
-    errorAmount: '3',
-    error: [
-      {
-        type: '首字母大写',
-        amount: '5'
-      },
-      {
-        type: '缺漏词语',
-        amount: '2'
-      }
-    ]
-  };
+  const userId = data.fromusername,
+        data = {
+          touser: data.fromusername,
+          money: '100',
+          totalAmount: '25',
+          errorAmount: '3',
+          error: [
+            {
+              type: '首字母大写',
+              amount: '5'
+            },
+            {
+              type: '缺漏词语',
+              amount: '2'
+            }
+          ]
+        };
 
   logger.info(`sendModelMessage-- data:${JSON.stringify(data)}`);
   request.post({
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
     json: true,
     body:  {
-      "touser":data.touser,
-      "template_id":"YtKBy61jPuJvpLkws0hgOv_ilTriMfBKvZBS9OTbSh4",
-      "url":"http://weixin.qq.com/download",            
-      "data":{
-        "first": {
-          "value":`Biu~你今天赚取到${data.money}元红包[测试]：`,
-          "color":"#173177"
+      touser: data.touser,
+      template_id: wechatConfig.templateId.completeTask,
+      url: 'http://weixin.qq.com/download',
+      data: {
+        first: {
+          value: `Biu~你今天赚取到${data.money}元红包[测试]：`,
+          color: '#173177'
         },
-        "keynote1":{
-          "value":"任务反馈",
-          "color":"#173177"
+        keynote1: {
+          value: '任务反馈',
+          color: '#173177'
         },
-        "keynote2": {
-          "value":`${data.money}元红包`,
-          "color":"#173177"
+        keynote2: {
+          value: `${data.money}元红包`,
+          color: '#173177'
         },
-        "remark":{
-          "value":"下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个 \n\n 点击查看详情）",
-          "color":"#000000"
+        remark: {
+          value: '下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个 \n\n 点击查看详情）',
+          color: '#000000'
         }
       }
     }
   }, (error, response, body) => {
+    if (error) return logError('sendModelMessage--err: ', error);
     logger.info(`sendModelMessage--response: ${JSON.stringify(response)}`);
     logger.info(`sendModelMessage--body: ${JSON.stringify(body)}`);
-    if (error) logError('sendModelMessage--err: ', error);    
   });
 };
 
@@ -1565,7 +1566,7 @@ module.exports.postCtrl = (req, res, next) => {
         sendGA(userId, 'rule');
       }  else if (data.content === '模板消息测试') {
         // 发送模板消息
-        sendModelMessage(accessToken);
+        sendModelMessage(data, accessToken);
       } else {
         // Check status
         if (userStatus >= -304 && userStatus <= -300) {
