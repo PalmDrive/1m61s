@@ -25,11 +25,11 @@ const calculateWrongWords = () => {
     debugger;
   });
 };
-const sendModelMessage = (data, accessToken) => {
+
+const sendModelMessage = (incomingData, accessToken) => {
   logger.info('sendModelMessage-- start');
-  const userId = data.fromusername,
-        data = {
-          touser: data.fromusername,
+  const data = {
+          touser: incomingData.fromusername,
           money: '100',
           totalAmount: '25',
           errorAmount: '3',
