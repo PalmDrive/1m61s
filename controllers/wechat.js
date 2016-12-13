@@ -20,12 +20,69 @@ const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
 };
 
-const calculateWrongWords = () => {
-  let query = new LeanCloud.Query('WeChatUser');
+
+// 定时任务发红包
+const queryTodayUserMoney = () => {
+  // 1.query user
+  let query = new LeanCloud.Query("WeChatUser");
+  queryTask.equalTo('role', 'A');
   query.find(results => {
-    debugger;
+
+    results.map(user => {
+      let openId = user.get('open_id'),
+            totalAmount = 0,
+            xxAmount = 0;
+
+      let queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
+      queryTask0.equalTo('user_id', openId);
+      queryTask0.greaterThanOrEqualTo('createdAt', new Date(new Date().toLocaleDateString()));
+      queryTask0.count().then(count => {
+        totalAmount = count;
+      });
+
+      // 2.0 source  filter xx
+      let queryTask1 = new LeanCloud.Query('CrowdsourcingTask');
+      queryTask1.equalTo('source', '1.1');
+      let queryTask2 = new LeanCloud.Query('CrowdsourcingTask');
+      queryTask2.equalTo('source', '2.1');
+
+      // 2.1 other filter
+      let queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
+      queryTask.equalTo('user_id', openId);
+      queryTask.greaterThanOrEqualTo('createdAt', new Date(new Date().toLocaleDateString()));
+      // 2.2 query task
+      queryTask.find(resultsTask => {
+
+        xxAmount = resultsTask.length;
+        resultsTask.map(task => {
+          const fragment_id = task.get('fragment_id');
+
+          // 3 query UserTranscript by objectId
+          let queryUserTranscript = new LeanCloud.Query('UserTranscript');
+          queryUserTranscript.equalTo('objectId', fragment_id);
+          queryUserTranscript.find(resultsUserTranscript => {
+
+            const content1 = resultsUserTranscript[0].get('content'),
+                  targetTranscriptId = resultsUserTranscript[0].get('targetTranscript');
+            console.log('content1:' + content1);
+
+            // 4 query UserTranscript by targetTranscriptId
+            let queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
+            queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
+            queryUserTranscript1.equalTo('role', '帮主'); // 待定
+            queryUserTranscript1.find(resultsUserTranscript1 => {
+              const content2 = resultsUserTranscript1[0].get('content');
+              console.log('content2:' + content2);
+
+              // 5 different from  content1 and  content2
+            });
+          });
+        });
+      });
+    });
   });
 };
+
 
 const sendModelMessage = (incomingData, accessToken) => {
   logger.info('sendModelMessage-- start');
