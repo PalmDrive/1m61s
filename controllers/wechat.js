@@ -67,7 +67,7 @@ const sendModelMessage = (incomingData, accessToken) => {
           color: '#173177'
         },
         remark: {
-          value: `下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个 \n\n 点击查看详情）`,
+          value: `下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个) \n\n 点击查看详情`,
           color: '#000000'
         }
       }
