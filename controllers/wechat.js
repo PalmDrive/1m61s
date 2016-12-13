@@ -1481,45 +1481,6 @@ const onReceivePass = (data, accessToken, task, user) => {
   });
 };
 
-const onReceiveNotMatch = (data, accessToken, task, user) => {
-  // Get machine content
-  getMachineTranscript(task).then(transcript => {
-    if (transcript) {
-      // Send content to user
-      const content = transcript.get('content_baidu')[0];
-      sendToUser.text(content, data, accessToken).then(() => {
-        setTimeout(() => {
-          sendToUser.text('biu~上面是我们对于这段语音翻译到最好的程度啦，只能帮你到这里了~', data, accessToken);
-        }, 2000);
-      });
-    }
-  });
-};
-
-const onReceivePrevNext = (data, accessToken, task) => {
-  // Get the prev/next transcript
-  const mediaId = task.get('media_id'),
-        query = new leanCloud.AV.Query('Transcript'),
-        content = 'biu~抱歉，没有找到所请求的片段。';
-  let order = task.get('fragment_order');
-  if (data.content === '前') {
-    order -= 1;
-  } else {
-    order += 1;
-  }
-  query.equalTo('media_id', mediaId);
-  query.equalTo('fragment_order', order);
-  query.equalTo('set_type', 'machine');
-  query.first().then(transcript => {
-    if (transcript) {
-      // Send audio
-      sendToUser.singleVoice(transcript, data, accessToken);
-    } else {
-      sendToUser.text(content, data, accessToken);
-    }
-  });
-};
-
 module.exports.postCtrl = (req, res, next) => {
   // Reply success to avoid error and repeated request
   res.send('success');
