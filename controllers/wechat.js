@@ -763,7 +763,6 @@ const findInProcessTaskForUser = userId => {
 // transcript: transcript from which the task was created
 const createUserTranscript = (userId, content, task, transcript) => {
   const type = task.get('fragment_type'),
-        UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
         userTranscript = new UserTranscript(),
         needContent = content === '0';
   let lastReviewTimes;
