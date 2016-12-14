@@ -945,7 +945,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
       // create new UserTranscript to record transcription
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
         if (userTranscript) {
-          if (userRole === 'A' && userField && hasXX) {
+          if (userRole === '帮主' && hasXX) {
             source = 2.1;
           } else if (userRole === 'A' && hasXX) {
             source = 1.1;
@@ -1008,7 +1008,7 @@ const getTask = user => {
   };
 
   let query;
-  if (userRole === 'A' && userField) {
+  if (userRole === '帮主') {
     // 帮主
     // 1. 自己专业领域的机器任务
     query = _constructQuery({field: userField});
@@ -1479,7 +1479,7 @@ const onReceivePass = (data, accessToken, task, user) => {
   // Set original task to unassigned status
   task.unset('user_id');
   task.addUnique('passed_users', userId);
-  if (userRole === 'A' && userField) {
+  if (userRole === '帮主') {
     task.set('source', 2.2);
   } else if (userRole === 'A') {
     task.set('source', 1.2);
