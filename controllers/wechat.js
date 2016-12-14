@@ -946,11 +946,11 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
       createUserTranscript(userId, content, task, transcript).then(userTranscript => {
         if (userTranscript) {
           if (userRole === 'A' && userField && hasXX) {
-            source = 2;
+            source = 2.1;
           } else if (userRole === 'A' && hasXX) {
-            source = 1;
+            source = 1.1;
           } else if (userRole === '工作人员' && hasXX) {
-            source = 3;
+            source = 3.1;
           }
 
           if (source) {
@@ -979,15 +979,27 @@ const getTask = user => {
         userRole = user.get('role') || 'B',
         userField = user.get('fields') && user.get('fields')[0];
 
+  /**
+   * @param  {Dict} options
+   * @param  {Array} options.source  Min and Max (excluding) for source, e.g. [1, 2]
+   * @param  {String} options.field
+   * @param  {Bolean} options.noField
+   * @param  {String} options.notField
+   */
   const _constructQuery = options => {
     const query = new leanCloud.AV.Query('CrowdsourcingTask'),
           source = options.source || 0;
+    if (source) {
+      query.greaterThan('source', source[0]);
+      query.lessThan('source', source[1]);
+    } else {
+      query.equalTo('source', source);
+    }
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
     query.notEqualTo('passed_users', userId);
-    query.equalTo('source', source);
     if (options.field) query.equalTo('fields', options.field);
     if (options.noField) query.doesNotExist('fields');
     if (options.notField) query.notEqualTo('fields', options.notField);
@@ -1003,7 +1015,7 @@ const getTask = user => {
     return query.first().then(task => {
       if (task) return task;
       // 2. 自己专业领域的，帮众做完带XX或者“过”的
-      query = _constructQuery({field: userField, source: 1});
+      query = _constructQuery({field: userField, source: [1, 2]});
       return query.first().then(task => {
         if (task) return task;
         // 3. 没有任何专业领域的机器任务
@@ -1027,15 +1039,15 @@ const getTask = user => {
   } else if (userRole === '工作人员') {
     // 工作人员
     // 1. 帮主做完带XX或者“过”的
-    query = _constructQuery({source: 2});
+    query = _constructQuery({source: [2, 3]});
     return query.first().then(task => {
       if (task) return task;
       // 2. 没有任何专业领域的，帮众做完带XX或者“过”的
-      query = _constructQuery({noField: true, source: 1});
+      query = _constructQuery({noField: true, source: [1, 2]});
       return query.first().then(task => {
         if (task) return task;
         // 3. 有专业领域的，帮众做完带XX或者“过”的
-        query = _constructQuery({source: 1});
+        query = _constructQuery({source: [1, 2]});
         return query.first().then(task => {
           if (task) return task;
           // 4. 任何机器任务
@@ -1047,7 +1059,7 @@ const getTask = user => {
   } else if (userRole === 'B端用户') {
     // B端用户
     // 工作人员做完带XX或者“过”的
-    query = _constructQuery({source: 3});
+    query = _constructQuery({source: [3, 4]});
     return query.first();
   } else {
     logger.info(`Error: invalid role to get task. User role: ${userRole}. User open id: ${userId}`);
@@ -1468,11 +1480,11 @@ const onReceivePass = (data, accessToken, task, user) => {
   task.unset('user_id');
   task.addUnique('passed_users', userId);
   if (userRole === 'A' && userField) {
-    task.set('source', 2);
+    task.set('source', 2.2);
   } else if (userRole === 'A') {
-    task.set('source', 1);
+    task.set('source', 1.2);
   } else if (userRole === '工作人员') {
-    task.set('source', 3);
+    task.set('source', 3.2);
   } else if (userRole !== 'B端用户') {
     logger.info('Error: user with invalid role is passing a task. User open id: ${userId}. User role: ${userRole}');
   }
