@@ -761,8 +761,10 @@ const findInProcessTaskForUser = userId => {
 // content: text content
 // task: task user was doing to create this userTranscript
 // transcript: transcript from which the task was created
-const createUserTranscript = (userId, content, task, transcript) => {
+const createUserTranscript = (user, content, task, transcript) => {
   const type = task.get('fragment_type'),
+        userId = user.get('open_id'),
+        userRole = user.get('role'),
         userTranscript = new UserTranscript(),
         needContent = content === '0';
   let lastReviewTimes;
@@ -771,10 +773,11 @@ const createUserTranscript = (userId, content, task, transcript) => {
   } else {
     lastReviewTimes = 0;
   }
+  userTranscript.set('user_role', userRole);
   userTranscript.set('media_id', task.get('media_id'));
-  if (!needContent) userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
   userTranscript.set('user_open_id', userId);
+  if (!needContent) userTranscript.set('content', content);
   if (type === 'Transcript') {
     userTranscript.set('review_times', 1);
   } else {
@@ -942,7 +945,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
     }
     transcript.save().then(transcript => {
       // create new UserTranscript to record transcription
-      createUserTranscript(userId, content, task, transcript).then(userTranscript => {
+      createUserTranscript(user, content, task, transcript).then(userTranscript => {
         if (userTranscript) {
           if (userRole === '帮主' && hasXX) {
             source = 2.1;
@@ -1263,7 +1266,7 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
           return userTranscript.save();
         } else {
           return getTranscript(task).then(transcript => {
-            return createUserTranscript(user.get('open_id'), data.content, task, transcript);
+            return createUserTranscript(user, data.content, task, transcript);
           });
         }
       });
