@@ -867,13 +867,11 @@ const findAndSendNewTaskForUser = (data, accessToken, user) => {
   });
 };
 
-const completeTaskAndReply = (task, data, accessToken, user) => {
+const completeTaskAndReply = (task, data, accessToken) => {
   const userId = data.fromusername,
-        isCorrect = data.content === '0',
-        userRole = user.get('role') || 'B';
-  // Change task status to 1, fill in user_role
+        isCorrect = data.content === '0';
+  // Change task status to 1
   task.set('status', 1);
-  task.set('user_role', userRole);
   task.save();
 
   // Find user object
@@ -929,7 +927,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
         userField = user.get('fields') && user.get('fields')[0];
   let source = 0;
 
-  completeTaskAndReply(task, data, accessToken, user);
+  completeTaskAndReply(task, data, accessToken);
 
   // Get the relevant transcript / userTranscript
   getTranscript(task).then(transcript => {
