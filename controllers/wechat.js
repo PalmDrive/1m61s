@@ -1389,7 +1389,7 @@ module.exports.postCtrl = (req, res, next) => {
           onReceiveRevokeTranscription(data, accessToken, user);
           sendGA(userId, 'reply_revoke');
         } else {
-          // User status === 0
+          // User status === 0 or -1
           if (data.content === '修改') {
             // Enter revoke mode
             onReceiveRevoke(data, accessToken, user);
@@ -1465,7 +1465,7 @@ module.exports.postCtrl = (req, res, next) => {
           order = -200 - userStatus;
           sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
         } else if (userStatus === -1) {
-          sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
+          sendToUser.text('你好，欢迎你对1\'61的关注，你暂时没有被开通“领取任务”功能，只有经过“新手训练营”测试的童鞋才会被开通。目前训练营正在内测当中，将在下周五（23号）开放给所有人，到时候会一一通知大家的！', data, accessToken);
         } else {
           // Should not get here
           logger.info('Error: need get task handler');
