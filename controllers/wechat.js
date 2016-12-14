@@ -924,7 +924,7 @@ const completeTaskAndReply = (task, data, accessToken) => {
 const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
-        hasXX = content.indexOf('XX') !== -1 || content.indexOf('xx') !== -1,
+        hasXX = content.match(/xx/gi),
         userRole = user.get('role') || 'B',
         userField = user.get('fields') && user.get('fields')[0];
   let source = 0;
