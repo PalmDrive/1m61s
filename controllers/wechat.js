@@ -24,60 +24,88 @@ const getTime = (startedAt) => {
 // 定时任务发红包
 const queryTodayUserMoney = () => {
   // 1.query user
-  let query = new LeanCloud.Query("WeChatUser");
-  queryTask.equalTo('role', 'A');
-  query.find(results => {
-
+  const q1 = new LeanCloud.Query("WeChatUser");
+  q1.equalTo('role', 'A');
+  const q2 = new LeanCloud.Query("WeChatUser");
+  q2.equalTo('role', '帮主');
+  const query = LeanCloud.Query.or(q1, q2);
+  query.find().then(results => {
     results.map(user => {
-      let openId = user.get('open_id'),
-            totalAmount = 0,
-            xxAmount = 0;
+      user = results[1];
+      const openId = user.get('open_id'),
+            role = user.get('role');
+      let   totalTaskAmount = 0,
+            xxTaskAmount = 0,
+            xxWrongTaskAmount = 0,
+            xxWordsAmount = 0,
+            xxWrongWordsAmount = 0;
 
-      let queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
-      queryTask0.equalTo('user_id', openId);
-      queryTask0.greaterThanOrEqualTo('createdAt', new Date(new Date().toLocaleDateString()));
+      const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
+      queryTask0.equalTo('last_user', openId);
+      queryTask0.greaterThanOrEqualTo('updatedAt', new Date(new Date().toLocaleDateString()));
       queryTask0.count().then(count => {
-        totalAmount = count;
+        totalTaskAmount = count;
       });
 
       // 2.0 source  filter xx
-      let queryTask1 = new LeanCloud.Query('CrowdsourcingTask');
-      queryTask1.equalTo('source', '1.1');
-      let queryTask2 = new LeanCloud.Query('CrowdsourcingTask');
-      queryTask2.equalTo('source', '2.1');
+      const queryTask1 = new LeanCloud.Query('CrowdsourcingTask');
+      queryTask1.equalTo('source', 1.1);
+      const queryTask2 = new LeanCloud.Query('CrowdsourcingTask');
+      queryTask2.equalTo('source', 2.1);
 
       // 2.1 other filter
-      let queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
-      queryTask.equalTo('user_id', openId);
-      queryTask.greaterThanOrEqualTo('createdAt', new Date(new Date().toLocaleDateString()));
-      // 2.2 query task
-      queryTask.find(resultsTask => {
-
-        xxAmount = resultsTask.length;
+      const queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
+      queryTask.equalTo('last_user', openId);
+      queryTask.greaterThanOrEqualTo('updatedAt', new Date(new Date().toLocaleDateString()));
+      // 2.2 query task by last_user
+      queryTask.find().then(resultsTask => {
+        xxTaskAmount = resultsTask.length;
         resultsTask.map(task => {
           const fragment_id = task.get('fragment_id');
 
           // 3 query UserTranscript by objectId
-          let queryUserTranscript = new LeanCloud.Query('UserTranscript');
-          queryUserTranscript.equalTo('objectId', fragment_id);
-          queryUserTranscript.find(resultsUserTranscript => {
-
-            const content1 = resultsUserTranscript[0].get('content'),
-                  targetTranscriptId = resultsUserTranscript[0].get('targetTranscript');
+          const queryUserTranscript = new LeanCloud.Query('UserTranscript');
+          queryUserTranscript.get(fragment_id).then(resultsUserTranscript => {
+            const content1 = resultsUserTranscript.get('content'),
+                  targetTranscriptId = resultsUserTranscript.get('targetTranscript').get('objectId');
             console.log('content1:' + content1);
 
-            // 4 query UserTranscript by targetTranscriptId
-            let queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
+            // 4 query UserTranscript by targetTranscriptId and user_role
+            const queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
             queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
-            queryUserTranscript1.equalTo('role', '帮主'); // 待定
-            queryUserTranscript1.find(resultsUserTranscript1 => {
-              const content2 = resultsUserTranscript1[0].get('content');
-              console.log('content2:' + content2);
-
-              // 5 different from  content1 and  content2
+            if (role === 'A') {
+              queryUserTranscript1.equalTo('user_role', '帮主');
+            } else if (role === '帮主'){
+              queryUserTranscript1.equalTo('user_role', '工作人员');
+            }
+            queryUserTranscript1.count().then(count => {
+              if (count >= 1) {
+                queryUserTranscript1.first().then(resultsUserTranscript1 => {
+                  const content2 = resultsUserTranscript1.get('content');
+                  // 计算错字
+                  const wordsCurrent = getTotalWords(content1.replace(/xx/gi , '')),
+                        wordsOri = getTotalWords(content2.replace(/xx/gi , '')),
+                        wordsDiff = diffWords(wordsOri, wordsCurrent);
+                  xxWordsAmount += wordsCurrent.length;// 总字数
+                  if (wordsDiff >= 1) {
+                    xxWrongWordsAmount += wordsDiff;//错字数量
+                    xxWrongTaskAmount += 1; // 错的任务数量
+                  }
+                });
+              } else { // 这条带XX的任务，帮主没做完，就不检查这句话
+                xxTaskAmount -= 1;
+              }
             });
           });
         });
+
+        const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
+              wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
+              todayMoney = totalTaskAmount * (1 - wrongTaskRate);
+        if (wrongWordsRate > 0.005) { // 连续3天 > 0.005 就改为C类用户 还没想好怎么改
+          user.set('wrongWordsRate', {new Date().toLocaleDateString() : 1});
+        }
+
       });
     });
   });
