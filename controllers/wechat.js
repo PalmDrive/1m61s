@@ -989,13 +989,16 @@ const getTask = user => {
    * @param  {String} options.notField
    */
   const _constructQuery = options => {
-    const query = new leanCloud.AV.Query('CrowdsourcingTask'),
-          source = options.source || 0;
+    let query = new leanCloud.AV.Query('CrowdsourcingTask');
+    const source = options.source || 0;
     if (source) {
       query.greaterThan('source', source[0]);
       query.lessThan('source', source[1]);
     } else {
       query.equalTo('source', source);
+      const queryNoSource = new leanCloud.AV.Query('CrowdsourcingTask');
+      queryNoSource.doesNotExist('source');
+      query = leanCloud.AV.Query.or(query, queryNoSource);
     }
     query.ascending('createdAt');
     query.equalTo('status',0);
