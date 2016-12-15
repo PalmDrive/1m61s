@@ -874,7 +874,12 @@ const completeTaskAndReply = (task, data, accessToken) => {
   const userId = data.fromusername,
         isCorrect = data.content === '0';
   // Change task status to 1
-  task.set('status', 1);
+  task.set({
+    status: 1,
+    completed_at: new Date()
+  });
+  // task.set('status', 1);
+  // task.set('completed_at', new Date());
   task.save();
 
   // Find user object
