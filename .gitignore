@@ -8,11 +8,7 @@ apidoc
 npm-debug.log
 
 
-config/database.json
-config/development.json
-config/test.json
-config/staging.json
-config/production.json
+config
 deploy
 
 newrelic_agent.log
