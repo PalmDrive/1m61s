@@ -108,24 +108,19 @@ const queryTodayUserMoney = () => {
         const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
               wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
               todayMoney = totalTaskAmount * (1 - wrongTaskRate) * 0.125; // 应发的钱数
+        let wrongWordsRateList = user.get('wrong_words_rate') || [];
         if (wrongWordsRate > 0.005) { 
-          let wrongWordsRateList = user.get('wrongWordsRate');
-          if (!wrongWordsRateList) {
-            wrongWordsRateList = [];
-            wrongWordsRateList.push(wrongWordsRate);
-          } else if (wrongWordsRateList.length === 3) {
+          wrongWordsRateList.push(wrongWordsRate);
+          if (wrongWordsRateList.length === 3) {
             user.set('role', 'C');
             wrongWordsRateList = [];
-          } else {
-            wrongWordsRateList.push(wrongWordsRate);
           }
         } else {
           wrongWordsRateList = [];
         }
-        user.set('wrongWordsRate', wrongWordsRateList);
+        user.set('wrong_words_rate', wrongWordsRateList);
         user.save();
       });
-      
     });
   });
 };
