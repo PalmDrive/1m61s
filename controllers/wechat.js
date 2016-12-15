@@ -33,7 +33,8 @@ const queryTodayUserMoney = () => {
   query.find().then(results => {
     results.map(user => {
       const openId = user.get('open_id'),
-            role = user.get('role');
+            role = user.get('role'),
+            todayDate = new Date(new Date().toLocaleDateString());
       let   totalTaskAmount = 0,
             xxTaskAmount = 0,
             xxWrongTaskAmount = 0,
@@ -43,7 +44,7 @@ const queryTodayUserMoney = () => {
       const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
       queryTask0.equalTo('user_id', openId);
       queryTask0.equalTo('status', 1);
-      queryTask0.greaterThanOrEqualTo('completed_at', new Date(new Date().toLocaleDateString()));
+      queryTask0.greaterThanOrEqualTo('completed_at', todayDate);
       const totalTaskAmountPromise = queryTask0.count().then(count => {
         return totalTaskAmount = count;
       });
@@ -57,7 +58,9 @@ const queryTodayUserMoney = () => {
       // 2.1 other filter
       const queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
       queryTask.equalTo('last_user', openId);
-      queryTask.greaterThanOrEqualTo('completed_at', new Date(new Date().toLocaleDateString()));
+      queryTask.greaterThanOrEqualTo('completed_at', todayDate);
+      queryTask.greaterThanOrEqualTo('createdAt', todayDate);
+
       // 2.2 query task by last_user
       const xxTasksPromise = queryTask.find().then(resultsTask => {
         xxTaskAmount = resultsTask.length;
@@ -70,7 +73,7 @@ const queryTodayUserMoney = () => {
           return queryUserTranscript.get(fragmentId).then(resultsUserTranscript => {
             const content1 = resultsUserTranscript.get('content'),
                   targetTranscriptId = resultsUserTranscript.get('targetTranscript').id;
-            console.log('content1:' + content1);
+            logger.info(`content1: ${content1}`);
 
             // 4 query UserTranscript by targetTranscriptId and user_role
             const queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
@@ -81,24 +84,19 @@ const queryTodayUserMoney = () => {
               queryUserTranscript1.equalTo('user_role', '工作人员');
             }
 
-            return queryUserTranscript1.count().then(count => {
-              if (count >= 1) {
-                return queryUserTranscript1.first().then(resultsUserTranscript1 => {
-                  const content2 = resultsUserTranscript1.get('content');
-                  // 计算错字
-                  const wordsCurrent = getTotalWords(content1.replace(/xx/gi, '')),
-                        wordsOri = getTotalWords(content2.replace(/xx/gi, '')),
-                        wordsDiff = diffWords(wordsOri, wordsCurrent);
-                  xxWordsAmount += wordsCurrent.length;// 总字数
-                  if (wordsDiff >= 1) {
-                    xxWrongWordsAmount += wordsDiff;//错字数量
-                    xxWrongTaskAmount += 1; // 错的任务数量
-                  }
-                  return xxWordsAmount; // Can return anything
-                });
-              } else { // 这条带XX的任务，帮主没做完，就不检查这句话
-                return xxTaskAmount -= 1;
+            return queryUserTranscript1.first().then(resultsUserTranscript1 => {
+              const content2 = resultsUserTranscript1.get('content');
+              logger.info(`content2: ${content2}`);
+              // 计算错字
+              const wordsCurrent = getTotalWords(content1.replace(/xx/gi, '')),
+                    wordsOri = getTotalWords(content2.replace(/xx/gi, '')),
+                    wordsDiff = diffWords(wordsOri, wordsCurrent);
+              xxWordsAmount += wordsCurrent.length;// 总字数
+              if (wordsDiff >= 1) {
+                xxWrongWordsAmount += wordsDiff;//错字数量
+                xxWrongTaskAmount += 1; // 错的任务数量
               }
+              return xxWordsAmount; // Can return anything
             });
           });
         });
@@ -109,11 +107,25 @@ const queryTodayUserMoney = () => {
       Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
         const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
               wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
-              todayMoney = totalTaskAmount * (1 - wrongTaskRate);
-        if (wrongWordsRate > 0.005) { // 连续3天 > 0.005 就改为C类用户 还没想好怎么改
-          user.set('wrongWordsRate', {new Date().toLocaleDateString() : 1});
+              todayMoney = totalTaskAmount * (1 - wrongTaskRate) * 0.125; // 应发的钱数
+        if (wrongWordsRate > 0.005) { 
+          let wrongWordsRateList = user.get('wrongWordsRate');
+          if (!wrongWordsRateList) {
+            wrongWordsRateList = [];
+            wrongWordsRateList.push(wrongWordsRate);
+          } else if (wrongWordsRateList.length === 3) {
+            user.set('role', 'C');
+            wrongWordsRateList = [];
+          } else {
+            wrongWordsRateList.push(wrongWordsRate);
+          }
+        } else {
+          wrongWordsRateList = [];
         }
+        user.set('wrongWordsRate', wrongWordsRateList);
+        user.save();
       });
+      
     });
   });
 };
