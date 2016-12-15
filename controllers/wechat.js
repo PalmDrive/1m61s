@@ -4,8 +4,9 @@ const request = require('request'),
       exec = require('child_process').exec,
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
-      UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
-      CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
+      LeanCloud = leanCloud.AV,
+      UserTranscript = LeanCloud.Object.extend('UserTranscript'),
+      CrowdsourcingTask = LeanCloud.Object.extend('CrowdsourcingTask'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
@@ -20,7 +21,7 @@ const getTime = (startedAt) => {
 };
 
 const calculateWrongWords = () => {
-  let query = new leanCloud.AV.Query('WeChatUser');
+  let query = new LeanCloud.Query('WeChatUser');
   query.find(results => {
     debugger;
   });
@@ -260,8 +261,8 @@ const uploadMedia = (mediaSrc, type, token, _startedAt) => {
  * @param  {String} data.content 将要创建的scene的eventName
  */
 // const sendQRCodeMessage = (data, token, res) => {
-//   const Scene = leanCloud.AV.Object.extend('Scene'),
-//         query = new leanCloud.AV.Query('Scene'),
+//   const Scene = LeanCloud.Object.extend('Scene'),
+//         query = new LeanCloud.Query('Scene'),
 //         scene = new Scene();
 
 //   query.count()
@@ -352,7 +353,7 @@ const uploadMedia = (mediaSrc, type, token, _startedAt) => {
 // const onQRCodeScanned = (data, token, res) => {
 //   const scannerLimit = 3,
 //         sceneId = data.event === 'SCAN' ? +data.eventkey : +(data.eventkey.replace('qrscene_', '')),
-//         query = new leanCloud.AV.Query('Scene');
+//         query = new LeanCloud.Query('Scene');
 
 //   let scanUsers;
 
@@ -626,7 +627,7 @@ const sendToUser = {
     // get Transcript or UserTranscript
     const type = task.get('fragment_type'),
           fragmentId = task.get('fragment_id'),
-          query = new leanCloud.AV.Query(type),
+          query = new LeanCloud.Query(type),
           self = this,
           _startedAt = data._startedAt;
     return query.get(fragmentId).then(transcript => {
@@ -657,7 +658,7 @@ const sendToUser = {
 };
 
 const createUser = (userId, tasksDone) => {
-  const WeChatUser = leanCloud.AV.Object.extend('WeChatUser'),
+  const WeChatUser = LeanCloud.Object.extend('WeChatUser'),
         weChatUser = new WeChatUser();
   tasksDone = tasksDone || 0;
   weChatUser.set('open_id', userId);
@@ -694,7 +695,7 @@ const assignTask = (task, data, accessToken) => {
     }
     // Set new 1-hour timer
     taskTimers[userId] = setTimeout(() => {
-      const query = new leanCloud.AV.Query('CrowdsourcingTask');
+      const query = new LeanCloud.Query('CrowdsourcingTask');
       query.get(task.id).then(task => {
         logger.info(`--- At ${getTime(data._startedAt)} Assign task / query.get(task.id) with task.id : ${task.id}`);
         if (task.get('status') === 0) {
@@ -716,7 +717,7 @@ const assignTask = (task, data, accessToken) => {
 const isTaskValid = (task, _startedAt) => {
   const type = task.get('fragment_type'),
         id = task.get('fragment_id'),
-        query = new leanCloud.AV.Query(type);
+        query = new LeanCloud.Query(type);
 
   return query.get(id).then(transcript => {
     logger.info(`--- At ${getTime(_startedAt)} isTaskValid / get task with fragment_id : ${id}`);
@@ -751,7 +752,7 @@ const onGetTask = (data, accessToken, user) => {
 
 // Find a task the user is working on
 const findInProcessTaskForUser = userId => {
-  const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  const query = new LeanCloud.Query('CrowdsourcingTask');
   query.equalTo('user_id', userId);
   query.equalTo('status', 0);
   return query.first();
@@ -968,7 +969,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
 
 // Find last completed task for user
 const findLastTaskForUser = userId => {
-  const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  const query = new LeanCloud.Query('CrowdsourcingTask');
   query.equalTo('user_id', userId);
   query.equalTo('status', 1);
   query.descending('updatedAt');
@@ -989,16 +990,16 @@ const getTask = user => {
    * @param  {String} options.notField
    */
   const _constructQuery = options => {
-    let query = new leanCloud.AV.Query('CrowdsourcingTask');
+    let query = new LeanCloud.Query('CrowdsourcingTask');
     const source = options.source || 0;
     if (source) {
       query.greaterThan('source', source[0]);
       query.lessThan('source', source[1]);
     } else {
       query.equalTo('source', source);
-      const queryNoSource = new leanCloud.AV.Query('CrowdsourcingTask');
+      const queryNoSource = new LeanCloud.Query('CrowdsourcingTask');
       queryNoSource.doesNotExist('source');
-      query = leanCloud.AV.Query.or(query, queryNoSource);
+      query = LeanCloud.Query.or(query, queryNoSource);
     }
     query.ascending('createdAt');
     query.equalTo('status',0);
@@ -1096,7 +1097,7 @@ const findNewTaskForUser = (user, _startedAt) => {
 };
 
 // const findNextTaskForUser = (userId, task) => {
-//   const query = new leanCloud.AV.Query('CrowdsourcingTask');
+//   const query = new LeanCloud.Query('CrowdsourcingTask');
 //   query.equalTo('fragment_order', task.get('fragment_order') + 1);
 //   query.ascending('createdAt');
 //   query.equalTo('status', 0);
@@ -1130,7 +1131,7 @@ const findNewTaskForUser = (user, _startedAt) => {
 // };
 
 const getUser = userId => {
-  const query = new leanCloud.AV.Query('WeChatUser');
+  const query = new LeanCloud.Query('WeChatUser');
   query.equalTo('open_id', userId);
   return query.first();
 };
@@ -1165,7 +1166,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
 const getTranscript = task => {
   const type = task.get('fragment_type'),
         id = task.get('fragment_id'),
-        query = new leanCloud.AV.Query(type);
+        query = new LeanCloud.Query(type);
   return query.get(id);
 };
 
@@ -1177,7 +1178,7 @@ const getMachineTranscript = task => {
     return getTranscript(task);
   } else {
     // type === 'UserTranscript'
-    const query = new leanCloud.AV.Query('Transcript');
+    const query = new LeanCloud.Query('Transcript');
     query.equalTo('media_id', task.get('media_id'));
     query.equalTo('fragment_order', task.get('fragment_order'));
     query.equalTo('set_type', 'machine');
@@ -1217,7 +1218,7 @@ const logError = (message, err) => {
 };
 
 const findUserTranscriptFromTaskByUser = (task, userId) => {
-  const query = new leanCloud.AV.Query('UserTranscript');
+  const query = new LeanCloud.Query('UserTranscript');
   query.equalTo('user_open_id', userId);
   query.equalTo('media_id', task.get('media_id'));
   query.equalTo('fragment_order', task.get('fragment_order'));
@@ -1456,7 +1457,7 @@ const onReceiveNotMatch = (data, accessToken, task, user) => {
 const onReceivePrevNext = (data, accessToken, task) => {
   // Get the prev/next transcript
   const mediaId = task.get('media_id'),
-        query = new leanCloud.AV.Query('Transcript'),
+        query = new LeanCloud.Query('Transcript'),
         content = 'biu~抱歉，没有找到所请求的片段。';
   let order = task.get('fragment_order');
   if (data.content === '前') {
@@ -1504,7 +1505,7 @@ module.exports.postCtrl = (req, res, next) => {
 
   const data = req.body.xml,
         userId = data.fromusername,
-        Scene = leanCloud.AV.Object.extend('Scene');
+        Scene = LeanCloud.Object.extend('Scene');
 
   let scene;
 
