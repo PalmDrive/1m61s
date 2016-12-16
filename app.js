@@ -14,6 +14,7 @@ const nr = require('newrelic'),
       cors = require('cors'),
       logger = require('./lib/logger'),
       loggerFormat = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :response-time ms - :res[content-length] ":referrer" ":user-agent"',
+      web =require('./1m61_web/web'),
       request = require('request');
 
 const _hasXMLInRequest = (req) => {
@@ -145,6 +146,8 @@ apiApp.get('/aliyun_sts', stsAPICtrl.ctrl);
 
 // Amount the apiApp
 app.use('/api', apiApp);
+
+app.use('/web',web.app);
 
 // error handler for all the application
 app.use(function(err, req, res, next) {
