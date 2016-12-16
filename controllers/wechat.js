@@ -81,13 +81,13 @@ const queryTodayUserMoney = (date1, date2) => {
             logger.info(`content1: ${content1}`);
 
             // 4 query UserTranscript by targetTranscriptId and user_role
-            const queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
+            let queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
+            const queryUserTranscript2 = new LeanCloud.Query('UserTranscript');
+            queryUserTranscript1.equalTo('user_role', '帮主');
+            queryUserTranscript2.equalTo('user_role', '工作人员');
+            queryUserTranscript1 = LeanCloud.Query.or(queryUserTranscript1, queryUserTranscript2);
             queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
-            if (role === 'A') {
-              queryUserTranscript1.equalTo('user_role', '帮主');
-            } else if (role === '帮主'){
-              queryUserTranscript1.equalTo('user_role', '工作人员');
-            }
+            queryUserTranscript1.descending('createdAt');
 
             return queryUserTranscript1.first().then(resultsUserTranscript1 => {
               const content2 = resultsUserTranscript1.get('content');
