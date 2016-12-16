@@ -41,7 +41,8 @@ const queryTodayUserMoney = (date1, date2) => {
             xxTaskAmount = 0,
             xxWrongTaskAmount = 0,
             xxWordsAmount = 0,
-            xxWrongWordsAmount = 0;
+            xxWrongWordsAmount = 0,
+            errorTask = [];
 
       const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
       queryTask0.equalTo('user_id', openId);
@@ -92,6 +93,7 @@ const queryTodayUserMoney = (date1, date2) => {
             return queryUserTranscript1.first().then(resultsUserTranscript1 => {
               const content2 = resultsUserTranscript1.get('content');
               logger.info(`content2: ${content2}`);
+
               // 计算错字
               const wordsCurrent = compare.getTotalWords(content1.replace(/xx/gi, '')),
                     wordsOri = compare.getTotalWords(content2.replace(/xx/gi, '')),
@@ -101,6 +103,7 @@ const queryTodayUserMoney = (date1, date2) => {
                 xxWrongWordsAmount += wordsDiff;//错字数量
                 xxWrongTaskAmount += 1; // 错的任务数量
               }
+              errorTask.push({'content1': content1, 'content2': content2, 'wrongWordsAmount': wordsDiff});
               return xxWordsAmount; // Can return anything
             });
           });
@@ -127,31 +130,33 @@ const queryTodayUserMoney = (date1, date2) => {
         user.set('wrong_words_rate', wrongWordsRateList);
         user.save();
 
-        shouldSendMoney.push({'open_id' : openId, 'money' : todayMoney});
+        shouldSendMoney.push({'touser' : openId, 'money' : todayMoney, 'totalAmount' : xxTaskAmount, 'errorAmount' : xxWrongTaskAmount, 'errorTask': errorTask});
       });
     });
     return shouldSendMoney;
   });
 };
 
-const sendModelMessage = (incomingData, accessToken) => {
+const sendModelMessage = (data, accessToken) => {
   logger.info('sendModelMessage-- start');
-  const data = {
-          touser: incomingData.fromusername,
-          money: '100',
-          totalAmount: '25',
-          errorAmount: '3',
-          error: [
-            {
-              type: '首字母大写',
-              amount: '5'
-            },
-            {
-              type: '缺漏词语',
-              amount: '2'
-            }
-          ]
-        };
+  // const data = {
+  //         touser: incomingData.fromusername,
+  //         money: '100',
+  //         totalAmount: '25',
+  //         errorAmount: '3',
+  //         errorTask: [
+  //           {
+  //             content1: '一个测试片段，逗号之后的另一段',
+  //             content2: '一个好的测试片段',
+  //             wrongWordsAmount: '8'
+  //           },
+  //           {
+  //             content1: '一个测试片段，逗号',
+  //             content2: '一个好的测试片段',
+  //             wrongWordsAmount: '2'
+  //           }
+  //         ]
+  //       };
 
   logger.info(`sendModelMessage-- data:${JSON.stringify(data)}`);
   request.post({
@@ -160,7 +165,7 @@ const sendModelMessage = (incomingData, accessToken) => {
     body:  {
       touser: data.touser,
       template_id: wechatConfig.templateId.completeTask,
-      url: 'http://weixin.qq.com/download',
+      url: 'http://pipeline.xiaobandengapp.com/#/showTaskDetail',
       data: {
         first: {
           value: `Biu~你今天赚取到${data.money}元红包[测试]：`,
@@ -175,7 +180,8 @@ const sendModelMessage = (incomingData, accessToken) => {
           color: '#173177'
         },
         remark: {
-          value: `下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个) \n\n 点击查看详情`,
+          value: `下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n\n 点击查看详情`,
+          // \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个) \n\n 点击查看详情
           color: '#000000'
         }
       }
