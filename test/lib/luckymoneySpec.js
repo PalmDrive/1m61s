@@ -21,7 +21,7 @@ describe('--test WechatPay library--', () => {
     //  };
     //
     //wechatPay.sendMoney(_data, _callback);
-    let _path = path.resolve(`${__filename}/../../test_luckymoney.js`)
+    const _path = path.resolve(`${__filename}/../../test_luckymoney.js`)
     child_process.execSync(`node ${_path}`)
 
   });
