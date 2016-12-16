@@ -21,7 +21,6 @@ const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
 };
 
-
 // 定时任务发红包
 const queryTodayUserMoney = (date1, date2) => {
   // 1.query user
@@ -87,10 +86,12 @@ const queryTodayUserMoney = (date1, date2) => {
             queryUserTranscript1.equalTo('user_role', '帮主');
             queryUserTranscript2.equalTo('user_role', '工作人员');
             queryUserTranscript1 = LeanCloud.Query.or(queryUserTranscript1, queryUserTranscript2);
+            queryUserTranscript1.include('targetTranscript');
             queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
             queryUserTranscript1.descending('createdAt');
 
             return queryUserTranscript1.first().then(resultsUserTranscript1 => {
+              const targetTranscriptObject = resultsUserTranscript1.get('targetTranscript');
               const content2 = resultsUserTranscript1.get('content');
               logger.info(`content2: ${content2}`);
 
@@ -103,7 +104,12 @@ const queryTodayUserMoney = (date1, date2) => {
                 xxWrongWordsAmount += wordsDiff;//错字数量
                 xxWrongTaskAmount += 1; // 错的任务数量
               }
-              errorTask.push({'content1': content1, 'content2': content2, 'wrongWordsAmount': wordsDiff});
+              errorTask.push({
+                'content1': content1, 'content2': content2, 'wrongWordsAmount': wordsDiff, 
+                'audioURL': targetTranscriptObject.get('fragment_src'), 
+                'startedAt': targetTranscriptObject.get('start_at'), 
+                'endAt': targetTranscriptObject.get('end_at')
+              });
               return xxWordsAmount; // Can return anything
             });
           });
