@@ -10,6 +10,7 @@ const request = require('request'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
+      compare = require('../lib/compare_transcript'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client');
@@ -92,9 +93,9 @@ const queryTodayUserMoney = (date1, date2) => {
               const content2 = resultsUserTranscript1.get('content');
               logger.info(`content2: ${content2}`);
               // 计算错字
-              const wordsCurrent = getTotalWords(content1.replace(/xx/gi, '')),
-                    wordsOri = getTotalWords(content2.replace(/xx/gi, '')),
-                    wordsDiff = diffWords(wordsOri, wordsCurrent);
+              const wordsCurrent = compare.getTotalWords(content1.replace(/xx/gi, '')),
+                    wordsOri = compare.getTotalWords(content2.replace(/xx/gi, '')),
+                    wordsDiff = compare.diffWords(wordsOri, wordsCurrent);
               xxWordsAmount += wordsCurrent.length;// 总字数
               if (wordsDiff >= 1) {
                 xxWrongWordsAmount += wordsDiff;//错字数量
