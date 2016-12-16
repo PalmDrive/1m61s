@@ -1,0 +1,31 @@
+html
+  head
+    link(href='http://apps.bdimg.com/libs/bootstrap/3.3.4/css/bootstrap.css',type='text/css')
+    link(href='http://apps.bdimg.com/libs/bootstrap/3.3.4/css/bootstrap-theme.min.css',type='text/css')
+
+  body
+    .container
+      if sent
+        .row.text-success
+        h4 微信支付服务器返回:
+
+          ul
+            li 请求
+            li openid: !{re_openid }
+            li 金额: !{total_amount }
+            li ----------------------------------------------------------------------
+            li 返回
+            li 状态 &nbsp;&nbsp; : &nbsp;&nbsp; !{result.result_code.text() }
+            li 消息 &nbsp;&nbsp; :&nbsp;&nbsp; !{result.return_msg.text() }
+            li 流水号:&nbsp;&nbsp; !{result.mch_billno.text() }
+            li 金额 &nbsp;&nbsp; :&nbsp;&nbsp; !{result.total_amount.text() }(分)
+
+      .row
+        form.form-horizontal(method='post',action='/web/pay')
+          p
+            label openid:
+            input(name='openid')
+          p
+            label 要发的金额(最少1元):
+            input(name='money')
+          input(type='submit')

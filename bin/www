@@ -10,7 +10,7 @@ if (['staging', 'production'].indexOf(process.env.NODE_ENV) !== -1) {
 }
 
 const app = require('../app'),
-      sched = require('../timed_task/crontab.js')
+      sched = require('../timed_task/crontab.js'),
       http = require('http');
 /**
  * Get port from environment and store in Express.
