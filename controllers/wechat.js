@@ -22,7 +22,7 @@ const getTime = (startedAt) => {
 
 
 // 定时任务发红包
-const queryTodayUserMoney = () => {
+const queryTodayUserMoney = (date1, date2) => {
   // 1.query user
   const q1 = new LeanCloud.Query("WeChatUser");
   q1.equalTo('role', 'A');
@@ -30,11 +30,12 @@ const queryTodayUserMoney = () => {
   q2.equalTo('role', '帮主');
   const query = LeanCloud.Query.or(q1, q2);
   query.limit(1000);
-  query.find().then(results => {
+  return query.find().then(results => {
+    let shouldSendMoney = [];
     results.map(user => {
       const openId = user.get('open_id'),
-            role = user.get('role'),
-            todayDate = new Date(new Date().toLocaleDateString());
+            role = user.get('role');
+            // todayDate = new Date(new Date().toLocaleDateString());
       let   totalTaskAmount = 0,
             xxTaskAmount = 0,
             xxWrongTaskAmount = 0,
@@ -44,7 +45,8 @@ const queryTodayUserMoney = () => {
       const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
       queryTask0.equalTo('user_id', openId);
       queryTask0.equalTo('status', 1);
-      queryTask0.greaterThanOrEqualTo('completed_at', todayDate);
+      queryTask0.greaterThanOrEqualTo('completed_at', date1);
+      queryTask.lessThanOrEqualTo('completed_at', date2);
       const totalTaskAmountPromise = queryTask0.count().then(count => {
         return totalTaskAmount = count;
       });
@@ -58,8 +60,10 @@ const queryTodayUserMoney = () => {
       // 2.1 other filter
       const queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
       queryTask.equalTo('last_user', openId);
-      queryTask.greaterThanOrEqualTo('completed_at', todayDate);
-      queryTask.greaterThanOrEqualTo('createdAt', todayDate);
+      queryTask.greaterThanOrEqualTo('completed_at', date1);
+      queryTask.lessThanOrEqualTo('completed_at', date2);
+      queryTask.greaterThanOrEqualTo('createdAt', date1);
+      queryTask.lessThanOrEqualTo('createdAt', date2);
 
       // 2.2 query task by last_user
       const xxTasksPromise = queryTask.find().then(resultsTask => {
@@ -107,7 +111,8 @@ const queryTodayUserMoney = () => {
       Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
         const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
               wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
-              todayMoney = totalTaskAmount * (1 - wrongTaskRate) * 0.125; // 应发的钱数
+              todayMoney = totalTaskAmount * (1 - 2 * wrongTaskRate) * 0.125; // 应发的钱数
+        // 计算错字率
         let wrongWordsRateList = user.get('wrong_words_rate') || [];
         if (wrongWordsRate > 0.005) { 
           wrongWordsRateList.push(wrongWordsRate);
@@ -120,8 +125,11 @@ const queryTodayUserMoney = () => {
         }
         user.set('wrong_words_rate', wrongWordsRateList);
         user.save();
+
+        shouldSendMoney.push({'open_id' : openId, 'money' : todayMoney});
       });
     });
+    return shouldSendMoney;
   });
 };
 
