@@ -10,17 +10,16 @@ app.get('/pay', function (req, res,next) {
   next();
 });
 
-app.post('/pay', function (req, res,next) {
-  let openid=req.param("openid"),
-    money = Number(req.param("money")),
+app.post('/pay', function (req, res, next) {
+  let openid=req.body.openid,
+    money = Number(req.body.money).toFixed(2),
 
   _data = {
     "re_openid":openid,
-    "total_amount":money*100,//分;
+    "total_amount":parseInt(money*100),//分;
   };
 
   wechat_pay.sendMoney(_data, (result)=>{
-    console.log(result, 'xxxxx');
     res.render('wechat_pay', _.extend({sent:true,result:result},_data));
   });
 

@@ -18,5 +18,5 @@ const cron = schedule.scheduleJob('* * 23 * * *', function () {
   //data = wechat_ctl.queryTodayUserMoney(yesterday, today);
 
   //queryTodayUserMoney
-  wechat_pay.fnSendMoney()
+  //wechat_pay.fnSendMoney()
 });
