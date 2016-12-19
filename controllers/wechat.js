@@ -12,6 +12,7 @@ const request = require('request'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
+      wechatData = require('../static/wechat_data.json'),
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
       wechatLib = require('../lib/wechat');
@@ -21,46 +22,6 @@ const taskTimers = {};
 const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
 };
-
-const savedContent = {};
-savedContent.firstMin = [
-  '我今天演讲猪蹄是努力把最简单的事情做到最好，剩下的就是坚持，我会大概回顾一下KEEP在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
-  '知道今天非常冷！我来之前说，这个现场可能这个来的人也会比多，因为大家在这么早的时间就可以来到这里好听分享和交流，也许还有一些人还没有完全打开睡眼，',
-  '她老说你是不是可以带大家一起跳一个健身操啊，我说这个健身操有一点点难，但是我还是希望可以带着大家做一些简单的简单的小的放松，我们先来一场这个身体的奇幻旅程却在可以发现，',
-  '每个人的身体是非常有趣的一件事情，可能通过一些简单的变化，只说一种一种心理和生理上变化，你就会觉得你的身体会发生很多奇妙的变化，如果大家现在方便的话可以一起的，做几个简单的动作好吗？'
-];
-savedContent.secondMin = [
-  {
-    q: '第1题：他 v.s 她 v.s 它\n你收到的文字都是机器转移的，机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要\n\n回复数字“1” 或“2” 即可。',
-    a: '1'
-  },
-  {
-    q: '第2题：的 v.s 得 v.s 地\n-“的”前面接的是形容词或者名词，是形容名词的；\n-“地”前面是副词，是形容动作哒；\n-“得”…大家自行脑补…\n\n问：“小明今天很开心的完成了作业！”这句话中“的”是否正确？\n1. 正确\n2. 错误',
-    a: '2'
-  },
-  {
-    q: '第3题：英文单词首字母要大写\n比如：stanford要写成Stanford，student要写成Student\n\n问：“uber”这种英文写法是正确还是错误？\n1. 正确\n2. 错误',
-    a: '2'
-  },
-  {
-    q: '第4题：语气词、没有实际意义的口语、重复的话可以自行删减\n比如：主讲人会“…这个…那个…哈…”等\n\n问：“啊，这个，这个，这个…我今天的演讲主题是…”其中“这个”是否应该去掉？\n1. 去掉\n2. 不去掉',
-    a: '1'
-  },
-  {
-    q: '第5题： 加标点\n机器加标点很傻瓜的，大家可以根据语意给文字加标点噢，特别是句子的开头或者结尾，标点一定要慎重，如果不是一句完整的句子就千万不要加标点啦！！\n\n问：“在一段文字最后加标点”这句话是正确还是错误？\n1. 正确\n2. 错误\n3. 看情况，有时候正确，有时候错误',
-    a: '3'
-  },
-  {
-    q: '第6题： 规则\n任何时候当你想不起来一个具体情况该如何处理时，回复“规则”就能蹦出来所有文字修改规则啦（同时修改规则在不断更新噢~）\n\n问：当你不知道一个具体情况该如何处理时，回复什么?',
-    a: '规则'
-  }
-];
-savedContent.thirdMin = [
-  '首先大家不知道有没有做过，这种像这种拉伸得运动，就是用用最长用用你最大的幅度来去勾你的脚ok，等待可以看一下，并且记录一下，你现在可以触碰到的位置',
-  '最高的，可以触碰到的最高的限度是多少？对，可能有得同学可以触碰到地面，但是有地同学可能这个由于韧带的问题可能并不会触碰到地面，对，ok，',
-  '大家记住自己可以下呀的最大的幅度，所有人都闭上的眼睛，眼球，哦，顺时针转五圈一下用于自己眼球顺时针转五圈，',
-  '当你闭上眼睛的时候，重新转五圈眼球得时候再下去，下了的时候你会发现你可以突破你之前的极限。这的一个很有意思的小的实验，第二小的实验大家所有人双脚与肩同宽，然后伸出自己的左手，'
-];
 
 // const createQRTicket = (scene, token) => {
 //   const actionName = 'QR_SCENE',
@@ -560,7 +521,7 @@ const onSubscribe = (data, accessToken) => {
   sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken, data._startedAt).then(() => {
     // Send text in 1s
     setTimeout(() => {
-      sendToUser.text(savedContent.firstMin[0], data, accessToken);
+      sendToUser.text(wechatData.tasks._1.text, data, accessToken);
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
@@ -1411,6 +1372,7 @@ module.exports.postCtrl = (req, res, next) => {
   Promise.all([accessTokenPromise, userPromise]).then(results => {
     const accessToken = results[0],
           user = results[1],
+          userRole = user.get('role') || 'B',
           userStatus = user.get('status'),
           wechatId = user.get('wechat_id'),
           tasksDone = user.get('tasks_done');
@@ -1499,7 +1461,7 @@ module.exports.postCtrl = (req, res, next) => {
       }
     } else if (data.msgtype === 'event') {
       if (data.event === 'subscribe') {
-        if (userStatus === -300) {
+        if (userRole === 'B' && userStatus === 0) {
           onSubscribe(data, accessToken);
           sendGA(userId, 'new_subscription');
         } else {
