@@ -47,7 +47,7 @@ const queryTodayUserMoney = (date1, date2) => {
       queryTask0.equalTo('user_id', openId);
       queryTask0.equalTo('status', 1);
       queryTask0.greaterThanOrEqualTo('completed_at', date1);
-      queryTask.lessThanOrEqualTo('completed_at', date2);
+      queryTask0.lessThanOrEqualTo('completed_at', date2);
       const totalTaskAmountPromise = queryTask0.count().then(count => {
         return totalTaskAmount = count;
       });
@@ -105,10 +105,10 @@ const queryTodayUserMoney = (date1, date2) => {
                 xxWrongTaskAmount += 1; // 错的任务数量
               }
               errorTask.push({
-                'content1': content1, 'content2': content2, 'wrongWordsAmount': wordsDiff, 
-                'audioURL': targetTranscriptObject.get('fragment_src'), 
-                'startedAt': targetTranscriptObject.get('start_at'), 
-                'endAt': targetTranscriptObject.get('end_at')
+                content1, content2, wrongWordsAmount: wordsDiff, 
+                audioURL: targetTranscriptObject.get('fragment_src'), 
+                startedAt: targetTranscriptObject.get('start_at'), 
+                endAt: targetTranscriptObject.get('end_at')
               });
               return xxWordsAmount; // Can return anything
             });
@@ -136,7 +136,7 @@ const queryTodayUserMoney = (date1, date2) => {
         user.set('wrong_words_rate', wrongWordsRateList);
         user.save();
 
-        shouldSendMoney.push({'touser' : openId, 'money' : todayMoney, 'totalAmount' : xxTaskAmount, 'errorAmount' : xxWrongTaskAmount, 'errorTask': errorTask});
+        shouldSendMoney.push({touser : openId, money : todayMoney, xxTaskAmount, totalTaskAmount, errorTask});
       });
     });
     return shouldSendMoney;
@@ -186,7 +186,7 @@ const sendModelMessage = (data, accessToken) => {
           color: '#173177'
         },
         remark: {
-          value: `下面是详细任务情况：\n 总片段数：${data.totalAmount} \n 错误片段数：${data.errorAmount} \n\n 点击查看详情`,
+          value: `下面是详细任务情况：\n 总片段数：${data.totalTaskAmount} \n 抽查片段数：${data.xxTaskAmount} \n  错误片段数：${data.errorTask.length} \n\n 点击查看详情`,
           // \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个) \n\n 点击查看详情
           color: '#000000'
         }
