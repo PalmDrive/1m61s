@@ -1,0 +1,26 @@
+html
+  head
+    link(href="../static/style/detailTask.css",type="text/css", rel="stylesheet")
+
+  body.detailTask
+    section.title
+      .title1
+        img(src="../static/logo.png")
+        span Biu~ 下面是你的#{date}质量诊断报告噢
+      .title2
+        img(src="../static/right_open_way.png")
+      .title3
+        .title31 下面是抽查发现的错误
+        .title32 如果有问题，可联系小助手（微信号：xbdzhushou)，我们会尽快进行反馈噢!
+      .title4
+        img(src="../static/splite_line.png")
+    section.content
+      each error, i in data.errorTask
+        span.index (#{i + 1})
+        audio(src="#{error.audioURL}", controls="controls")
+        .right 
+          span 【正确答案】#{error.content2}
+        .wrong 
+          span 【正确答案】#{error.content1}
+        .summary
+          span 【错误字数】#{error.wrongWordsAmount}

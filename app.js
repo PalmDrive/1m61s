@@ -148,6 +148,7 @@ apiApp.get('/aliyun_sts', stsAPICtrl.ctrl);
 app.use('/api', apiApp);
 
 app.use('/web',web.app);
+app.use('/static', express.static(path.join(__dirname, 'static')));
 
 // error handler for all the application
 app.use(function(err, req, res, next) {
