@@ -13,7 +13,8 @@ const request = require('request'),
       compare = require('../lib/compare_transcript'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
-      redisClient = require('../redis_client');
+      redisClient = require('../redis_client'),
+      domainString = process.env.NODE_ENV === 'production' ? 'http://1m61s-service.xiaobandengapp.com' : 'http://1m61s-service-staging.xiaobandengapp.com';
 
 const taskTimers = {};
 
@@ -35,135 +36,117 @@ const queryTodayUserMoney = (date1, date2) => {
     results.map(user => {
       const openId = user.get('open_id'),
             role = user.get('role');
-            // todayDate = new Date(new Date().toLocaleDateString());
-      let   totalTaskAmount = 0,
-            xxTaskAmount = 0,
-            xxWrongTaskAmount = 0,
-            xxWordsAmount = 0,
-            xxWrongWordsAmount = 0,
-            errorTask = [];
-
-      const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
-      queryTask0.equalTo('user_id', openId);
-      queryTask0.equalTo('status', 1);
-      queryTask0.greaterThanOrEqualTo('completed_at', date1);
-      queryTask0.lessThanOrEqualTo('completed_at', date2);
-      const totalTaskAmountPromise = queryTask0.count().then(count => {
-        return totalTaskAmount = count;
-      });
-
-      // 2.0 source  filter xx
-      const queryTask1 = new LeanCloud.Query('CrowdsourcingTask');
-      queryTask1.equalTo('source', 1.1);
-      const queryTask2 = new LeanCloud.Query('CrowdsourcingTask');
-      queryTask2.equalTo('source', 2.1);
-
-      // 2.1 other filter
-      const queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
-      queryTask.equalTo('last_user', openId);
-      queryTask.greaterThanOrEqualTo('completed_at', date1);
-      queryTask.lessThanOrEqualTo('completed_at', date2);
-      queryTask.greaterThanOrEqualTo('createdAt', date1);
-      queryTask.lessThanOrEqualTo('createdAt', date2);
-
-      // 2.2 query task by last_user
-      const xxTasksPromise = queryTask.find().then(resultsTask => {
-        xxTaskAmount = resultsTask.length;
-
-        const promiseArray = resultsTask.map(task => {
-          const fragmentId = task.get('fragment_id');
-
-          // 3 query UserTranscript by objectId
-          const queryUserTranscript = new LeanCloud.Query('UserTranscript');
-          return queryUserTranscript.get(fragmentId).then(resultsUserTranscript => {
-            const content1 = resultsUserTranscript.get('content'),
-                  targetTranscriptId = resultsUserTranscript.get('targetTranscript').id;
-            logger.info(`content1: ${content1}`);
-
-            // 4 query UserTranscript by targetTranscriptId and user_role
-            let queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
-            const queryUserTranscript2 = new LeanCloud.Query('UserTranscript');
-            queryUserTranscript1.equalTo('user_role', '帮主');
-            queryUserTranscript2.equalTo('user_role', '工作人员');
-            queryUserTranscript1 = LeanCloud.Query.or(queryUserTranscript1, queryUserTranscript2);
-            queryUserTranscript1.include('targetTranscript');
-            queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
-            queryUserTranscript1.descending('createdAt');
-
-            return queryUserTranscript1.first().then(resultsUserTranscript1 => {
-              const targetTranscriptObject = resultsUserTranscript1.get('targetTranscript');
-              const content2 = resultsUserTranscript1.get('content');
-              logger.info(`content2: ${content2}`);
-
-              // 计算错字
-              const wordsCurrent = compare.getTotalWords(content1.replace(/xx/gi, '')),
-                    wordsOri = compare.getTotalWords(content2.replace(/xx/gi, '')),
-                    wordsDiff = compare.diffWords(wordsOri, wordsCurrent);
-              xxWordsAmount += wordsCurrent.length;// 总字数
-              if (wordsDiff >= 1) {
-                xxWrongWordsAmount += wordsDiff;//错字数量
-                xxWrongTaskAmount += 1; // 错的任务数量
-              }
-              errorTask.push({
-                content1, content2, wrongWordsAmount: wordsDiff, 
-                audioURL: targetTranscriptObject.get('fragment_src'), 
-                startedAt: targetTranscriptObject.get('start_at'), 
-                endAt: targetTranscriptObject.get('end_at')
-              });
-              return xxWordsAmount; // Can return anything
-            });
-          });
-        });
-
-        return Promise.all(promiseArray);
-      });
-
-      Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
-        const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
-              wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
-              todayMoney = totalTaskAmount * (1 - 2 * wrongTaskRate) * 0.125; // 应发的钱数
-        // 计算错字率
-        let wrongWordsRateList = user.get('wrong_words_rate') || [];
-        if (wrongWordsRate > 0.005) { 
-          wrongWordsRateList.push(wrongWordsRate);
-          if (wrongWordsRateList.length === 3) {
-            user.set('role', 'C');
-            wrongWordsRateList = [];
-          }
-        } else {
-          wrongWordsRateList = [];
-        }
-        user.set('wrong_words_rate', wrongWordsRateList);
-        user.save();
-
-        shouldSendMoney.push({touser : openId, money : todayMoney, xxTaskAmount, totalTaskAmount, errorTask});
-      });
+            
+      shouldSendMoney.push(getUserTaskData(openId, date1, date2));
     });
     return shouldSendMoney;
   });
 };
 
-const sendModelMessage = (data, accessToken) => {
-  logger.info('sendModelMessage-- start');
-  // const data = {
-  //         touser: incomingData.fromusername,
-  //         money: '100',
-  //         totalAmount: '25',
-  //         errorAmount: '3',
-  //         errorTask: [
-  //           {
-  //             content1: '一个测试片段，逗号之后的另一段',
-  //             content2: '一个好的测试片段',
-  //             wrongWordsAmount: '8'
-  //           },
-  //           {
-  //             content1: '一个测试片段，逗号',
-  //             content2: '一个好的测试片段',
-  //             wrongWordsAmount: '2'
-  //           }
-  //         ]
-  //       };
+const getUserTaskData = (openId, date1, date2) => {
+  let   totalTaskAmount = 0,
+        xxTaskAmount = 0,
+        xxWrongTaskAmount = 0,
+        xxWordsAmount = 0,
+        xxWrongWordsAmount = 0,
+        errorTask = [];
 
+  const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
+  queryTask0.equalTo('user_id', openId);
+  queryTask0.equalTo('status', 1);
+  queryTask0.greaterThanOrEqualTo('completed_at', date1);
+  queryTask0.lessThanOrEqualTo('completed_at', date2);
+  const totalTaskAmountPromise = queryTask0.count().then(count => {
+    return totalTaskAmount = count;
+  });
+
+  // 2.0 source  filter xx
+  const queryTask1 = new LeanCloud.Query('CrowdsourcingTask');
+  queryTask1.equalTo('source', 1.1);
+  const queryTask2 = new LeanCloud.Query('CrowdsourcingTask');
+  queryTask2.equalTo('source', 2.1);
+
+  // 2.1 other filter
+  const queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
+  queryTask.equalTo('last_user', openId);
+  queryTask.greaterThanOrEqualTo('completed_at', date1);
+  queryTask.lessThanOrEqualTo('completed_at', date2);
+  queryTask.greaterThanOrEqualTo('createdAt', date1);
+  queryTask.lessThanOrEqualTo('createdAt', date2);
+
+  // 2.2 query task by last_user
+  const xxTasksPromise = queryTask.find().then(resultsTask => {
+    xxTaskAmount = resultsTask.length;
+
+    const promiseArray = resultsTask.map(task => {
+      const fragmentId = task.get('fragment_id');
+
+      // 3 query UserTranscript by objectId
+      const queryUserTranscript = new LeanCloud.Query('UserTranscript');
+      return queryUserTranscript.get(fragmentId).then(resultsUserTranscript => {
+        const content1 = resultsUserTranscript.get('content'),
+              targetTranscriptId = resultsUserTranscript.get('targetTranscript').id;
+        logger.info(`content1: ${content1}`);
+
+        // 4 query UserTranscript by targetTranscriptId and user_role
+        let queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
+        const queryUserTranscript2 = new LeanCloud.Query('UserTranscript');
+        queryUserTranscript1.equalTo('user_role', '帮主');
+        queryUserTranscript2.equalTo('user_role', '工作人员');
+        queryUserTranscript1 = LeanCloud.Query.or(queryUserTranscript1, queryUserTranscript2);
+        queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
+        queryUserTranscript1.descending('createdAt');
+
+        return queryUserTranscript1.first().then(resultsUserTranscript1 => {
+          
+          const content2 = resultsUserTranscript1.get('content');
+          logger.info(`content2: ${content2}`);
+
+          // 计算错字
+          const wordsCurrent = compare.getTotalWords(content1.replace(/xx/gi, '')),
+                wordsOri = compare.getTotalWords(content2.replace(/xx/gi, '')),
+                wordsDiff = compare.diffWords(wordsOri, wordsCurrent);
+          xxWordsAmount += wordsCurrent.length;// 总字数
+          if (wordsDiff >= 1) {
+            xxWrongWordsAmount += wordsDiff;//错字数量
+            xxWrongTaskAmount += 1; // 错的任务数量
+          }
+          errorTask.push({
+            content1, content2, wrongWordsAmount: wordsDiff, 
+            audioURL: resultsUserTranscript1.get('fragment_src')
+          });
+          return xxWordsAmount; // Can return anything
+        });
+      });
+    });
+
+    return Promise.all(promiseArray);
+  });
+
+  Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
+    const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
+          wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
+          todayMoney = totalTaskAmount * (1 - 2 * wrongTaskRate) * 0.125; // 应发的钱数
+    // 计算错字率
+    let wrongWordsRateList = user.get('wrong_words_rate') || [];
+    if (wrongWordsRate > 0.005) { 
+      wrongWordsRateList.push(wrongWordsRate);
+      if (wrongWordsRateList.length === 3) {
+        user.set('role', 'C');
+        wrongWordsRateList = [];
+      }
+    } else {
+      wrongWordsRateList = [];
+    }
+    user.set('wrong_words_rate', wrongWordsRateList);
+    user.save();
+
+    return {touser : openId, money : todayMoney, xxTaskAmount, totalTaskAmount, errorTask, date1, date2};
+  });
+};
+
+
+const sendModelMessage = (data, accessToken) => {
   logger.info(`sendModelMessage-- data:${JSON.stringify(data)}`);
   request.post({
     url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
@@ -171,7 +154,7 @@ const sendModelMessage = (data, accessToken) => {
     body:  {
       touser: data.touser,
       template_id: wechatConfig.templateId.completeTask,
-      url: 'http://pipeline.xiaobandengapp.com/#/showTaskDetail',
+      url: `${domainString}/web/detailTask?openId=${data.touser}&date1=${data.date1}&date2=${data.date2}`,
       data: {
         first: {
           value: `Biu~你今天赚取到${data.money}元红包[测试]：`,
