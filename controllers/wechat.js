@@ -5,6 +5,7 @@ const request = require('request'),
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
       LeanCloud = leanCloud.AV,
+      WeChatUser = LeanCloud.Object.extend('WeChatUser'),
       UserTranscript = LeanCloud.Object.extend('UserTranscript'),
       CrowdsourcingTask = LeanCloud.Object.extend('CrowdsourcingTask'),
       xml = require('xml'),
@@ -539,14 +540,17 @@ const sendToUser = {
   }
 };
 
-const createUser = (userId, tasksDone) => {
-  const WeChatUser = LeanCloud.Object.extend('WeChatUser'),
-        weChatUser = new WeChatUser();
-  tasksDone = tasksDone || 0;
-  weChatUser.set('open_id', userId);
-  weChatUser.set('tasks_done', tasksDone);
-  weChatUser.set('status', -300);
-  weChatUser.set('price', 0.5);
+const createUser = userId => {
+  const weChatUser = new WeChatUser();
+  weChatUser.set({
+    open_id: userId,
+    tasks_done: 0,
+    status: 0,
+    price: 0.5,
+    amount_paid: 0,
+    need_pay: false,
+    role: 'B'
+  });
   return weChatUser.save();
 };
 
