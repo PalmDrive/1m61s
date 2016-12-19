@@ -43,6 +43,7 @@ const queryTodayUserMoney = (date1, date2) => {
   });
 };
 
+// 查询一个用户今天的所有任务并计算错误率
 const getUserTaskData = (openId, date1, date2) => {
   let   totalTaskAmount = 0,
         xxTaskAmount = 0,
