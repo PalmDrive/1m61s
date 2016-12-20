@@ -45,12 +45,12 @@ const queryTodayUserMoney = (date1, date2) => {
 
 // 查询一个用户今天的所有任务并计算错误率
 const getUserTaskData = (openId, date1, date2) => {
-  let   totalTaskAmount = 0,
-        xxTaskAmount = 0,
-        xxWrongTaskAmount = 0,
-        xxWordsAmount = 0,
-        xxWrongWordsAmount = 0,
-        errorTask = [];
+  let totalTaskAmount = 0,
+      xxTaskAmount = 0,
+      xxWrongTaskAmount = 0,
+      xxWordsAmount = 0,
+      xxWrongWordsAmount = 0,
+      errorTask = [];
 
   const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
   queryTask0.equalTo('user_id', openId);
@@ -142,7 +142,7 @@ const getUserTaskData = (openId, date1, date2) => {
     user.set('wrong_words_rate', wrongWordsRateList);
     user.save();
 
-    return {touser : openId, money : todayMoney, xxTaskAmount, totalTaskAmount, errorTask, date1, date2};
+    return {touser: openId, money: todayMoney, xxTaskAmount, totalTaskAmount, errorTask, date1, date2};
   });
 };
 
