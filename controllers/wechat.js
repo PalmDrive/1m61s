@@ -1359,25 +1359,33 @@ const onReceiveFromB = (data, accessToken, user) => {
         targetTranscript = LeanCloud.Object.createWithoutData('Transcript', transcriptObjectId);
   let content;
 
-  // Create UserTranscript        
-  userTranscript.set({
-    media_id: `training`,
-    content: data.content,
-    fragment_order: currentTaskOrder,
-    user_open_id: userId,
-    review_times: 0,
-    user_role: 'B',
-    targetTranscript
-  });
-  if (currentTaskOrder <= 4) {
-    content = '【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！';
-    sendToUser.text(content, data, accessToken).then(() => {
-      setTimeout(() => {
-        sendToUser.text(wechatData.tasks[`_${nextTaskOrder}`].text, userId, accessToken, startedAt);
-      }, 1000);
-      setTimeout(() => {
-        sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[currentTaskOrder], userId, accessToken, startedAt);
-      }, 2000);
+  if (currentTaskOrder <= 3) {
+    // Create UserTranscript        
+    userTranscript.set({
+      media_id: `training`,
+      content: data.content,
+      fragment_order: currentTaskOrder,
+      user_open_id: userId,
+      review_times: 0,
+      user_role: 'B',
+      targetTranscript
+    });
+    userTranscript.save().then(userTranscript => {
+      user.set({
+        status: tasksDone + 1,
+        tasks_done: tasksDone + 1
+      });
+      user.save().then(user => {
+        content = '【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          setTimeout(() => {
+            sendToUser.text(wechatData.tasks[`_${nextTaskOrder}`].text, userId, accessToken, startedAt);
+          }, 1000);
+          setTimeout(() => {
+            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[currentTaskOrder], userId, accessToken, startedAt);
+          }, 2000);
+        });
+      });
     });
   }
 };
