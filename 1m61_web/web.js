@@ -13,11 +13,11 @@ app.get('/pay', function (req, res, next) {
 });
 
 app.post('/pay', function(req, res, next) {
-  let openid = req.param("openid"),
-      money = Number(req.param("money")),
+  let openid = req.param('openid'),
+      money = Number(req.param('money')),
       _data = {
-        "re_openid": openid,
-        "total_amount": money*100,//分;
+        re_openid: openid,
+        total_amount: money*100,//分;
       };
 
   wechat_pay.sendMoney(_data, (result) => {
