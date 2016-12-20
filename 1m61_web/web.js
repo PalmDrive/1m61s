@@ -51,10 +51,10 @@ app.get('/detailTask', function (req, res, next) {
   //       };
 
   // res.render('detailTask',{data: data, date: '2016/12/09'});
-
-  const data =  wechat.getUserTaskData(req.query('openId'),   req.query('date1'), req.query('date2'));
-  res.render('detailTask',{data: data, date: req.query('date2').toLocaleDateString()});
-
+  wechatgetUserTaskData(req.query('openId'),   req.query('date1'), req.query('date2')).then(data => {
+    res.render('detailTask',{data: data, date: req.query('date2').toLocaleDateString()});
+  });
+  
   next();
 });
 
