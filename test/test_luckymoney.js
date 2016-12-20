@@ -4,10 +4,9 @@ const path = require("path")
 
 const _data = {
     "re_openid":'oslYRxAmiWdvmXHs3p11gTJS0RC4',
-    "total_amount":100
+    "total_amount":1
   },
   _callback = ret => {
-    console.log("return:",ret);
   };
 
 wechat_pay.sendMoney(_data,_callback);
