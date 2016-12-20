@@ -1346,6 +1346,42 @@ const onReceivePass = (data, accessToken, task, user) => {
   });
 };
 
+const onReceiveFromB = (data, accessToken, user) => {
+  const tasksDone = user.get('status'),
+        currentTaskOrder = tasksDone + 1,
+        currentTask = wechatData.tasks[`_${currentTaskOrder}`],
+        nextTaskOrder = currentTaskOrder + 1,
+        nextTask = wechatData.tasks[`_${nextTaskOrder}`],
+        startedAt = data._startedAt,
+        userId = data.fromusername,
+        transcriptObjectId = currentTask.objectId,
+        userTranscript = new UserTranscript(),
+        targetTranscript = LeanCloud.Object.createWithoutData('Transcript', transcriptObjectId);
+  let content;
+
+  // Create UserTranscript        
+  userTranscript.set({
+    media_id: `training`,
+    content: data.content,
+    fragment_order: currentTaskOrder,
+    user_open_id: userId,
+    review_times: 0,
+    user_role: 'B',
+    targetTranscript
+  });
+  if (currentTaskOrder <= 4) {
+    content = '【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！';
+    sendToUser.text(content, data, accessToken).then(() => {
+      setTimeout(() => {
+        sendToUser.text(wechatData.tasks[`_${nextTaskOrder}`].text, userId, accessToken, startedAt);
+      }, 1000);
+      setTimeout(() => {
+        sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[currentTaskOrder], userId, accessToken, startedAt);
+      }, 2000);
+    });
+  }
+};
+
 module.exports.postCtrl = (req, res, next) => {
   // Reply success to avoid error and repeated request
   res.send('success');
@@ -1395,67 +1431,64 @@ module.exports.postCtrl = (req, res, next) => {
         // 发送模板消息
         sendModelMessage(data, accessToken);
       } else {
-        // Check status
-        if (userStatus >= -304 && userStatus <= -300) {
-          // First min tasks
-          onFirstMin(data, accessToken, user);
-          sendGA(userId, 'reply_first_min');
-        } else if (userStatus >= -206 && userStatus <= -200) {
-          onSecondMin(data, accessToken, user);
-          sendGA(userId, 'reply_second_min');
-        } else if (userStatus >= -104 && userStatus <= -100) {
-          onThirdMin(data, accessToken, user);
-          sendGA(userId, 'reply_third_min');
-        } else if (userStatus === 1) {
-          // Waiting for WeChat ID
-          onReceiveWeChatId(data, accessToken, user);
-          sendGA(userId, 'reply_wechat_id');
-        } else if (userStatus === 2) {
-          // Revoke mode
-          onReceiveRevokeTranscription(data, accessToken, user);
-          sendGA(userId, 'reply_revoke');
+        // Check role
+        if (userRole === 'B') {
+          // TODO
+          onReceiveFromB(data, accessToken, user);
         } else {
-          // User status === 0
-          if (data.content === '修改') {
-            // Enter revoke mode
-            onReceiveRevoke(data, accessToken, user);
-            sendGA(userId, 'enter_revoke_mode');
+          // A, 帮主, 工作人员, B端用户
+          // Check user status
+          if (userStatus === 1) {
+            // Waiting for WeChat ID
+            onReceiveWeChatId(data, accessToken, user);
+            sendGA(userId, 'reply_wechat_id');
+          } else if (userStatus === 2) {
+            // Revoke mode
+            onReceiveRevokeTranscription(data, accessToken, user);
+            sendGA(userId, 'reply_revoke');
           } else {
-            findInProcessTaskForUser(userId).then(task => {
-              logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
-              if (task) {
-                if (data.content === '没有语音') {
-                  onReceiveNoVoice(data, accessToken, task);
-                  sendGA(userId, 'reply_no_voice');
-                } else if (data.content === '不对应') {
-                  onReceiveNotMatch(data, accessToken, task, user);
-                  sendGA(userId, 'reply_not_match');
-                } else if (data.content === '前') {
-                  onReceivePrevNext(data, accessToken, task);
-                  sendGA(userId, 'reply_prev');
-                } else if (data.content === '后') {
-                  onReceivePrevNext(data, accessToken, task);
-                  sendGA(userId, 'reply_next');
-                } else if (data.content === '过') {
-                  onReceivePass(data, accessToken, task, user);
-                  sendGA(userId, 'reply_pass');
-                } else if (data.content === '不对应') {
-                  onReceiveNotMatch(data, accessToken, task, user);
-                  sendGA(userId, 'reply_not_match');
-                } else if (data.content === '前') {
-                  onReceivePrevNext(data, accessToken, task);
-                  sendGA(userId, 'reply_prev');
-                } else if (data.content === '后') {
-                  onReceivePrevNext(data, accessToken, task);
-                  sendGA(userId, 'reply_next');
+            // User status === 0
+            if (data.content === '修改') {
+              // Enter revoke mode
+              onReceiveRevoke(data, accessToken, user);
+              sendGA(userId, 'enter_revoke_mode');
+            } else {
+              findInProcessTaskForUser(userId).then(task => {
+                logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
+                if (task) {
+                  if (data.content === '没有语音') {
+                    onReceiveNoVoice(data, accessToken, task);
+                    sendGA(userId, 'reply_no_voice');
+                  } else if (data.content === '不对应') {
+                    onReceiveNotMatch(data, accessToken, task, user);
+                    sendGA(userId, 'reply_not_match');
+                  } else if (data.content === '前') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_prev');
+                  } else if (data.content === '后') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_next');
+                  } else if (data.content === '过') {
+                    onReceivePass(data, accessToken, task, user);
+                    sendGA(userId, 'reply_pass');
+                  } else if (data.content === '不对应') {
+                    onReceiveNotMatch(data, accessToken, task, user);
+                    sendGA(userId, 'reply_not_match');
+                  } else if (data.content === '前') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_prev');
+                  } else if (data.content === '后') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_next');
+                  } else {
+                    onReceiveTranscription(data, accessToken, task, user);
+                    sendGA(userId, 'reply');
+                  }
                 } else {
-                  onReceiveTranscription(data, accessToken, task, user);
-                  sendGA(userId, 'reply');
+                  sendGA(userId, 'not_anything');
                 }
-              } else {
-                sendGA(userId, 'not_anything');
-              }
-            });
+              });
+            }
           }
         }
       }
