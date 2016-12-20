@@ -1349,9 +1349,9 @@ const onReceivePass = (data, accessToken, task, user) => {
 const onReceiveFromB = (data, accessToken, user) => {
   const tasksDone = user.get('status'),
         currentTaskOrder = tasksDone + 1,
-        currentTask = wechatData.tasks[`_${currentTaskOrder}`],
+        currentTask = wechatData.tasks['_' + currentTaskOrder],
         nextTaskOrder = currentTaskOrder + 1,
-        nextTask = wechatData.tasks[`_${nextTaskOrder}`],
+        nextTask = wechatData.tasks['_' + nextTaskOrder],
         startedAt = data._startedAt,
         userId = data.fromusername,
         transcriptObjectId = currentTask.objectId,
