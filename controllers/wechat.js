@@ -1391,7 +1391,7 @@ module.exports.postCtrl = (req, res, next) => {
       } else if (data.content === '规则' && userStatus !== -205) {
         sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
-      }  else if (data.content === '模板消息测试') {
+      } else if (data.content === '模板消息测试') {
         // 发送模板消息
         sendModelMessage(data, accessToken);
       } else {
