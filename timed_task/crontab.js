@@ -15,8 +15,14 @@ const cron = schedule.scheduleJob('* * 23 * * *', function () {
   today.setHours(23);
   yesterday.setHours(23);
 
-  //data = wechat_ctl.queryTodayUserMoney(yesterday, today);
+  data = wechat_ctl.queryTodayUserMoney(yesterday, today);
+
+  data = wechat_ctl.sendModelMessage(data, accessToken);
 
   //queryTodayUserMoney
-  //wechat_pay.fnSendMoney()
+
+  wechat_pay.fnSendMoney(open_id, money);
+
 });
+
+console.log("crontab started.")
