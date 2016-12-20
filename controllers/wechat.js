@@ -24,7 +24,6 @@ const getTime = (startedAt) => {
 
 // 定时任务发红包
 const queryTodayUserMoney = (date1, date2) => {
-  // 1.query user
   const q1 = new LeanCloud.Query("WeChatUser");
   q1.equalTo('role', 'A');
   const q2 = new LeanCloud.Query("WeChatUser");
@@ -33,13 +32,15 @@ const queryTodayUserMoney = (date1, date2) => {
   query.limit(1000);
   return query.find().then(results => {
     let shouldSendMoney = [];
-    results.map(user => {
-      const openId = user.get('open_id'),
-            role = user.get('role');
-            
-      shouldSendMoney.push(getUserTaskData(openId, date1, date2));
+    const promiseArray = results.map(user => {
+      const openId = user.get('open_id');
+      return getUserTaskData(openId, date1, date2).then(data => {
+        return shouldSendMoney.push(data);
+      });
     });
-    return shouldSendMoney;
+    return Promise.all(promiseArray).then(() => {
+      return shouldSendMoney;
+    });
   });
 };
 
@@ -124,7 +125,7 @@ const getUserTaskData = (openId, date1, date2) => {
     return Promise.all(promiseArray);
   });
 
-  Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
+  return Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
     const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
           wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
           todayMoney = totalTaskAmount * (1 - 2 * wrongTaskRate) * 0.125; // 应发的钱数
@@ -140,9 +141,9 @@ const getUserTaskData = (openId, date1, date2) => {
       wrongWordsRateList = [];
     }
     user.set('wrong_words_rate', wrongWordsRateList);
-    user.save();
-
-    return {touser: openId, money: todayMoney, xxTaskAmount, totalTaskAmount, errorTask, date1, date2};
+    return user.save().then(user => {
+      return {touser: openId, money: todayMoney, xxTaskAmount, totalTaskAmount, errorTask, date1, date2};
+    });
   });
 };
 
