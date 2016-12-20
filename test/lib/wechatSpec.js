@@ -12,24 +12,38 @@ const chai = require('chai'),
       compare = require('../../lib/compare_transcript');
 
 describe('Compare Transcripts', function() {
-
   const getTotalWords = compare.getTotalWords,
         diffWords = compare.diffWords;
 
   describe('getTotalWords', () => {
-    it('should return an array of single charactors', () => {
+    it('should work for Chinese without comma', () => {
       const sentence = '我今天演讲猪蹄是';
-      getTotalWords(sentence).length.should.equal(8);
+      getTotalWords(sentence).should.have.length(8);
+    });
+
+    it('should should work for Chinese with comma', () => {
+      const sentence = '我今天，演讲猪蹄是';
+      getTotalWords(sentence).should.have.length(8);
+    });
+
+    it('should should work for English without comma', () => {
+      const sentence = 'hello world again';
+      getTotalWords(sentence).should.have.length(3);
+    });
+
+    it('should should work for English with comma', () => {
+      const sentence = 'hello world, again';
+      getTotalWords(sentence).should.have.length(3);
     });
   });
 
-  describe('diffWords', () => {
-    it('should return the # of words in first but not second sentence', () => {
-      const wrong = '一个测试片段，逗号之后的另一段',
-            correct = '一个带的测试片段';
-      diffWords(wrong, correct).should.equal(5);
-    });    
-  });
+  // describe('diffWords', () => {
+  //   it('should return the # of words in first but not second sentence', () => {
+  //     const wrong = '一个测试片段，逗号之后的另一段',
+  //           correct = '一个带的测试片段';
+  //     diffWords(wrong, correct).should.equal(5);
+  //   });    
+  // });
 });
 
 // describe('TASK', function() {
