@@ -1420,7 +1420,8 @@ const onReceiveFromB = (data, accessToken, user) => {
           });
       });
     } else {
-
+      content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
+      sendToUser.text(content, data, accessToken);
     }
   }
 };
