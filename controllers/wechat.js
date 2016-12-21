@@ -128,7 +128,7 @@ const getUserTaskData = (openId, date1, date2) => {
   return Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
     const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
           wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
-          todayMoney = totalTaskAmount * (1 - 2 * wrongTaskRate) * 0.125; // 应发的钱数
+          todayMoney = totalTaskAmount * (1 - wrongTaskRate) * 0.125; // 应发的钱数
     // 计算错字率
     let wrongWordsRateList = user.get('wrong_words_rate') || [];
     if (wrongWordsRate > 0.005) { 
