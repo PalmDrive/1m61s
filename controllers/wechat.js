@@ -1552,6 +1552,3 @@ module.exports.postCtrl = (req, res, next) => {
 module.exports.getCtrl = (req, res, next) => {
   res.send(req.query.echostr);
 };
-module.exports.getAccessToken = wechatLib.getAccessTokenFromCache;
-// module.exports.findTaskForUser = findTaskForUser;
-module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
