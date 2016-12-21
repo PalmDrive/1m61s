@@ -1379,7 +1379,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
         sendToUser.text(content, data, accessToken).then(() => {
           setTimeout(() => {
-            sendToUser.text(nextTask.text, userId, accessToken, startedAt);
+            sendToUser.text(nextTask.text, userId, accessToken);
           }, 1000);
           setTimeout(() => {
             sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[currentTaskOrder], userId, accessToken, startedAt);
