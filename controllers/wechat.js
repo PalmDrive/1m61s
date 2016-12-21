@@ -13,6 +13,7 @@ const request = require('request'),
       logger = require('../lib/logger'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       wechatData = require('../static/wechat_data.json'),
+      Tasks = wechatData.tasks,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
       wechatLib = require('../lib/wechat');
@@ -521,7 +522,7 @@ const onSubscribe = (data, accessToken) => {
   sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken, data._startedAt).then(() => {
     // Send text in 1s
     setTimeout(() => {
-      sendToUser.text(wechatData.tasks._1.text, data, accessToken);
+      sendToUser.text(Tasks._1.text, data, accessToken);
     }, 1000);
     // Send voice in 2s
     setTimeout(() => {
@@ -1350,26 +1351,25 @@ const onReceiveFromB = (data, accessToken, user) => {
   const status = user.get('status'),
         tasksDone = user.get('tasks_done'),
         currentTaskOrder = status + 1,
-        currentTask = wechatData.tasks['_' + currentTaskOrder],
+        currentTask = Tasks['_' + currentTaskOrder],
         nextTaskOrder = currentTaskOrder + 1,
-        nextTask = wechatData.tasks['_' + nextTaskOrder],
+        nextTask = Tasks['_' + nextTaskOrder],
         startedAt = data._startedAt,
         userId = data.fromusername,
-        transcriptObjectId = currentTask.objectId,
-        userTranscript = new UserTranscript(),
-        targetTranscript = LeanCloud.Object.createWithoutData('Transcript', transcriptObjectId);
+        userContent = data.content,
+        userTranscript = new UserTranscript();
   let content;
 
   if (status <= 3) {
+    // 前4个任务，不判断正确
     // Create UserTranscript        
     userTranscript.set({
       media_id: `training`,
-      content: data.content,
+      content: userContent,
       fragment_order: currentTaskOrder,
       user_open_id: userId,
       review_times: 0,
-      user_role: 'B',
-      targetTranscript
+      user_role: 'B'
     });
     userTranscript.save().then(userTranscript => {
       if (status === 3) {
@@ -1387,7 +1387,9 @@ const onReceiveFromB = (data, accessToken, user) => {
         sendToUser.text(content, data, accessToken).then(() => {
           if (status === 3) {
             // 礼物图片
-            sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
+            setTimeout(() => {
+              sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
+            }, 1000);
           } else {
             setTimeout(() => {
               sendToUser.text(nextTask.text, data, accessToken);
@@ -1399,6 +1401,27 @@ const onReceiveFromB = (data, accessToken, user) => {
         });
       });
     });
+  } else if (status === 3.5) {
+    // 回复"1"开始新手学院
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 4);
+      user.save().then(user => {
+        // 规则图片-1
+        sendToUser.image(wechatConfig.mediaId.image.rule._1, userId, accessToken, startedAt)
+          .then(() => {
+            // Task 5
+            setTimeout(() => {
+              sendToUser.text(Tasks._5.text, data, accessToken);
+            }, 1000);
+            setTimeout(() => {
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.tasks._5, userId, accessToken, startedAt);
+            }, 2000);
+          });
+      });
+    } else {
+
+    }
   }
 };
 
@@ -1445,7 +1468,7 @@ module.exports.postCtrl = (req, res, next) => {
         logger.info(userId);
         sendGA(userId, 'test_internet');
       } else if (data.content === '规则' && userStatus !== -205) {
-        sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, startedAt);
+        sendToUser.image(wechatConfig.mediaId.image.rule.all, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
       } else if (data.content === '模板消息测试') {
         // 发送模板消息
@@ -1453,7 +1476,6 @@ module.exports.postCtrl = (req, res, next) => {
       } else {
         // Check role
         if (userRole === 'B') {
-          // TODO
           onReceiveFromB(data, accessToken, user);
         } else {
           // A, 帮主, 工作人员, B端用户
