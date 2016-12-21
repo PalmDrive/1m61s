@@ -20,7 +20,7 @@ const cron = schedule.scheduleJob('* * 23 * * *', function() {
         // 发红包
         wechat_pay.fnSendMoney(result.touser, result.money);
         // 发模板消息
-        wechat_ctl.sendModelMessage(result, res.access_token);
+        wechat_ctl.sendModelMessage(result, res);
       });
     });
   });
