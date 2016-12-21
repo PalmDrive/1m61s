@@ -10,178 +10,15 @@ const request = require('request'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
-      compare = require('../lib/compare_transcript'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
-      domainString = process.env.NODE_ENV === 'production' ? 'http://1m61s-service.xiaobandengapp.com' : 'http://1m61s-service-staging.xiaobandengapp.com';
+      wechatLib = require('../lib/wechat');
 
 const taskTimers = {};
 
 const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
-};
-
-// 定时任务发红包
-const queryTodayUserMoney = (date1, date2) => {
-  const q1 = new LeanCloud.Query("WeChatUser");
-  q1.equalTo('role', 'A');
-  const q2 = new LeanCloud.Query("WeChatUser");
-  q2.equalTo('role', '帮主');
-  const query = LeanCloud.Query.or(q1, q2);
-  query.limit(1000);
-  return query.find().then(results => {
-    let shouldSendMoney = [];
-    const promiseArray = results.map(user => {
-      const openId = user.get('open_id');
-      return getUserTaskData(openId, date1, date2).then(data => {
-        return shouldSendMoney.push(data);
-      });
-    });
-    return Promise.all(promiseArray).then(() => {
-      return shouldSendMoney;
-    });
-  });
-};
-
-// 查询一个用户今天的所有任务并计算错误率
-const getUserTaskData = (openId, date1, date2) => {
-  let totalTaskAmount = 0,
-      xxTaskAmount = 0,
-      xxWrongTaskAmount = 0,
-      xxWordsAmount = 0,
-      xxWrongWordsAmount = 0,
-      errorTask = [];
-
-  const queryTask0 = new LeanCloud.Query('CrowdsourcingTask');
-  queryTask0.equalTo('user_id', openId);
-  queryTask0.equalTo('status', 1);
-  queryTask0.greaterThanOrEqualTo('completed_at', date1);
-  queryTask0.lessThanOrEqualTo('completed_at', date2);
-  const totalTaskAmountPromise = queryTask0.count().then(count => {
-    return totalTaskAmount = count;
-  });
-
-  // 2.0 source  filter xx
-  const queryTask1 = new LeanCloud.Query('CrowdsourcingTask');
-  queryTask1.equalTo('source', 1.1);
-  const queryTask2 = new LeanCloud.Query('CrowdsourcingTask');
-  queryTask2.equalTo('source', 2.1);
-
-  // 2.1 other filter
-  const queryTask = LeanCloud.Query.or(queryTask1, queryTask2);
-  queryTask.equalTo('last_user', openId);
-  queryTask.greaterThanOrEqualTo('completed_at', date1);
-  queryTask.lessThanOrEqualTo('completed_at', date2);
-  queryTask.greaterThanOrEqualTo('createdAt', date1);
-  queryTask.lessThanOrEqualTo('createdAt', date2);
-
-  // 2.2 query task by last_user
-  const xxTasksPromise = queryTask.find().then(resultsTask => {
-    xxTaskAmount = resultsTask.length;
-
-    const promiseArray = resultsTask.map(task => {
-      const fragmentId = task.get('fragment_id');
-
-      // 3 query UserTranscript by objectId
-      const queryUserTranscript = new LeanCloud.Query('UserTranscript');
-      return queryUserTranscript.get(fragmentId).then(resultsUserTranscript => {
-        const content1 = resultsUserTranscript.get('content'),
-              targetTranscriptId = resultsUserTranscript.get('targetTranscript').id;
-        logger.info(`content1: ${content1}`);
-
-        // 4 query UserTranscript by targetTranscriptId and user_role
-        let queryUserTranscript1 = new LeanCloud.Query('UserTranscript');
-        const queryUserTranscript2 = new LeanCloud.Query('UserTranscript');
-        queryUserTranscript1.equalTo('user_role', '帮主');
-        queryUserTranscript2.equalTo('user_role', '工作人员');
-        queryUserTranscript1 = LeanCloud.Query.or(queryUserTranscript1, queryUserTranscript2);
-        queryUserTranscript1.equalTo('targetTranscript', LeanCloud.Object.createWithoutData('Transcript', targetTranscriptId));
-        queryUserTranscript1.descending('createdAt');
-
-        return queryUserTranscript1.first().then(resultsUserTranscript1 => {
-          
-          const content2 = resultsUserTranscript1.get('content');
-          logger.info(`content2: ${content2}`);
-
-          // 计算错字
-          const wordsCurrent = compare.getTotalWords(content1.replace(/xx/gi, '')),
-                wordsOri = compare.getTotalWords(content2.replace(/xx/gi, '')),
-                wordsDiff = compare.diffWords(wordsOri, wordsCurrent);
-          xxWordsAmount += wordsCurrent.length;// 总字数
-          if (wordsDiff >= 1) {
-            xxWrongWordsAmount += wordsDiff;//错字数量
-            xxWrongTaskAmount += 1; // 错的任务数量
-          }
-          errorTask.push({
-            content1, content2, wrongWordsAmount: wordsDiff, 
-            audioURL: resultsUserTranscript1.get('fragment_src')
-          });
-          return xxWordsAmount; // Can return anything
-        });
-      });
-    });
-
-    return Promise.all(promiseArray);
-  });
-
-  return Promise.all([totalTaskAmountPromise, xxTasksPromise]).then(results => {
-    const wrongWordsRate = xxWrongWordsAmount / xxWordsAmount,
-          wrongTaskRate = xxWrongTaskAmount / xxTaskAmount,
-          todayMoney = totalTaskAmount * (1 - wrongTaskRate) * 0.125; // 应发的钱数
-    // 计算错字率
-    let wrongWordsRateList = user.get('wrong_words_rate') || [];
-    if (wrongWordsRate > 0.005) { 
-      wrongWordsRateList.push(wrongWordsRate);
-      if (wrongWordsRateList.length === 3) {
-        user.set('role', 'C');
-        wrongWordsRateList = [];
-      }
-    } else {
-      wrongWordsRateList = [];
-    }
-    user.set('wrong_words_rate', wrongWordsRateList);
-    return user.save().then(user => {
-      return {touser: openId, money: todayMoney, xxTaskAmount, totalTaskAmount, errorTask, date1, date2};
-    });
-  });
-};
-
-
-const sendModelMessage = (data, accessToken) => {
-  logger.info(`sendModelMessage-- data:${JSON.stringify(data)}`);
-  request.post({
-    url: `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
-    json: true,
-    body:  {
-      touser: data.touser,
-      template_id: wechatConfig.templateId.completeTask,
-      url: `${domainString}/web/detailTask?openId=${data.touser}&date1=${data.date1}&date2=${data.date2}`,
-      data: {
-        first: {
-          value: `Biu~你今天赚取到${data.money}元红包[测试]：`,
-          color: '#173177'
-        },
-        keynote1: {
-          value: '任务反馈',
-          color: '#173177'
-        },
-        keynote2: {
-          value: `${data.money}元红包`,
-          color: '#173177'
-        },
-        remark: {
-          value: `下面是详细任务情况：\n 总片段数：${data.totalTaskAmount} \n 抽查片段数：${data.xxTaskAmount} \n  错误片段数：${data.errorTask.length} \n\n 点击查看详情`,
-          // \n 错误最多的类型是：${data.error[0].type}(${data.error[0].amount}个) \n\n 点击查看详情
-          color: '#000000'
-        }
-      }
-    }
-  }, (error, response, body) => {
-    if (error) return logError('sendModelMessage--err: ', error);
-    logger.info(`sendModelMessage--response: ${JSON.stringify(response)}`);
-    logger.info(`sendModelMessage--body: ${JSON.stringify(body)}`);
-  });
 };
 
 const savedContent = {};
@@ -223,65 +60,6 @@ savedContent.thirdMin = [
   '大家记住自己可以下呀的最大的幅度，所有人都闭上的眼睛，眼球，哦，顺时针转五圈一下用于自己眼球顺时针转五圈，',
   '当你闭上眼睛的时候，重新转五圈眼球得时候再下去，下了的时候你会发现你可以突破你之前的极限。这的一个很有意思的小的实验，第二小的实验大家所有人双脚与肩同宽，然后伸出自己的左手，'
 ];
-
-const getAccessTokenFromWechat = () => {
-  console.log('get access token from wechat...');
-  const APPID = wechatConfig.appId,
-        APPSECRET = wechatConfig.appSecret,
-        url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${APPID}&secret=${APPSECRET}`;
-  return new Promise((resolve, reject) => {
-    request({
-      url,
-      json: true
-    }, (error, response, body) => {
-      if (error) return reject(error);
-
-      if (body.errcode) {
-        reject(body);
-      } else {
-        resolve(body);
-      }
-    });
-  });
-};
-
-const getAccessTokenFromCache = (options, startedAt) => {
-  console.log('get access token from cache...');
-  options = options || {};
-  const name = 'wechat_access_token';
-
-  return new Promise((resolve, reject) => {
-    redisClient.get(name, (error, reply) => {
-      if (error) {
-        return reject(error);
-      }
-
-      if (reply && !options.updateCache) {
-        logger.info('hit the cache: ');
-        logger.info(reply);
-        resolve(reply);
-      } else {
-        getAccessTokenFromWechat().then(data => {
-          console.log(data);
-          // Add to cache
-          redisClient.set(name, data.access_token, (err, ret) => {
-            if (err) {
-              logger.info('error: ');
-              logger.info(err);
-            } else {
-              logger.info('added to the cache: ');
-            }
-          });
-          // Set redis expire time as 1min less than actual access token expire time
-          redisClient.expire(name, data.expires_in - 60);
-
-          logger.info(`--- At ${startedAt} getAccessTokenFromWechat / access_token: ${data.access_token}`);
-          resolve(data.access_token);
-        }, err => reject(err));
-      }
-    });
-  });
-};
 
 // const createQRTicket = (scene, token) => {
 //   const actionName = 'QR_SCENE',
@@ -569,7 +347,7 @@ const sendToUser = {
 
         exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
           if (error) {
-            logError(`--- At ${getTime(_startedAt)} exec error`, error);
+            wechatLib.logError(`--- At ${getTime(_startedAt)} exec error`, error);
             return;
           }
           const duration = parseDuration(stdout);
@@ -629,12 +407,12 @@ const sendToUser = {
                         }, accessToken);
                       }, 1000);
                     }, err => {
-                      logError('upload split media 2 failed', err);
+                      wechatLib.logError('upload split media 2 failed', err);
                     });
                   });
                 });
               }, err => {
-                logError('upload split media 1 failed', err);
+                wechatLib.logError('upload split media 1 failed', err);
               });
             });
           } else {
@@ -655,12 +433,12 @@ const sendToUser = {
                   _startedAt
                 }, accessToken);
               }, err => {
-                logError('upload media failed', err);
+                wechatLib.logError('upload media failed', err);
               });
           }
         });
     }, err => {
-      logError('voice message ws', err);
+      wechatLib.logError('voice message ws', err);
     });
 
     // Save the audio to local
@@ -669,7 +447,7 @@ const sendToUser = {
       logger.info(audioURL);
       if (err) {
         self.text('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
-        logError('request audio error', err);
+        wechatLib.logError('request audio error', err);
       }
     }).pipe(ws);
   },
@@ -710,10 +488,10 @@ const sendToUser = {
             _startedAt
           }, accessToken);
         }, err => {
-          logError('upload media failed', err);
+          wechatLib.logError('upload media failed', err);
         });
     }, err => {
-      logError('voice message ws', err);
+      wechatLib.logError('voice message ws', err);
     });
 
     // Save the audio to local
@@ -722,7 +500,7 @@ const sendToUser = {
       logger.info(audioURL);
       if (err) {
         self.text('biu~抱歉，获取语音出现问题。', data, accessToken);
-        logError('request audio error', err);
+        wechatLib.logError('request audio error', err);
       }
     }).pipe(ws);
   },
@@ -750,12 +528,12 @@ const sendToUser = {
         return self.text('对不起，系统错误，请联系管理员。', data, accessToken);
       }
     }, err => {
-      logError('failed getting transcript when sending task', err);
+      wechatLib.logError('failed getting transcript when sending task', err);
       logger.info(`--- At ${getTime(_startedAt)} error: find transcript with id : ${fragmentId}`);
       task.destroy().then(success => {
         findAndSendNewTaskForUser(data, accessToken, user);
       }, err => {
-        logError('failed destroying task', err);
+        wechatLib.logError('failed destroying task', err);
       });
     });
   }
@@ -814,7 +592,7 @@ const assignTask = (task, data, accessToken) => {
 
     return task;
   }, err => {
-    logError('assign task error', err);
+    wechatLib.logError('assign task error', err);
   });
 };
 
@@ -925,7 +703,7 @@ const createUserTranscript = (user, content, task, transcript) => {
         });
       }
     }, err => {
-      logError('failed getMachineTranscript', err);
+      wechatLib.logError('failed getMachineTranscript', err);
     });
   }
 };
@@ -1070,7 +848,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
           }
         }
       }, err => {
-        logError('createUserTranscript', err);
+        wechatLib.logError('createUserTranscript', err);
       });
     });
   });
@@ -1196,7 +974,7 @@ const findNewTaskForUser = (user, _startedAt) => {
           // Find new task
           return findNewTaskForUser(user, _startedAt);
         }, err => {
-          logError('failed destroying task', err);
+          wechatLib.logError('failed destroying task', err);
         });
       });
     } else {
@@ -1302,7 +1080,7 @@ const sendGA = (userId, eventAction) => {
     body: payload
   }, (error, response, body) => {
     if (error) {
-      logError('failed sending GA', error);
+      wechatLib.logError('failed sending GA', error);
     }
   });
 };
@@ -1319,11 +1097,6 @@ const onReceiveNoVoice = (data, accessToken, task, user) => {
   sendToUser.text(replyContent, data, accessToken);
 
   findAndSendNewTaskForUser(data, accessToken, user);
-};
-
-const logError = (message, err) => {
-  logger.info('Error: ' + message + '.');
-  logger.info(err);
 };
 
 const findUserTranscriptFromTaskByUser = (task, userId) => {
@@ -1356,10 +1129,10 @@ const onReceiveRevoke = (data, accessToken, user) => {
         }
       });
     }, err => {
-      logError('failed getting last task in revoke mode', err);
+      wechatLib.logError('failed getting last task in revoke mode', err);
     });
   }, err => {
-    logError('failed saving user when entering revoke mode', err);
+    wechatLib.logError('failed saving user when entering revoke mode', err);
   });
 };
 
@@ -1544,7 +1317,7 @@ const setPrice = (data, user) => {
     logger.info('Price setted for open_id:');
     logger.info(user.get('open_id'));
   }, err => {
-    logError('failed setting price', err);
+    wechatLib.logError('failed setting price', err);
   });
 };
 
@@ -1622,7 +1395,7 @@ module.exports.postCtrl = (req, res, next) => {
   data._startedAt = startedAt;
   logger.info(`--- At ${startedAt} get user ${userId} response`);
 
-  const accessTokenPromise = getAccessTokenFromCache(undefined, startedAt);
+  const accessTokenPromise = wechatLib.getAccessTokenFromCache(undefined, startedAt);
   const userPromise = getUser(userId).then(user => {
     if (user) {
       return user;
@@ -1779,6 +1552,6 @@ module.exports.postCtrl = (req, res, next) => {
 module.exports.getCtrl = (req, res, next) => {
   res.send(req.query.echostr);
 };
-module.exports.getAccessToken = getAccessTokenFromCache;
+module.exports.getAccessToken = wechatLib.getAccessTokenFromCache;
 // module.exports.findTaskForUser = findTaskForUser;
 module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
