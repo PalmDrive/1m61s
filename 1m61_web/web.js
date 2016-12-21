@@ -3,7 +3,7 @@
 const express = require('express'),
       _ = require('underscore'),
       wechat_pay = require('../lib/wechat_pay'),
-      wechat = require('../controllers/wechat');
+      wechat = require('../lib/wechat');
 
 let app = express();
 
@@ -51,7 +51,7 @@ app.get('/detailTask', function (req, res, next) {
   //       };
 
   // res.render('detailTask',{data: data, date: '2016/12/09'});
-  wechatgetUserTaskData(req.query('openId'),   req.query('date1'), req.query('date2')).then(data => {
+  wechat.getUserTaskData(req.query('openId'), req.query('date1'), req.query('date2')).then(data => {
     res.render('detailTask',{data: data, date: req.query('date2').toLocaleDateString()});
   });
   
