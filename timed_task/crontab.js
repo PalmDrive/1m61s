@@ -3,7 +3,7 @@
 const schedule = require('node-schedule'),
       date_util = require('date-utils'),
       wechat_pay = require('../lib/wechat_pay'),
-      wechat_ctl = require('../controllers/wechat.js'),
+      wechat_ctl = require('../lib/wechat'),
       logger = require('../lib/logger');
 
 const cron = schedule.scheduleJob('* * 23 * * *', function() {
