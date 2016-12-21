@@ -1347,8 +1347,9 @@ const onReceivePass = (data, accessToken, task, user) => {
 };
 
 const onReceiveFromB = (data, accessToken, user) => {
-  const tasksDone = user.get('status'),
-        currentTaskOrder = tasksDone + 1,
+  const status = user.get('status'),
+        tasksDone = user.get('tasks_done'),
+        currentTaskOrder = status + 1,
         currentTask = wechatData.tasks['_' + currentTaskOrder],
         nextTaskOrder = currentTaskOrder + 1,
         nextTask = wechatData.tasks['_' + nextTaskOrder],
@@ -1359,7 +1360,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         targetTranscript = LeanCloud.Object.createWithoutData('Transcript', transcriptObjectId);
   let content;
 
-  if (currentTaskOrder <= 3) {
+  if (status <= 3) {
     // Create UserTranscript        
     userTranscript.set({
       media_id: `training`,
@@ -1371,19 +1372,30 @@ const onReceiveFromB = (data, accessToken, user) => {
       targetTranscript
     });
     userTranscript.save().then(userTranscript => {
-      user.set({
-        status: tasksDone + 1,
-        tasks_done: tasksDone + 1
-      });
+      if (status === 3) {
+        user.set('status', status + 0.5);
+      } else {
+        user.set('status', status + 1);
+      }
+      user.set('tasks_done', tasksDone + 1);
       user.save().then(user => {
-        content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
+        if (status === 3) {
+          content = '【红包奖励：4/8元】\n【新手学院】\n\n欢迎来到1\'61新手学院，本次训练任务共28个语音片段，总计7分钟，若全部答对，将有3.5元的现金红包奖励（每满1.0元发送现金红包），并且领取毕业证书，开通“领取任务”功能。\n\n1.答错一个片段，该片段将没有奖励；\n2.如果总的错别字数超过10个字，将无法开启“领取任务”功能；\n\n注意，如果错别字字数超过10个字，将无法开启“领取任务”功能。\n\n同意请回复“1”，即可继续。（么么哒）';
+        } else {
+          content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
+        }
         sendToUser.text(content, data, accessToken).then(() => {
-          setTimeout(() => {
-            sendToUser.text(nextTask.text, data, accessToken);
-          }, 1000);
-          setTimeout(() => {
-            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[currentTaskOrder], userId, accessToken, startedAt);
-          }, 2000);
+          if (status === 3) {
+            // 礼物图片
+            sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
+          } else {
+            setTimeout(() => {
+              sendToUser.text(nextTask.text, data, accessToken);
+            }, 1000);
+            setTimeout(() => {
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[currentTaskOrder], userId, accessToken, startedAt);
+            }, 2000);
+          }
         });
       });
     });
