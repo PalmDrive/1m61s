@@ -37,13 +37,13 @@ describe('Compare Transcripts', function() {
     });
   });
 
-  // describe('diffWords', () => {
-  //   it('should return the # of words in first but not second sentence', () => {
-  //     const wrong = '一个测试片段，逗号之后的另一段',
-  //           correct = '一个带的测试片段';
-  //     diffWords(wrong, correct).should.equal(5);
-  //   });    
-  // });
+  describe('diffWords', () => {
+    it('should return the # of words in first but not second sentence', () => {
+      const wrong = '一个测试片段，逗号之后的另一段',
+            correct = '一个带的测试片段';
+      diffWords(getTotalWords(wrong), getTotalWords(correct)).should.equal(5);
+    });    
+  });
 });
 
 // describe('TASK', function() {
