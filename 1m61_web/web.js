@@ -51,11 +51,14 @@ app.get('/detailTask', function (req, res, next) {
   //       };
 
   // res.render('detailTask',{data: data, date: '2016/12/09'});
-  wechat.getUserTaskData(req.query['openId'], new Date(req.query['date1']), new Date(req.query['date2'])).then(data => {
-    res.render('detailTask',{data: data, date: req.query['date2']});
+  const date2 = new Date(req.query['date2']);
+  wechat.getUserTaskData(req.query['openId'], new Date(req.query['date1']), date2).then(data => {
+    res.render('detailTask',{data: data, date: date2.toLocaleDateString()});
+    next();
+  }).catch(Exception => {
+     console.log('Exception:' + JSON.stringify(Exception));
   });
   
-  next();
 });
 
 module.exports.app =app;
