@@ -1460,9 +1460,9 @@ const onReceiveFromB = (data, accessToken, user) => {
     } else {
       logger.info('Debug: received user content');
       // Check if user is correct
-      userTotalWords = compare.getTotalWords(userContent);
-      correctTotalWords = compare.getTotalWords(currentTask.correct);
-      const wrongWords = compare.diffWords(userTotalWords, correctTotalWords);
+      const userTotalWords = compare.getTotalWords(userContent),
+            correctTotalWords = compare.getTotalWords(currentTask.correct),
+            wrongWords = compare.diffWords(userTotalWords, correctTotalWords);
       // Create UserTranscript
       userTranscript.set({
         media_id: `training`,
