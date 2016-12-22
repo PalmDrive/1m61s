@@ -28,13 +28,7 @@ app.post('/pay', function(req, res, next) {
 
 app.get('/detailTask', function (req, res, next) {
   // 测试数据
-  // const data = {
-  //         touser: '',
-  //         money: '100',
-  //         totalAmount: '25',
-  //         errorAmount: '3',
-  //         todayDateString: '2016/12/19',
-  //         errorTask: [
+  // const data = [
   //           {
   //             content1: '一个测试片段，逗号之后的另一段',
   //             content2: '一个好的测试片段',
@@ -47,10 +41,11 @@ app.get('/detailTask', function (req, res, next) {
   //             wrongWordsAmount: '2',
   //             audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'
   //           }
-  //         ]
-  //       };
+  //         ];
 
   // res.render('detailTask',{data: data, date: '2016/12/09'});
+  // next();
+
   const date2 = new Date(req.query['date2']);
   wechat.getUserTaskData(req.query['openId'], new Date(req.query['date1']), date2).then(data => {
     res.render('detailTask',{data: data, date: date2.toLocaleDateString()});
