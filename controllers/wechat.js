@@ -1435,7 +1435,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
       sendToUser.text(content, data, accessToken);
     }
-  } else if (status <= 31) {
+  } else if (status <= 30) {
     // Task 5-32
     if (userContent === '2') {
       const newWrongWords = userWrongWords + lastWrongWords;
