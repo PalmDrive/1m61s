@@ -15,12 +15,12 @@ html
       .title4
         img(src="../static/splite_line.png")
     section.content
-      each error, i in data.errorTask
+      each error, i in data
         span.index (#{i + 1})
         audio(src="#{error.audioURL}", controls="controls")
         .right 
           span 【正确答案】#{error.content2}
         .wrong 
           span 【错误答案】#{error.content1}
-        //- .summary
-        //-   span 【错误字数】#{error.wrongWordsAmount}
+        .summary
+          span 【错误字数】#{error.wrongWordsAmount}

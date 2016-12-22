@@ -6,7 +6,7 @@ const schedule = require('node-schedule'),
       wechat_ctl = require('../lib/wechat'),
       logger = require('../lib/logger');
 
-const cron = schedule.scheduleJob('* * 23 * * *', function() {
+// const cron = schedule.scheduleJob('* * 23 * * *', function() {
   logger.info(`scheduled task..at --{${new Date()}}`);
 
   const today = Date.today(),
@@ -24,6 +24,6 @@ const cron = schedule.scheduleJob('* * 23 * * *', function() {
       });
     });
   });
-});
+// });
 
 console.log('crontab started.');
