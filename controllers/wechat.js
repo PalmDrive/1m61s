@@ -1458,6 +1458,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         }, 1000);        
       });
     } else {
+      logger.info('Debug: received user content');
       // Check if user is correct
       userTotalWords = compare.getTotalWords(userContent);
       correctTotalWords = compare.getTotalWords(currentTask.correct);
@@ -1472,6 +1473,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         user_role: 'B'
       });
       userTranscript.save().then(userTranscript => {
+        logger.info('Debug: created userTranscript');
         if (wrongWords) {
           user.set('last_wrong_words', wrongWords);
           user.save().then(user => {
