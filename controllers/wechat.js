@@ -610,6 +610,17 @@ const onGetTask = (data, accessToken, user) => {
   });
 };
 
+const onGetTaskForB = (data, accessToken, user) => {
+  const status = user.get('status');
+  if (status !== 3.5) {
+    // Send current task to user
+    sendToUser.schoolTask(status + 1, data, accessToken);
+  } else {
+    const content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
+    sendToUser.text(content, data, accessToken);
+  }
+};
+
 // Find a task the user is working on
 const findInProcessTaskForUser = userId => {
   const query = new LeanCloud.Query('CrowdsourcingTask');
@@ -1643,41 +1654,46 @@ module.exports.postCtrl = (req, res, next) => {
           setPrice(data, user);
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
-        // Check if the user has wechat_id recorded if the user has done more than 4 tasks
-        if (userStatus === 0 && tasksDone >= 4 && !wechatId) {
-          sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
-
-          // Change user status to 1
-          user.set('status', 1);
-          user.save();
-        } else if (userStatus === 0) {
-          onGetTask(data, accessToken, user);
-        } else if (userStatus === 1) {
-          sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
-        } else if (userStatus === 2) {
-          sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
-        } else if (userStatus >= -104 && userStatus <= -100) {
-          order = -100 - userStatus;
-          sendToUser.text(savedContent.thirdMin[order], data, accessToken)
-            .then(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, startedAt);
-            });
-        } else if (userStatus >= -304 && userStatus <= -300) {
-          order = -300 - userStatus;
-          // Send text
-          sendToUser.text(savedContent.firstMin[order], data, accessToken);
-          // Send voice in 1s
-          setTimeout(() => {
-            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, startedAt);
-          }, 1000);
-        } else if (userStatus >= -206 && userStatus <= -200) {
-          order = -200 - userStatus;
-          sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
-        } else if (userStatus === -1) {
-          sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
+        if (userRole === 'B') {
+          onGetTaskForB(data, accessToken, user);
         } else {
-          // Should not get here
-          logger.info('Error: need get task handler');
+          // A, 帮主, 工作人员, B端用户
+          // Check if the user has wechat_id recorded if the user has done more than 4 tasks
+          if (userStatus === 0 && tasksDone >= 4 && !wechatId) {
+            sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
+
+            // Change user status to 1
+            user.set('status', 1);
+            user.save();
+          } else if (userStatus === 0) {
+            onGetTask(data, accessToken, user);
+          } else if (userStatus === 1) {
+            sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
+          } else if (userStatus === 2) {
+            sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
+          } else if (userStatus >= -104 && userStatus <= -100) {
+            order = -100 - userStatus;
+            sendToUser.text(savedContent.thirdMin[order], data, accessToken)
+              .then(() => {
+                sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, startedAt);
+              });
+          } else if (userStatus >= -304 && userStatus <= -300) {
+            order = -300 - userStatus;
+            // Send text
+            sendToUser.text(savedContent.firstMin[order], data, accessToken);
+            // Send voice in 1s
+            setTimeout(() => {
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, startedAt);
+            }, 1000);
+          } else if (userStatus >= -206 && userStatus <= -200) {
+            order = -200 - userStatus;
+            sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
+          } else if (userStatus === -1) {
+            sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
+          } else {
+            // Should not get here
+            logger.info('Error: need get task handler');
+          }
         }
         sendGA(userId, 'click_get_task');
       } else if (data.event === 'SCAN') {
