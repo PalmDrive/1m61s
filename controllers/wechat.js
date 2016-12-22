@@ -1447,13 +1447,15 @@ const onReceiveFromB = (data, accessToken, user) => {
       sendToUser.text(content, data, accessToken);
     }
   } else if (status <= 30) {
-    // Task 5-32
-    if (userContent === '2') {
+    // Task 5-32    
+    if (lastWrongWords !== 0 && userContent === '2') {
+      // Not first time to answer the task, respond to '2'
       const newWrongWords = userWrongWords + lastWrongWords;
       user.set({
         status: status + 1,
         tasks_done: tasksDone + 1,
-        wrong_words: newWrongWords
+        wrong_words: newWrongWords,
+        last_wrong_words: 0
       });
       user.save().then(user => {
         if ([4, 5, 6, 7].indexOf(status) === -1) {
@@ -1470,7 +1472,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       });
     } else {
       logger.info('Debug: received user content');
-      // Check if user is correct
+      // First time to answer the task OR userContent not '2', check if user is correct
       const userTotalWords = compare.getTotalWords(userContent),
             correctTotalWords = compare.getTotalWords(currentTask.correct),
             wrongWords = compare.diffWords(userTotalWords, correctTotalWords);
