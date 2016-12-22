@@ -16,11 +16,20 @@ const schedule = require('node-schedule'),
 
   wechat_ctl.getAccessTokenFromCache().then(res => {
     wechat_ctl.queryTodayUserMoney(yesterday, today).then(results => {
+      console.log('今日用户任务信息: ' + JSON.stringify(results));
       results.map(result => {
-        // 发红包
-        wechat_pay.fnSendMoney(result.touser, result.money);
+
         // 发模板消息
         wechat_ctl.sendModelMessage(result, res);
+
+        // 发红包
+        const _data = {
+              re_openid: result.touser,
+              total_amount: result.money * 100
+              },
+              _callback = ret => {
+              };
+        wechat_pay.sendMoney(_data, _callback);
       });
     });
   });
