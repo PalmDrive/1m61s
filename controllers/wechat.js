@@ -1372,7 +1372,6 @@ const onReceivePass = (data, accessToken, task, user) => {
 
 const onReceiveFromB = (data, accessToken, user) => {
   const status = user.get('status'),
-        tasksDone = user.get('tasks_done'),
         lastWrongWords = user.get('last_wrong_words') || 0,
         amountPaid = user.get('amount_paid') || 0,
         currentTaskOrder = status + 1,
@@ -1405,7 +1404,6 @@ const onReceiveFromB = (data, accessToken, user) => {
       } else {
         user.set('status', status + 1);
       }
-      user.set('tasks_done', tasksDone + 1);
       user.set('red_packet', redPacket + 1);
       user.save().then(user => {
         if (status === 3) {
@@ -1461,7 +1459,6 @@ const onReceiveFromB = (data, accessToken, user) => {
       userWrongWords += lastWrongWords;
       user.set({
         status: status + 1,
-        tasks_done: tasksDone + 1,
         wrong_words: userWrongWords,
         last_wrong_words: 0
       });
@@ -1490,7 +1487,6 @@ const onReceiveFromB = (data, accessToken, user) => {
         }
         user.set({
           status: status + 1,
-          tasks_done: tasksDone + 1,
           last_wrong_words: 0,
           red_packet: redPacket,
           amount_paid: newAmountPaid
@@ -1617,7 +1613,6 @@ const onReceiveFromB = (data, accessToken, user) => {
       }
 
       user.set({
-        tasks_done: tasksDone + 1,
         wrong_words: userWrongWords,
         last_wrong_words: 0,
         red_packet: redPacket,
