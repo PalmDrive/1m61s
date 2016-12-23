@@ -1382,7 +1382,15 @@ const onReceiveFromB = (data, accessToken, user) => {
         userId = data.fromusername,
         userContent = data.content,
         userTranscript = new UserTranscript(),
-        failContent = 'I’ll fail and fail again until I succeed(我将持续失败直到成功！）\n\n机器识别到你的回答有错误，请仔细回顾“任务卡片”规则，再修改错别字，如果想直接跳到下一条音频片段任务，回复“2”即可。\n\n（注意，回复“2”会累计你的错别字字数，超过10个错别字将无法开通“领取任务”功能）';
+        failContent = 'I’ll fail and fail again until I succeed(我将持续失败直到成功！）\n\n机器识别到你的回答有错误，请仔细回顾“任务卡片”规则，再修改错别字，如果想直接跳到下一条音频片段任务，回复“2”即可。\n\n（注意，回复“2”会累计你的错别字字数，超过10个错别字将无法开通“领取任务”功能）',
+        userTranscriptObj = {
+          media_id: `training`,
+          content: userContent,
+          fragment_order: currentTaskOrder,
+          user_open_id: userId,
+          review_times: 0,
+          user_role: 'B'
+        };
   let content,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0;
@@ -1390,14 +1398,7 @@ const onReceiveFromB = (data, accessToken, user) => {
   if (status <= 3) {
     // 前4个任务，不判断正确
     // Create UserTranscript        
-    userTranscript.set({
-      media_id: `training`,
-      content: userContent,
-      fragment_order: currentTaskOrder,
-      user_open_id: userId,
-      review_times: 0,
-      user_role: 'B'
-    });
+    userTranscript.set(userTranscriptObj);
     userTranscript.save().then(userTranscript => {
       if (status === 3) {
         user.set('status', status + 0.5);
@@ -1464,14 +1465,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       });
     } else {
       // Create UserTransctipt
-      userTranscript.set({
-        media_id: `training`,
-        content: userContent,
-        fragment_order: currentTaskOrder,
-        user_open_id: userId,
-        review_times: 0,
-        user_role: 'B'
-      });
+      userTranscript.set(userTranscriptObj);
       userTranscript.save();
       if (isCorrect) {
         redPacket += 1;
@@ -1668,14 +1662,7 @@ const onReceiveFromB = (data, accessToken, user) => {
     }
 
     if (needCreateUserTranscript) {
-      userTranscript.set({
-        media_id: `training`,
-        content: userContent,
-        fragment_order: currentTaskOrder,
-        user_open_id: userId,
-        review_times: 0,
-        user_role: 'B'
-      });
+      userTranscript.set(userTranscriptObj);
       userTranscript.save();
     }
   }
