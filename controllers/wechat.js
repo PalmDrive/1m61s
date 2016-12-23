@@ -501,14 +501,20 @@ const sendToUser = {
       });
     });
   },
-  schoolTask(order, data, accessToken) {
-    const self = this;
+  schoolTask(order, data, accessToken, user) {
+    const self = this,
+          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 29;
     setTimeout(() => {
       self.text(Tasks['_' + order].text, data, accessToken);
     }, 1000);
     setTimeout(() => {
       self.voiceByMediaId(wechatConfig.mediaId.voice.tasks['_' + order], data.fromusername, accessToken, data._startedAt);
     }, 2000);
+    if (sendTip) {
+      setTimeout(() => {
+        self.text(wechatData.tips.list, data, accessToken);
+      }, 3000);
+    }
   }
 };
 
@@ -612,12 +618,12 @@ const onGetTask = (data, accessToken, user) => {
 
 const onGetTaskForB = (data, accessToken, user) => {
   const status = user.get('status');
-  if (status !== 3.5) {
-    // Send current task to user
-    sendToUser.schoolTask(status + 1, data, accessToken);
-  } else {
+  if (status === 3.5) {
     const content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
     sendToUser.text(content, data, accessToken);
+  } else {
+    // Send current task
+    sendToUser.schoolTask(status + 1, data, accessToken, user);
   }
 };
 
@@ -1292,12 +1298,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         sendToUser.image(wechatConfig.mediaId.image.rule._1, userId, accessToken, startedAt)
           .then(() => {
             // Task 5
-            setTimeout(() => {
-              sendToUser.text(Tasks._5.text, data, accessToken);
-            }, 1000);
-            setTimeout(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.tasks._5, userId, accessToken, startedAt);
-            }, 2000);
+            sendToUser.schoolTask(5, data, accessToken);
           });
       });
     } else {
@@ -1353,7 +1354,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       if (!isCorrectOr2) {
         // Answer is wrong
         sendToUser.text(failContent, data, accessToken).then(() => {
-          sendToUser.schoolTask(currentTaskOrder, data, accessToken);
+          sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
         });
       } else {
         // Answer is correct or '2'
@@ -1379,7 +1380,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                 setTimeout(() => {
                   sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt).then(() => {
                     // Send next task
-                    sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+                    sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
                   });
                 }, 1000);
               });
@@ -1427,7 +1428,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                 });
               } else {
                 // Next task
-                sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+                sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
               }
             }, 1000);
           }
@@ -1515,7 +1516,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       user.save();
 
       sendToUser.text(failContent, data, accessToken).then(() => {
-        sendToUser.schoolTask(currentTaskOrder, data, accessToken);
+        sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
       });
     }
 
@@ -1524,6 +1525,16 @@ const onReceiveFromB = (data, accessToken, user) => {
       userTranscript.save();
     }
   }
+};
+
+const cancelListTip = (data, accessToken, user) => {
+  const preference = user.get('preference') || {};
+  preference.disableTip = true;
+  user.set('preference', preference);
+  user.save().then(user => {
+    const content = '已取消提示，请继续任务。';
+    sendToUser.text(content, data, accessToken);
+  });
 };
 
 module.exports.postCtrl = (req, res, next) => {
@@ -1571,9 +1582,9 @@ module.exports.postCtrl = (req, res, next) => {
       } else if (data.content === '规则' && userStatus !== -205) {
         sendToUser.image(wechatConfig.mediaId.image.rule.all, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
-      } else if (data.content === '模板消息测试') {
-        // 发送模板消息
-        sendModelMessage(data, accessToken);
+      } else if (data.content === '取消') {
+        // 取消任务音频后5点提醒
+        cancelListTip(data, accessToken, user);
       } else {
         // Check role
         if (userRole === 'B') {
