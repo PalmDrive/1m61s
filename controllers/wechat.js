@@ -1481,7 +1481,7 @@ const onReceiveFromB = (data, accessToken, user) => {
 
         if (redPacket === 8) {
           // TODO: send red packet to user
-          logger.info(`Send 1 Yuan red packet to user: ${user.get('wechat_id')}, userId: ${userId}`);
+          sendToUser.text('*此处应有1元红包*', data, accessToken);
           // Reset red_packet to 0
           redPacket = 0;
           // Add 1 to amount_paid
