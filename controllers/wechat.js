@@ -296,7 +296,7 @@ const sendToUser = {
     }, accessToken);
   },
   // Send a voice message to user, if audio length > 8s, split audio into two
-  voice(transcript, data, accessToken) {
+  voice(transcript, data, accessToken, user) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
@@ -368,7 +368,10 @@ const sendToUser = {
                           msgtype: 'voice',
                           voice: {media_id: media.media_id},
                           _startedAt
-                        }, accessToken);
+                        }, accessToken).then(() => {
+                          // 语音后的提示文字
+                          self.listTip(data, accessToken, user);
+                        });
                       }, 1000);
                     }, err => {
                       wechatLib.logError('upload split media 2 failed', err);
@@ -395,7 +398,10 @@ const sendToUser = {
                   msgtype: 'voice',
                   voice: {media_id: media.media_id},
                   _startedAt
-                }, accessToken);
+                }, accessToken).then(() => {
+                  // 语音后的提示文字
+                  self.listTip(data, accessToken, user);
+                });
               }, err => {
                 wechatLib.logError('upload media failed', err);
               });
@@ -484,7 +490,8 @@ const sendToUser = {
         // Send text in transcript
         self.text(content, data, accessToken);
         // Send voice
-        self.voice(transcript, data, accessToken);
+        self.voice(transcript, data, accessToken, user);
+
       } else {
         // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
@@ -514,6 +521,15 @@ const sendToUser = {
       setTimeout(() => {
         self.text(wechatData.tips.list, data, accessToken);
       }, 3000);
+    }
+  },
+  listTip(data, accessToken, user) {
+    const self = this,
+          disableTip = user.get('preference') && user.get('preference').disableTip;
+    if (!disableTip) {
+      setTimeout(() => {
+        self.text(wechatData.tips.list, data, accessToken);
+      }, 1000);
     }
   }
 };
@@ -1116,7 +1132,7 @@ const onReceiveRevoke = (data, accessToken, user) => {
           sendToUser.text(userTranscript.get('content'), data, accessToken);
           // Send voice
           getTranscript(task).then(transcript => {
-            sendToUser.voice(transcript, data, accessToken);
+            sendToUser.voice(transcript, data, accessToken, user);
           });
         } else {
           // No user's content
