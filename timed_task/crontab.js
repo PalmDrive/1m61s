@@ -18,7 +18,7 @@ const schedule = require('node-schedule'),
     wechat_ctl.queryTodayUserMoney(yesterday, today).then(results => {
       console.log('今日用户任务信息: ' + JSON.stringify(results));
       results.map(result => {
-
+        
         // 发模板消息
         wechat_ctl.sendModelMessage(result, res);
 
