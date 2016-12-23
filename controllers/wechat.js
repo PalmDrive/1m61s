@@ -746,7 +746,8 @@ const setNeedPay = user => {
 };
 
 const findAndSendNewTaskForUser = (data, accessToken, user) => {
-  const userId = data.fromusername;
+  const userId = data.fromusername,
+        tasksDone = user.get('tasks_done');
   findNewTaskForUser(user, data._startedAt).then(task => {
     if (task) {
       return assignTask(task, data, accessToken);
@@ -755,6 +756,9 @@ const findAndSendNewTaskForUser = (data, accessToken, user) => {
     }
   }).then(task => {
     if (task) {
+      if (tasksDone === 0) {
+        sendToUser.text(wechatData.tips.firstRealTask, data, accessToken);
+      }
       sendToUser.task(task, data, accessToken, user);
     } else {
       // inform user there is no available task
