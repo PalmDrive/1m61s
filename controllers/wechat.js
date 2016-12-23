@@ -1382,7 +1382,8 @@ const onReceiveFromB = (data, accessToken, user) => {
         startedAt = data._startedAt,
         userId = data.fromusername,
         userContent = data.content,
-        userTranscript = new UserTranscript();
+        userTranscript = new UserTranscript(),
+        failContent = 'I’ll fail and fail again until I succeed(我将持续失败直到成功！）\n\n机器识别到你的回答有错误，请仔细回顾“任务卡片”规则，再修改错别字，如果想直接跳到下一条音频片段任务，回复“2”即可。\n\n（注意，回复“2”会累计你的错别字字数，超过10个错别字将无法开通“领取任务”功能）';
   let content,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0;
@@ -1457,7 +1458,7 @@ const onReceiveFromB = (data, accessToken, user) => {
 
     // LeanCloud related updates
     if (is2) {
-      userWrongWords = userWrongWords + lastWrongWords;
+      userWrongWords += lastWrongWords;
       user.set({
         status: status + 1,
         tasks_done: tasksDone + 1,
@@ -1503,8 +1504,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       // Reply to user
       if (!isCorrectOr2) {
         // Answer is wrong
-        content = 'I’ll fail and fail again until I succeed(我将持续失败直到成功！）\n\n机器识别到你的回答有错误，请仔细回顾“任务卡片”规则，再修改错别字，如果想直接跳到下一条音频片段任务，回复“2”即可。\n\n（注意，回复“2”会累计你的错别字字数，超过10个错别字将无法开通“领取任务”功能）';
-        sendToUser.text(content, data, accessToken).then(() => {
+        sendToUser.text(failContent, data, accessToken).then(() => {
           sendToUser.schoolTask(currentTaskOrder, data, accessToken);
         });
       } else {
@@ -1586,6 +1586,103 @@ const onReceiveFromB = (data, accessToken, user) => {
         }, 1000);
       }
     });
+  } else if (status === 31) {
+    // Task 32, last task in 1'61 school
+    const userTotalWords = compare.getTotalWords(userContent),
+          correctTotalWords = compare.getTotalWords(currentTask.correct),
+          wrongWords = compare.diffWords(userTotalWords, correctTotalWords),
+          isCorrect = wrongWords === 0,
+          is2 = lastWrongWords !== 0 && userContent === '2',
+          isCorrectOr2 = isCorrect || is2;
+    let needCreateUserTranscript = false;
+
+    if (isCorrectOr2) {
+      // 更新总错别字数
+      let newAmountPaid = amountPaid;
+      if (isCorrect) {
+        needCreateUserTranscript = true;
+
+        redPacket += 1;
+        if (redPacket === 8) {
+          // TODO: send red packet to user
+          sendToUser.text('*此处应有1元红包*', data, accessToken);
+          // Reset red_packet to 0
+          redPacket = 0;
+          // Add 1 to amount_paid
+          newAmountPaid += 1;
+        }
+      } else {
+        // User replies '2'
+        userWrongWords += lastWrongWords;
+      }
+
+      user.set({
+        tasks_done: tasksDone + 1,
+        wrong_words: userWrongWords,
+        last_wrong_words: 0,
+        red_packet: redPacket,
+        amount_paid: newAmountPaid
+      });
+
+      // 判断总错别字数
+      if (userWrongWords > 10) {
+        user.set({status: 0, role: 'C'});
+
+        sendToUser.text('非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。', data, accessToken);
+      } else {
+        user.set({status: 0, role: 'A'});
+
+        // Find the number of graduates before this user
+        let query = new LeanCloud.Query('WeChatUser');
+        const query2 = new LeanCloud.Query('WeChatUser');
+        query.equalTo('role', 'A');
+        query2.equalTo('role', '帮主');
+        query = LeanCloud.Query.or(query, query2);
+        query.count().then(count => {
+          content = `恭喜你成为1'61新手学院第${count + 1}名毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书礼物，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。`;
+          sendToUser.text(content, data, accessToken).then(() => {
+            // 毕业证书
+            setTimeout(() => {
+              sendToUser.text('*此处应有毕业证书*', data, accessToken).then(() => {
+                // 毕业宣言
+                setTimeout(() => {
+                  content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都会有一张人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。\n\nPs:集满36张还会有1000元现金奖励。';
+                  sendToUser.text(content, data, accessToken).then(() => {
+                    setTimeout(() => {
+                      content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
+                      sendToUser.text(content, data, accessToken);
+                    }, 1000);
+                  });
+                }, 1000);
+              });
+            }, 1000);
+          });
+        });
+      }
+      user.save();
+    } else {
+      // Answer is wrong
+      needCreateUserTranscript = true;
+
+      user.set('last_wrong_words', wrongWords);
+      user.save();
+
+      sendToUser.text(failContent, data, accessToken).then(() => {
+        sendToUser.schoolTask(currentTaskOrder, data, accessToken);
+      });
+    }
+
+    if (needCreateUserTranscript) {
+      userTranscript.set({
+        media_id: `training`,
+        content: userContent,
+        fragment_order: currentTaskOrder,
+        user_open_id: userId,
+        review_times: 0,
+        user_role: 'B'
+      });
+      userTranscript.save();
+    }
   }
 };
 
