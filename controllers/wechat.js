@@ -296,7 +296,7 @@ const sendToUser = {
     }, accessToken);
   },
   // Send a voice message to user, if audio length > 8s, split audio into two
-  voice(transcript, data, accessToken) {
+  voice(transcript, data, accessToken, user) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
@@ -368,7 +368,10 @@ const sendToUser = {
                           msgtype: 'voice',
                           voice: {media_id: media.media_id},
                           _startedAt
-                        }, accessToken);
+                        }, accessToken).then(() => {
+                          // 语音后的提示文字
+                          self.listTip(data, accessToken, user);
+                        });
                       }, 1000);
                     }, err => {
                       wechatLib.logError('upload split media 2 failed', err);
@@ -395,7 +398,10 @@ const sendToUser = {
                   msgtype: 'voice',
                   voice: {media_id: media.media_id},
                   _startedAt
-                }, accessToken);
+                }, accessToken).then(() => {
+                  // 语音后的提示文字
+                  self.listTip(data, accessToken, user);
+                });
               }, err => {
                 wechatLib.logError('upload media failed', err);
               });
@@ -484,7 +490,8 @@ const sendToUser = {
         // Send text in transcript
         self.text(content, data, accessToken);
         // Send voice
-        self.voice(transcript, data, accessToken);
+        self.voice(transcript, data, accessToken, user);
+
       } else {
         // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
@@ -501,14 +508,29 @@ const sendToUser = {
       });
     });
   },
-  schoolTask(order, data, accessToken) {
-    const self = this;
+  schoolTask(order, data, accessToken, user) {
+    const self = this,
+          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 29;
     setTimeout(() => {
       self.text(Tasks['_' + order].text, data, accessToken);
     }, 1000);
     setTimeout(() => {
       self.voiceByMediaId(wechatConfig.mediaId.voice.tasks['_' + order], data.fromusername, accessToken, data._startedAt);
     }, 2000);
+    if (sendTip) {
+      setTimeout(() => {
+        self.text(wechatData.tips.list, data, accessToken);
+      }, 3000);
+    }
+  },
+  listTip(data, accessToken, user) {
+    const self = this,
+          disableTip = user.get('preference') && user.get('preference').disableTip;
+    if (!disableTip) {
+      setTimeout(() => {
+        self.text(wechatData.tips.list, data, accessToken);
+      }, 1000);
+    }
   }
 };
 
@@ -612,12 +634,12 @@ const onGetTask = (data, accessToken, user) => {
 
 const onGetTaskForB = (data, accessToken, user) => {
   const status = user.get('status');
-  if (status !== 3.5) {
-    // Send current task to user
-    sendToUser.schoolTask(status + 1, data, accessToken);
-  } else {
+  if (status === 3.5) {
     const content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
     sendToUser.text(content, data, accessToken);
+  } else {
+    // Send current task
+    sendToUser.schoolTask(status + 1, data, accessToken, user);
   }
 };
 
@@ -724,7 +746,8 @@ const setNeedPay = user => {
 };
 
 const findAndSendNewTaskForUser = (data, accessToken, user) => {
-  const userId = data.fromusername;
+  const userId = data.fromusername,
+        tasksDone = user.get('tasks_done');
   findNewTaskForUser(user, data._startedAt).then(task => {
     if (task) {
       return assignTask(task, data, accessToken);
@@ -733,6 +756,9 @@ const findAndSendNewTaskForUser = (data, accessToken, user) => {
     }
   }).then(task => {
     if (task) {
+      if (tasksDone === 0) {
+        sendToUser.text(wechatData.tips.firstRealTask, data, accessToken);
+      }
       sendToUser.task(task, data, accessToken, user);
     } else {
       // inform user there is no available task
@@ -1110,7 +1136,7 @@ const onReceiveRevoke = (data, accessToken, user) => {
           sendToUser.text(userTranscript.get('content'), data, accessToken);
           // Send voice
           getTranscript(task).then(transcript => {
-            sendToUser.voice(transcript, data, accessToken);
+            sendToUser.voice(transcript, data, accessToken, user);
           });
         } else {
           // No user's content
@@ -1292,12 +1318,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         sendToUser.image(wechatConfig.mediaId.image.rule._1, userId, accessToken, startedAt)
           .then(() => {
             // Task 5
-            setTimeout(() => {
-              sendToUser.text(Tasks._5.text, data, accessToken);
-            }, 1000);
-            setTimeout(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.tasks._5, userId, accessToken, startedAt);
-            }, 2000);
+            sendToUser.schoolTask(5, data, accessToken);
           });
       });
     } else {
@@ -1353,7 +1374,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       if (!isCorrectOr2) {
         // Answer is wrong
         sendToUser.text(failContent, data, accessToken).then(() => {
-          sendToUser.schoolTask(currentTaskOrder, data, accessToken);
+          sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
         });
       } else {
         // Answer is correct or '2'
@@ -1379,7 +1400,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                 setTimeout(() => {
                   sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt).then(() => {
                     // Send next task
-                    sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+                    sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
                   });
                 }, 1000);
               });
@@ -1427,7 +1448,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                 });
               } else {
                 // Next task
-                sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+                sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
               }
             }, 1000);
           }
@@ -1515,7 +1536,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       user.save();
 
       sendToUser.text(failContent, data, accessToken).then(() => {
-        sendToUser.schoolTask(currentTaskOrder, data, accessToken);
+        sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
       });
     }
 
@@ -1524,6 +1545,16 @@ const onReceiveFromB = (data, accessToken, user) => {
       userTranscript.save();
     }
   }
+};
+
+const cancelListTip = (data, accessToken, user) => {
+  const preference = user.get('preference') || {};
+  preference.disableTip = true;
+  user.set('preference', preference);
+  user.save().then(user => {
+    const content = '已取消提示，请继续任务。';
+    sendToUser.text(content, data, accessToken);
+  });
 };
 
 module.exports.postCtrl = (req, res, next) => {
@@ -1571,9 +1602,9 @@ module.exports.postCtrl = (req, res, next) => {
       } else if (data.content === '规则' && userStatus !== -205) {
         sendToUser.image(wechatConfig.mediaId.image.rule.all, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
-      } else if (data.content === '模板消息测试') {
-        // 发送模板消息
-        sendModelMessage(data, accessToken);
+      } else if (data.content === '取消') {
+        // 取消任务音频后5点提醒
+        cancelListTip(data, accessToken, user);
       } else {
         // Check role
         if (userRole === 'B') {
