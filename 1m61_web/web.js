@@ -28,15 +28,16 @@ app.post('/pay', function(req, res, next) {
 
 app.get('/detailTask', function (req, res, next) {
   // 测试数据
+  // const content = [{title:'一',color:'1'},{title:'个'},{title:'测'},{title:'一',color:'1'},{title:'个',color:'0'},{title:'测'}];
   // const data = [
   //           {
-  //             content1: '一个测试片段，逗号之后的另一段',
+  //             content1: content,//'一个测试片段，逗号之后的另一段',
   //             content2: '一个好的测试片段',
   //             wrongWordsAmount: '8',
   //             audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'
   //           },
   //           {
-  //             content1: '一个测试片段，逗号',
+  //             content1: content,
   //             content2: '一个好的测试片段',
   //             wrongWordsAmount: '2',
   //             audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'

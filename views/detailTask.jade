@@ -19,8 +19,18 @@ html
         span.index (#{i + 1})
         audio(src="#{error.audioURL}", controls="controls")
         .right 
-          span 【正确答案】#{error.content2}
+          span 【正确答案】
+            each content in error.content2
+              if content.color
+                span(style="color: #ff0000;") #{content.title}
+              else 
+                span #{content.title}
         .wrong 
-          span 【错误答案】#{error.content1}
-        //- .summary
-        //-   span 【错误字数】#{error.wrongWordsAmount}
+          span 【您的答案】
+            each content in error.content1
+              if content.color
+                span(style="color: #ff0000;") #{content.title}
+              else 
+                span #{content.title}
+        .summary
+          span 【错误字数】至少#{error.wrongWordsAmount}
