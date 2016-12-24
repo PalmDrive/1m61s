@@ -619,17 +619,30 @@ const isTaskValid = (task, _startedAt) => {
 };
 
 const onGetTask = (data, accessToken, user) => {
-  const userId = data.fromusername;
-  findInProcessTaskForUser(userId).then(task => {
-    logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
-    if (task) {
-      // There is a task in process
-      return sendToUser.task(task, data, accessToken, user);
-    } else {
-      // There is no task in process
-      return findAndSendNewTaskForUser(data, accessToken, user);
-    }
-  });
+  const userId = data.fromusername,
+        tasksDone = user.get('tasks_done');
+  if (tasksDone === 0) {
+    // 技能卡片-1
+    sendToUser.image(wechatConfig.mediaId.image.skills[1], userId, accessToken, data._startedAt);
+    setTimeout(() => {
+      const content = '哇咔咔~恭喜你获得了第一张强大的技能卡，回复“XX”即可开启这个功能。';
+      sendToUser.text(content, data, accessToken);
+    }, 1000);
+    setTimeout(() => {
+      sendToUser.text(wechatData['Q&A'].pay, data, accessToken);
+    }, 2000);
+  } else {
+    findInProcessTaskForUser(userId).then(task => {
+      logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
+      if (task) {
+        // There is a task in process
+        return sendToUser.task(task, data, accessToken, user);
+      } else {
+        // There is no task in process
+        return findAndSendNewTaskForUser(data, accessToken, user);
+      }
+    });
+  }
 };
 
 const onGetTaskForB = (data, accessToken, user) => {
