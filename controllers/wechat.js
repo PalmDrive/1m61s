@@ -627,10 +627,10 @@ const onGetTask = (data, accessToken, user) => {
     setTimeout(() => {
       const content = '哇咔咔~恭喜你获得了第一张强大的技能卡，回复“XX”即可开启这个功能。';
       sendToUser.text(content, data, accessToken);
-    }, 1000);
+    }, 2000);
     setTimeout(() => {
       sendToUser.text(wechatData['Q&A'].pay, data, accessToken);
-    }, 2000);
+    }, 3000);
   } else {
     findInProcessTaskForUser(userId).then(task => {
       logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
