@@ -17,7 +17,8 @@ const request = require('request'),
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
       redisClient = require('../redis_client'),
       wechatLib = require('../lib/wechat'),
-      compare = require('../lib/compare_transcript');
+      compare = require('../lib/compare_transcript'),
+      wechat_pay = require('../lib/wechat_pay');
 
 const taskTimers = {};
 
@@ -1362,6 +1363,14 @@ const onReceiveFromB = (data, accessToken, user) => {
         if (redPacket === 8) {
           // TODO: send red packet to user
           sendToUser.text('*此处应有1元红包*', data, accessToken);
+          // 发红包
+          const _data = {
+                re_openid: userId,
+                total_amount: 1 * 100
+                },
+                _callback = ret => {
+                };
+          wechat_pay.sendMoney(_data, _callback);
           // Reset red_packet to 0
           redPacket = 0;
           // Add 1 to amount_paid
@@ -1484,6 +1493,14 @@ const onReceiveFromB = (data, accessToken, user) => {
         if (redPacket === 8) {
           // TODO: send red packet to user
           sendToUser.text('*此处应有1元红包*', data, accessToken);
+          // 发红包
+          const _data = {
+                re_openid: userId,
+                total_amount: 1 * 100
+                },
+                _callback = ret => {
+                };
+          wechat_pay.sendMoney(_data, _callback);
           // Reset red_packet to 0
           redPacket = 0;
           // Add 1 to amount_paid
