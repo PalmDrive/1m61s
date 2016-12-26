@@ -1339,7 +1339,7 @@ const onReceiveFromB = (data, accessToken, user) => {
     // Task 5-32
     const userTotalWords = compare.getTotalWords(userContent),
           correctTotalWords = compare.getTotalWords(currentTask.correct),
-          wrongWords = compare.diffWords(userTotalWords, correctTotalWords),
+          wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
           isCorrect = wrongWords === 0,
           is2 = lastWrongWords !== 0 && userContent === '2',
           isCorrectOr2 = isCorrect || is2;
@@ -1477,7 +1477,7 @@ const onReceiveFromB = (data, accessToken, user) => {
     // Task 32, last task in 1'61 school
     const userTotalWords = compare.getTotalWords(userContent),
           correctTotalWords = compare.getTotalWords(currentTask.correct),
-          wrongWords = compare.diffWords(userTotalWords, correctTotalWords),
+          wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
           isCorrect = wrongWords === 0,
           is2 = lastWrongWords !== 0 && userContent === '2',
           isCorrectOr2 = isCorrect || is2;
