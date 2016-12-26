@@ -1465,7 +1465,7 @@ module.exports.postCtrl = (req, res, next) => {
           order = -200 - userStatus;
           sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
         } else if (userStatus === -1) {
-          sendToUser.text('你好，欢迎你对1\'61的关注，你暂时没有被开通“领取任务”功能，只有经过“新手训练营”测试的童鞋才会被开通。目前训练营正在内测当中，将在下周五（23号）开放给所有人，到时候会一一通知大家的！', data, accessToken);
+          sendToUser.text('你好，欢迎你对1\'61的关注，你暂时没有被开通“领取任务”功能，只有经过“新手训练营”测试的童鞋才会被开通。目前“新手训练营”属于邀请制，我们会一一邀请大家来参与测试的，谢谢大家。', data, accessToken);
         } else {
           // Should not get here
           logger.info('Error: need get task handler');
