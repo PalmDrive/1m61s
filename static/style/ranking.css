@@ -1,0 +1,16 @@
+body {
+  margin: 0px;
+}
+
+.detailTask {
+  padding-bottom: 10rem;
+}
+
+.title {
+  background-image: url('../home.jpeg');
+  background-position: center;
+  height: 350px;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+}

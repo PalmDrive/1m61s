@@ -1,47 +1,61 @@
+body {
+  margin: 0px;
+}
+
 .detailTask {
-  border: solid 5px #000;
-  padding-right: 3rem;
-  padding-left: 2.5rem;
   padding-bottom: 10rem;
 }
 
-.title1 img {
-  margin-left: 1.25rem;
-  margin-top: 1.25rem;
-  width: 9.375rem;
-  height: 9.375rem;
+.title {
+  background-image: url('../home.jpeg');
+  background-position: center;
+  height: 350px;
+  width: 100%;
+  text-align: center;
+  color: #fff;
 }
 
-.title1 span {
-  font-size: 2.2rem;
-  position: absolute;
-  margin-top: 5rem;
-  margin-left: 1.875rem;
-}
-
-.title3 {
-  font-size: 1.875rem;
+.title1 {
   text-align: center;
 }
 
-.title4 {
-  text-align: center;
-  transform: scale(0.95);
+.circle {
+  width: 200px;
+  height: 200px;
+  background-color: transparent;
+  border: 15px #fff solid;
+  -webkit-border-radius: 150px;
+  transform: translateX(-50%) translateY(10px);
+  margin-left: 50%;
 }
 
-.title32 {
-  font-size: 1.5rem;
+.arrowLeft {
+  display: inline-block;
+  transform: rotate(-90deg) scaleX(1.5) translateX(20%);
+  font-size: 50px;
 }
 
-.title2,
-.title4 {
-  text-align: center;
-  font-size: 0.9375rem;
+.rewardRate {
+  display: inline-block;
+  font-size: 70px;
+  padding-top: 70px;
 }
 
 .content {
+  padding-right: 3rem;
+  padding-left: 2.5rem;
   font-size: 1.5625rem;
-  /*margin-left: 6.25rem;*/
+}
+
+.bottom {
+  float: right;
+  padding-right: 3rem;
+  padding-left: 2.5rem;
+}
+
+.rule {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 audio {
