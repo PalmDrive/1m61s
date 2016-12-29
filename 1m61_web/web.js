@@ -34,8 +34,8 @@ app.post('/pay', function(req, res, next) {
 
 app.get('/detailTask', function (req, res, next) {
   // 测试数据
-  // const content = [{title:'一',color:'1'},{title:'个'},{title:'测'},{title:'一',color:'1'},{title:'个',color:'0'},{title:'测'}];
-  // const data = {
+  // const content = [{title:'一',color:'1'},{title:'个'},{title:'测'},{title:'一',color:'1'},{title:'个',color:'0'},{title:'测'}],
+  //       data = {
   //         errorTask: [
   //           {
   //             content1: content,//'一个测试片段，逗号之后的另一段',
