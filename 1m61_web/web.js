@@ -5,9 +5,11 @@ const express = require('express'),
       wechat_pay = require('../lib/wechat_pay'),
       wechat = require('../lib/wechat'),
       leanCloud = require('../lib/lean_cloud'),
-      LeanCloud = leanCloud.AV,
-      openId = '',
-      date;
+      LeanCloud = leanCloud.AV;
+
+let  openId = 'oXrsBvysdE-0o1OjinJxaPmAPy_8',
+      date1 = new Date('2016/12/28'),
+      date2 = new Date('2016/12/29');
 
 let app = express();
 
@@ -55,9 +57,10 @@ app.get('/detailTask', function (req, res, next) {
   res.render('detailTask',{data: data, date: '2016/12/09'});
   next();
 
-  date = new Date(req.query['date2'].substr(0,10));
+  date1 = new Date(req.query['date1']);
+  date2 = new Date(req.query['date2']);
   openId = req.query['openId'];
-  wechat.getUserTaskData(openId, new Date(req.query['date1']), new Date(req.query['date2'])).then(data => {
+  wechat.getUserTaskData(openId, date1, date2).then(data => {
     res.render('detailTask',{data});
     next();
   }).catch(Exception => {
@@ -73,27 +76,37 @@ app.get('/rules', function (req, res, next) {
 
 app.get('/ranking', function (req, res, next) {
 
-  let promiseArray = [],
+  const promiseArray = [],
       data = {},
       ranking = {};
+
   const rightRatePromise = promiseQuery('right_task_rate').then(results => {
+    results = results.map(res => {return res.toJSON();});
     data.rightRateList = results.splice(0,10);
   });
+
   const todayTaskPromise = promiseQuery('task_amount').then(results => {
     for (var i = 0; i < results.length; i++) {
       const res = results[i].toJSON();
+      results[i] = res;
       if(res.open_id === openId) {
         data.ranking = i + 1;
         data.task_amount = res.task_amount;
         data.total_task_amount = res.total_task_amount;
+        data.rewardRate = res.reward_rate;
+        data.reward = res.salary * res.reward_rate;
         break;
       }
     }
     data.todayTaskList = results.splice(0,10);
+    // console.log('todayTaskList: ' + JSON.stringify( data.totalTaskList));
   });
+
   const totalTaskPromise = promiseQuery('total_task_amount').then(results => {
+    results = results.map(res => {return res.toJSON();});
     data.totalTaskList = results.splice(0,10);
   });
+
   promiseArray.push(rightRatePromise);
   promiseArray.push(todayTaskPromise);
   promiseArray.push(totalTaskPromise);
@@ -106,8 +119,8 @@ app.get('/ranking', function (req, res, next) {
 
 const promiseQuery = (ranking) => {
   const query = new LeanCloud.Query("WeChatUser");
-  query.greaterThanOrEqualTo('updatedAt', date);
-  query.lessThanOrEqualTo('updatedAt', date);
+  query.greaterThanOrEqualTo('updatedAt', date1);
+  query.lessThanOrEqualTo('updatedAt', date2);
   query.descending(ranking);
   // query.limit(10);
   return query.find().then(function(results) {
