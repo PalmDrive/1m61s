@@ -1,5 +1,6 @@
 body {
   margin: 0px;
+  font-family: PingFangSC;
 }
 
 .detailTask {
@@ -9,7 +10,7 @@ body {
 .title {
   background-image: url('../home.jpeg');
   background-position: center;
-  height: 350px;
+  height: 450px;
   width: 100%;
   text-align: center;
   color: #fff;
@@ -51,6 +52,7 @@ body {
   float: right;
   padding-right: 3rem;
   padding-left: 2.5rem;
+  margin-top: 50px;
 }
 
 .rule {

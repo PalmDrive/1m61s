@@ -20,7 +20,7 @@ app.get('/pay', function (req, res, next) {
 
 app.post('/pay', function(req, res, next) {
   let openid = req.param('openid'),
-      money = Number(req.param('money')),
+      money = Number(Number(req.param('money')).toFixed(3)),
       _data = {
         re_openid: openid,
         total_amount: money*100,//分;
