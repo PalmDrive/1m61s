@@ -4,18 +4,20 @@ html
 
   body.detailTask
     section.title
-      .title1
-        img(src="../static/logo.png")
-        span Biu~ 下面是你的#{date}质量诊断报告噢
-      .title2
-        img(src="../static/right_open_way.png")
-      .title3
-        .title31 下面是抽查发现的错误
-        .title32 如果有问题，可联系小助手（微信号：xbdzhushou)，我们会尽快进行反馈噢!
-      .title4
-        img(src="../static/splite_line.png")
+      .circle
+        span.rewardRate #{data.rewardRate} 
+        .arrowLeft →
+      h3 准确率奖励加倍百分比
+      h4 额外奖励
+      h5 #{data.reward}元
+    
+    section.title1
+      h2 今日质量诊断报告
+      h3 我们会将随机抽取你的片段进行抽查，请重点查看红色错误部分！
+      h3 若要进行申诉，请联系小助手：palmdrivefufu(微信号）
+
     section.content
-      each error, i in data
+      each error, i in data.errorTask
         span.index (#{i + 1})
         audio(src="#{error.audioURL}", controls="controls")
         .right 
@@ -34,3 +36,13 @@ html
                 span #{content.title}
         .summary
           span 【错误字数】>#{error.wrongWordsAmount}个
+
+    section.bottom
+      .rule
+        a(href="/web/rules") 点击查看，我们的抽查与奖励机制
+      .ranking
+        a(href="/web/ranking") 点击查看你在所有1’61小伙伴们里的排名
+
+
+
+

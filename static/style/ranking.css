@@ -1,22 +1,19 @@
 body {
   margin: 0px;
+  font-size: 15px;
 }
 
-.detailTask {
+.runking {
   padding-bottom: 10rem;
+  text-align: center;
 }
 
 .title {
   background-image: url('../home.jpeg');
   background-position: center;
-  height: 350px;
+  height: 380px;
   width: 100%;
-  text-align: center;
   color: #fff;
-}
-
-.title1 {
-  text-align: center;
 }
 
 .circle {
@@ -41,25 +38,22 @@ body {
   padding-top: 70px;
 }
 
-.content {
-  padding-right: 3rem;
-  padding-left: 2.5rem;
-  font-size: 1.5625rem;
+table {
+  width: 100%;
+  margin-top: 30px;
+  text-align: center;
+  font-size: 20px;
 }
 
-.bottom {
-  float: right;
-  padding-right: 3rem;
-  padding-left: 2.5rem;
+.second table th {
+  width: 33%;
+  font-size: 20px;
 }
 
-.rule {
-  padding-top: 10px;
-  padding-bottom: 10px;
+.three table th {
+  width: 25%;
 }
 
-audio {
-  width: 70%;
-  height: 5rem;
-  display: inline-block;
+tr {
+  height: 40px;
 }

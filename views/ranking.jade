@@ -1,0 +1,75 @@
+html
+  head
+    link(href="../static/style/ranking.css",type="text/css", rel="stylesheet")
+    
+    script(src="http://lib.sinaapp.com/js/jquery/1.9.1/jquery-1.9.1.js")
+    script(src="http://lib.sinaapp.com/js/angular.js/angular-1.2.19/angular.min.js")
+    script(src="../static/app.js")
+
+  body.runking(ng-app="1m61s", ng-controller="appController")
+    section.title
+      .circle
+        span.rewardRate #{data.rewardRate} 
+        .arrowLeft →
+      h3 准确率奖励加倍百分比
+      h4 额外奖励
+      h5 #{data.reward}元
+    
+    section.second
+      table
+        tr
+          th 
+            a(href="", ng-click="todayTaskClick()") 今日完成片段数
+          th 
+            a(href="", ng-click="rightRateClick()") 准确率排名
+          th 
+            a(href="", ng-click="totalTaskClick()") 累积总完成片段数
+        tr 
+          td #{data.task_amount}
+          td #{data.ranking}
+          td #{data.total_task_amount}
+
+    section.three.rightRate(ng-show="rightRateShow")
+      table
+        tr
+          th 排名
+          th 昵称
+          th 准确率
+          th 奖励加成
+        each result, i in data.rightRateList
+          tr 
+            td #{i + 1}
+            td #{result.wechat_id}
+            td #{result.right_task_rate}
+            td #{result.reward_rate}
+
+    section.three.todayTask(ng-show="todayTaskShow")
+      table
+        tr
+          th 排名
+          th 昵称
+          th 今日完成片段数
+          th 累计总完后才能片段数
+        each result, i in data.todayTaskList
+          tr 
+            td #{i + 1}
+            td #{result.wechat_id}
+            td #{result.task_amount}
+            td #{result.total_task_amount}
+
+    section.three.totalTask(ng-show="totalTaskShow")
+      table
+        tr
+          th 排名
+          th 昵称
+          th 今日完成片段数
+          th(style="{color: #ff000}") 累计总完后才能片段数
+        each result, i in data.totalTaskList
+          tr 
+            td #{i + 1}
+            td #{result.wechat_id}
+            td #{result.task_amount}
+            td #{result.total_task_amount}
+
+            
+
