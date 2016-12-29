@@ -34,28 +34,28 @@ app.post('/pay', function(req, res, next) {
 
 app.get('/detailTask', function (req, res, next) {
   // 测试数据
-  const content = [{title:'一',color:'1'},{title:'个'},{title:'测'},{title:'一',color:'1'},{title:'个',color:'0'},{title:'测'}];
-  const data = {
-          errorTask: [
-            {
-              content1: content,//'一个测试片段，逗号之后的另一段',
-              content2: content,
-              wrongWordsAmount: '8',
-              audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'
-            },
-            {
-              content1: content,
-              content2: content,
-              wrongWordsAmount: '2',
-              audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'
-            }
-          ],
-          reward: '9元',
-          rewardRate: '80%'
-        };
+  // const content = [{title:'一',color:'1'},{title:'个'},{title:'测'},{title:'一',color:'1'},{title:'个',color:'0'},{title:'测'}];
+  // const data = {
+  //         errorTask: [
+  //           {
+  //             content1: content,//'一个测试片段，逗号之后的另一段',
+  //             content2: content,
+  //             wrongWordsAmount: '8',
+  //             audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'
+  //           },
+  //           {
+  //             content1: content,
+  //             content2: content,
+  //             wrongWordsAmount: '2',
+  //             audioURL: 'http://ailingual-production.oss-cn-shanghai.aliyuncs.com/media_fragments/bb893acd-a15c-4eac-b928-7477b977df56/pchunk-00000109.wav'
+  //           }
+  //         ],
+  //         reward: '9元',
+  //         rewardRate: '80%'
+  //       };
 
-  res.render('detailTask',{data: data, date: '2016/12/09'});
-  next();
+  // res.render('detailTask',{data: data, date: '2016/12/09'});
+  // next();
 
   date1 = new Date(req.query['date1']);
   date2 = new Date(req.query['date2']);
