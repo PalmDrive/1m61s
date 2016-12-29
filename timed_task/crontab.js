@@ -6,7 +6,7 @@ const schedule = require('node-schedule'),
       wechat_ctl = require('../lib/wechat'),
       logger = require('../lib/logger');
 
-// const cron = schedule.scheduleJob('0 0 23 * * *', function() {
+const cron = schedule.scheduleJob('0 0 23 * * *', function() {
   logger.info(`scheduled task..at --{${new Date()}}`);
 
   const today = Date.today(),
@@ -15,6 +15,7 @@ const schedule = require('node-schedule'),
   yesterday.setHours(23);
 
   wechat_ctl.getAccessTokenFromCache().then(res => {
+    console.log('token: ' + res);
     wechat_ctl.queryTodayUserMoney(yesterday, today).then(results => {
       console.log('今日用户任务信息: ' + JSON.stringify(results));
       results.map(result => {
@@ -33,6 +34,6 @@ const schedule = require('node-schedule'),
       });
     });
   });
-// });
+});
 
 console.log('crontab started.');
