@@ -484,13 +484,9 @@ const sendToUser = {
         const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
         // Send check-list tip
         self.listTip(data, accessToken, user);
-        // Send text and voice in 1s
-        // setTimeout(() => {
-        //   self.text(content, data, accessToken);
-        //   self.voice(transcript, data, accessToken, user);
-        // }, 1000);
-          self.text(content, data, accessToken);
-          self.voice(transcript, data, accessToken, user);
+        // Send text and voice
+        self.text(content, data, accessToken);
+        self.voice(transcript, data, accessToken, user);
       } else {
         // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
