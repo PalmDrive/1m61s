@@ -369,10 +369,7 @@ const sendToUser = {
                           msgtype: 'voice',
                           voice: {media_id: media.media_id},
                           _startedAt
-                        }, accessToken).then(() => {
-                          // 语音后的提示文字
-                          self.listTip(data, accessToken, user);
-                        });
+                        }, accessToken);
                       }, 1000);
                     }, err => {
                       wechatLib.logError('upload split media 2 failed', err);
@@ -399,10 +396,7 @@ const sendToUser = {
                   msgtype: 'voice',
                   voice: {media_id: media.media_id},
                   _startedAt
-                }, accessToken).then(() => {
-                  // 语音后的提示文字
-                  self.listTip(data, accessToken, user);
-                });
+                }, accessToken);
               }, err => {
                 wechatLib.logError('upload media failed', err);
               });
@@ -488,11 +482,11 @@ const sendToUser = {
       logger.info(`--- At ${getTime(_startedAt)} find transcript with id : ${fragmentId}`);
       if (transcript) {
         const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
-        // Send text in transcript
+        // Send check-list tip
+        self.listTip(data, accessToken, user);
+        // Send text and voice
         self.text(content, data, accessToken);
-        // Send voice
         self.voice(transcript, data, accessToken, user);
-
       } else {
         // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
@@ -511,26 +505,32 @@ const sendToUser = {
   },
   schoolTask(order, data, accessToken, user) {
     const self = this,
-          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 29;
-    setTimeout(() => {
-      self.text(Tasks['_' + order].text, data, accessToken);
-    }, 1000);
-    setTimeout(() => {
-      self.voiceByMediaId(wechatConfig.mediaId.voice.tasks['_' + order], data.fromusername, accessToken, data._startedAt);
-    }, 2000);
+          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 29,
+          tipDelay = 1000;
+    let textDelay = 1000,
+        voiceDelay = 2000;
     if (sendTip) {
       setTimeout(() => {
         self.text(wechatData.tips.list, data, accessToken);
-      }, 3000);
+      }, tipDelay);
+      textDelay = 2000;
+      voiceDelay = 3000;
     }
+    setTimeout(() => {
+      self.text(Tasks['_' + order].text, data, accessToken);
+    }, textDelay);
+    setTimeout(() => {
+      self.voiceByMediaId(wechatConfig.mediaId.voice.tasks['_' + order], data.fromusername, accessToken, data._startedAt);
+    }, voiceDelay);
   },
+  // Send check-list tip
   listTip(data, accessToken, user) {
     const self = this,
           disableTip = user.get('preference') && user.get('preference').disableTip;
     if (!disableTip) {
-      setTimeout(() => {
-        self.text(wechatData.tips.list, data, accessToken);
-      }, 1000);
+      return self.text(wechatData.tips.list, data, accessToken);
+    } else {
+      return Promise.resolve(false);
     }
   }
 };
