@@ -1596,7 +1596,7 @@ module.exports.postCtrl = (req, res, next) => {
           userStatus = user.get('status'),
           wechatId = user.get('wechat_id'),
           tasksDone = user.get('tasks_done');
-    let order;
+    let order, content;
 
     logger.info(`--- At ${getTime(startedAt)} get user ${userId} data from leancloud.`);
     logger.info('user:');
@@ -1668,7 +1668,12 @@ module.exports.postCtrl = (req, res, next) => {
                     sendGA(userId, 'reply');
                   }
                 } else {
-                  sendGA(userId, 'not_anything');
+                  // User status is 0
+                  // User has no assigned task
+                  if (tasksDone === 0) {
+                    content = '请点击下方“领取任务”，开启1\'61探索之旅。';
+                    sendToUser.text(content, data, accessToken);
+                  }
                 }
               });
             }
