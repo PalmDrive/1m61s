@@ -485,10 +485,12 @@ const sendToUser = {
         // Send check-list tip
         self.listTip(data, accessToken, user);
         // Send text and voice in 1s
-        setTimeout(() => {
+        // setTimeout(() => {
+        //   self.text(content, data, accessToken);
+        //   self.voice(transcript, data, accessToken, user);
+        // }, 1000);
           self.text(content, data, accessToken);
           self.voice(transcript, data, accessToken, user);
-        }, 1000);
       } else {
         // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
