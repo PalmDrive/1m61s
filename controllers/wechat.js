@@ -1635,7 +1635,7 @@ module.exports.postCtrl = (req, res, next) => {
               }
               sendToUser.text(content, data, accessToken);
               if (correctReply) {
-                user.set(status, 0);
+                user.set('status', 0);
                 user.save().then(user => {
                   findAndSendNewTaskForUser(data, accessToken, user);
                 });
