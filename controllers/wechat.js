@@ -1652,9 +1652,10 @@ module.exports.postCtrl = (req, res, next) => {
               }
               sendToUser.text(content, data, accessToken);
               if (correctReply) {
-                findAndSendNewTaskForUser(data, accessToken, user);
                 user.set(status, 0);
-                user.save();
+                user.save().then(user => {
+                  findAndSendNewTaskForUser(data, accessToken, user);
+                });
               }
             }
           } else if (userStatus === 1) {
