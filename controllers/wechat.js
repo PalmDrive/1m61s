@@ -632,6 +632,8 @@ const onGetTask = (data, accessToken, user) => {
     setTimeout(() => {
       sendToUser.text(wechatData['Q&A'].pay, data, accessToken);
     }, 3000);
+    user.set('status', 3);
+    user.save();
   } else {
     findInProcessTaskForUser(userId).then(task => {
       logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
@@ -1638,7 +1640,24 @@ module.exports.postCtrl = (req, res, next) => {
         } else {
           // A, 帮主, 工作人员, B端用户
           // Check user status
-          if (userStatus === 1) {
+          if (userStatus === 3) {
+            let correctReply = false;
+            if (tasksDone === 0) {
+              // 技能卡片-1，需要回复XX
+              if (data.content.match(/xx/gi)) {
+                content = '恭喜你成功解锁该技能！';
+                correctReply = true;
+              } else {
+                content = '请回复“XX”解锁技能，否则无法领取你第一个正式的音频任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                findAndSendNewTaskForUser(data, accessToken, user);
+                user.set(status, 0);
+                user.save();
+              }
+            }
+          } else if (userStatus === 1) {
             // Waiting for WeChat ID
             onReceiveWeChatId(data, accessToken, user);
             sendGA(userId, 'reply_wechat_id');
