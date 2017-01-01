@@ -1801,7 +1801,7 @@ module.exports.postCtrl = (req, res, next) => {
               content = '请回复“修改”解锁技能，否则无法领取下一个任务啦。';
             } else if (tasksDone === 8) {
               content = '请回复“过”解锁技能，否则无法领取下一个任务啦。';
-            } else {
+            } else if (tasksDone === 12) {
               content = '请回复“前”或“后”解锁技能，否则无法领取下一个任务啦。';
             }
             sendToUser.text(content, data, accessToken);
