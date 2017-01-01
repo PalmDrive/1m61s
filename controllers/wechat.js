@@ -1685,6 +1685,8 @@ module.exports.postCtrl = (req, res, next) => {
                 findInProcessTaskForUser(userId).then(task => {
                   onReceivePass(data, accessToken, task, user);
                 });
+                user.set('status', 0);
+                user.save();
               }
             } else if (tasksDone === 12) {
               // 技能卡片-4，需要回复“前”或“后”
