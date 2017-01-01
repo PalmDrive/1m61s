@@ -818,7 +818,9 @@ const completeTaskAndReply = (task, data, accessToken, user) => {
       user.save();
 
       if (tasksDone === 8 || tasksDone === 12) {
-        findAndSendNewTaskForUser(data, accessToken, user);        
+        setTimeout(() => {
+          findAndSendNewTaskForUser(data, accessToken, user);
+        }, 3000);
       }
     } else {
       // User has not completed 4 tasks
