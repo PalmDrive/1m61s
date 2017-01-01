@@ -1698,7 +1698,11 @@ module.exports.postCtrl = (req, res, next) => {
               }
               sendToUser.text(content, data, accessToken);
               if (correctReply) {
-                // TODO
+                findInProcessTaskForUser(userId).then(task => {
+                  onReceivePrevNext(data, accessToken, task);                  
+                });
+                user.set('status', 0);
+                user.save();
               }
             }
           } else if (userStatus === 1) {
