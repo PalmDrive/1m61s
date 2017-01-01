@@ -1668,7 +1668,7 @@ module.exports.postCtrl = (req, res, next) => {
                 content = '恭喜你成功解锁该技能！';
                 correctReply = true;
               } else {
-                content = '请回复“修改”解锁技能。';
+                content = '请回复“修改”解锁技能，否则无法领取下一个任务啦。';
               }
               sendToUser.text(content, data, accessToken);
               if (correctReply) onReceiveRevoke(data, accessToken, user);
@@ -1678,7 +1678,7 @@ module.exports.postCtrl = (req, res, next) => {
                 content = '恭喜你成功解锁该技能！已为你跳过了上一段片段！（上一个片段没有红包）';
                 correctReply = true;
               } else {
-                content = '请回复“过”解锁技能。';
+                content = '请回复“过”解锁技能，否则无法领取下一个任务啦。';
               }
               sendToUser.text(content, data, accessToken);
               if (correctReply) {
@@ -1691,10 +1691,10 @@ module.exports.postCtrl = (req, res, next) => {
             } else if (tasksDone === 12) {
               // 技能卡片-4，需要回复“前”或“后”
               if (data.content === '前' || data.content === '后') {
-                content = '恭喜你成功解锁该技能！已为你跳过了上一段片段！（上一个片段没有红包）';
+                content = '恭喜你成功解锁该技能！下面是你调用的音频片段，听完之后可以更好地帮助你找出上面音频片段的错别字。';
                 correctReply = true;
               } else {
-                content = '请回复“过”解锁技能。';
+                content = '请回复“前”or“后”解锁技能，否则无法领取下一个任务啦。';
               }
               sendToUser.text(content, data, accessToken);
               if (correctReply) {
