@@ -1309,16 +1309,20 @@ const onReceiveFromB = (data, accessToken, user) => {
       user.set('red_packet', redPacket + 1);
       user.save().then(user => {
         if (status === 3) {
-          content = '【红包奖励：4/8元】\n【新手学院】\n\n欢迎来到1\'61新手学院，本次训练任务共28个语音片段，总计7分钟，若全部答对，将有3.5元的现金红包奖励（每满1.0元发送现金红包），并且领取毕业证书，开通“领取任务”功能。\n\n1.答错一个片段，该片段将没有奖励；\n2.如果总的错别字数超过10个字，将无法开启“领取任务”功能；\n\n注意，如果错别字字数超过10个字，将无法开启“领取任务”功能。\n\n同意请回复“1”，即可继续。（么么哒）';
+          content = '【1\'61是干什么？】\n\n我们来自硅谷斯坦福大学，是一家以人工智能驱动的语音识别初创企业，因为我们的机器只能正确翻译90%的语音，所以我们将机器翻译错误的部分（10%）通过众包的形式分发给大家进行人工校对。\n\n目前，我们主要为各大教育视频机构做字幕，你修改的每一条文字都将直接呈现在各大教育视频网站里，让数千万的学生看见。';
         } else {
           content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
         }
         sendToUser.text(content, data, accessToken).then(() => {
           if (status === 3) {
+            setTimeout(() => {
+              content = '【新手学院：字幕达人】\n\n尽管看似不可能，但我们还是将在接下来的6分钟任务里让你成为一名高段位的字幕达人！\n\n总计6分钟，24个语音片段，3元现金红包奖励（每满1.0元发送），还有一封毕业证书。\n\n1.答错一个片段，该片段将没有奖励；\n2.如果总的错别字数超过10个字，将无法毕业，无法开通领取语音任务；\n\n同意请回复“1”，即可继续。';
+              sendToUser.text(content, data, accessToken);
+            }, 1000);
             // 礼物图片
             setTimeout(() => {
               sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
-            }, 1000);
+            }, 2000);
           } else {
             sendToUser.schoolTask(nextTaskOrder, data, accessToken);
           }
