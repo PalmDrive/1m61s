@@ -620,17 +620,32 @@ const isTaskValid = (task, _startedAt) => {
 };
 
 const onGetTask = (data, accessToken, user) => {
-  const userId = data.fromusername;
-  findInProcessTaskForUser(userId).then(task => {
-    logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
-    if (task) {
-      // There is a task in process
-      return sendToUser.task(task, data, accessToken, user);
-    } else {
-      // There is no task in process
-      return findAndSendNewTaskForUser(data, accessToken, user);
-    }
-  });
+  const userId = data.fromusername,
+        tasksDone = user.get('tasks_done');
+  if (tasksDone === 0) {
+    // 技能卡片-1
+    sendToUser.image(wechatConfig.mediaId.image.skills[1], userId, accessToken, data._startedAt);
+    setTimeout(() => {
+      const content = '哇咔咔~恭喜你获得了第一张强大的技能卡，回复“XX”即可开启这个功能。';
+      sendToUser.text(content, data, accessToken);
+    }, 2000);
+    setTimeout(() => {
+      sendToUser.text(wechatData['Q&A'].pay, data, accessToken);
+    }, 3000);
+    user.set('status', 3);
+    user.save();
+  } else {
+    findInProcessTaskForUser(userId).then(task => {
+      logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
+      if (task) {
+        // There is a task in process
+        return sendToUser.task(task, data, accessToken, user);
+      } else {
+        // There is no task in process
+        return findAndSendNewTaskForUser(data, accessToken, user);
+      }
+    });
+  }
 };
 
 const onGetTaskForB = (data, accessToken, user) => {
@@ -764,44 +779,49 @@ const findAndSendNewTaskForUser = (data, accessToken, user) => {
   });
 };
 
-const completeTaskAndReply = (task, data, accessToken) => {
+const completeTaskAndReply = (task, data, accessToken, user) => {
   const userId = data.fromusername,
-        isCorrect = data.content === '0';
+        isCorrect = data.content === '0',
+        tasksDone = user.get('tasks_done');
   // Change task status to 1
   task.set({
     status: 1,
     completed_at: new Date()
   });
-  // task.set('status', 1);
-  // task.set('completed_at', new Date());
   task.save();
 
-  // Find user object
-  getUser(userId).then(user => {
-    logger.info(`--- At ${getTime(data._startedAt)} completeTaskAndReply / getUser(userId) with userId : ${userId}`);
-    // Add 1 to user's tasks done
-    const tasksDone = user.get('tasks_done');
-    user.set('tasks_done', tasksDone + 1);
-    return user.save();
-  }).then(user => {
+  // Add 1 to user's tasks done
+  user.set('tasks_done', tasksDone + 1);
+  user.save().then(user => {
     const tasksDone = user.get('tasks_done');
     logger.info(`--- At ${getTime(data._startedAt)} completeTaskAndReply / 获取完成任务数量 userId : ${userId} / 完成数量: ${tasksDone}`);
     // Check for tasks done
-    if (tasksDone === 4) {
-      // User has just completed 4 tasks
-      sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将现金红包发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
+    if ([4, 8, 12].indexOf(tasksDone) !== -1) {
+      const skillCardOrder = tasksDone / 4 + 1;
+      sendToUser.image(wechatConfig.mediaId.image.skills[skillCardOrder], userId, accessToken, data._startedAt);
+      let content = '哇咔咔~恭喜你获得了一张强大的技能卡，回复“';
+      if (skillCardOrder === 2) {
+        content += '修改';
+      } else if (skillCardOrder === 3) {
+        content += '过';
+      } else {
+        content += '前”or“后';
+      }
+      content += '”即可开启这个功能。';
+      setTimeout(() => {
+        sendToUser.text(content, data, accessToken);
+      }, 2000);
 
-      // Change user status to 1
-      user.set('status', 1);
-
-      setNeedPay(user);
+      // sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将现金红包发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
+      // user.set('status', 1);
+      user.set('status', 3);
       user.save();
-    } else if (tasksDone % 4 === 0) {
-      // User has completed another 4 tasks. Send text
-      sendToUser.text('么么哒，恭喜你又完成了4个任务，我们会将现金红包发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
 
-      setNeedPay(user);
-      user.save();
+      if (tasksDone === 8 || tasksDone === 12) {
+        setTimeout(() => {
+          findAndSendNewTaskForUser(data, accessToken, user);
+        }, 3000);
+      }
     } else {
       // User has not completed 4 tasks
       let replyContent = 'biu~我已经收到了你的';
@@ -829,7 +849,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
         userField = user.get('fields') && user.get('fields')[0];
   let source = 0;
 
-  completeTaskAndReply(task, data, accessToken);
+  completeTaskAndReply(task, data, accessToken, user);
 
   // Get the relevant transcript / userTranscript
   getTranscript(task).then(transcript => {
@@ -1600,7 +1620,7 @@ module.exports.postCtrl = (req, res, next) => {
           userStatus = user.get('status'),
           wechatId = user.get('wechat_id'),
           tasksDone = user.get('tasks_done');
-    let order;
+    let order, content;
 
     logger.info(`--- At ${getTime(startedAt)} get user ${userId} data from leancloud.`);
     logger.info('user:');
@@ -1625,7 +1645,67 @@ module.exports.postCtrl = (req, res, next) => {
         } else {
           // A, 帮主, 工作人员, B端用户
           // Check user status
-          if (userStatus === 1) {
+          if (userStatus === 3) {
+            let correctReply = false;
+            if (tasksDone === 0) {
+              // 技能卡片-1，需要回复“XX”
+              if (data.content.match(/xx/gi)) {
+                content = '恭喜你成功解锁该技能！';
+                correctReply = true;
+              } else {
+                content = '请回复“XX”解锁技能，否则无法领取你第一个正式的音频任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                user.set('status', 0);
+                user.save().then(user => {
+                  findAndSendNewTaskForUser(data, accessToken, user);
+                });
+              }
+            } else if (tasksDone === 4) {
+              // 技能卡片-2，需要回复“修改”
+              if (data.content === '修改' ) {
+                content = '恭喜你成功解锁该技能！';
+                correctReply = true;
+              } else {
+                content = '请回复“修改”解锁技能，否则无法领取下一个任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) onReceiveRevoke(data, accessToken, user);
+            } else if (tasksDone === 8) {
+              // 技能卡片-3，需要回复“过”
+              if (data.content === '过' ) {
+                content = '恭喜你成功解锁该技能！已为你跳过了上一段片段！（上一个片段没有红包）';
+                correctReply = true;
+              } else {
+                content = '请回复“过”解锁技能，否则无法领取下一个任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                findInProcessTaskForUser(userId).then(task => {
+                  onReceivePass(data, accessToken, task, user);
+                });
+                user.set('status', 0);
+                user.save();
+              }
+            } else if (tasksDone === 12) {
+              // 技能卡片-4，需要回复“前”或“后”
+              if (data.content === '前' || data.content === '后') {
+                content = '恭喜你成功解锁该技能！下面是你调用的音频片段，听完之后可以更好地帮助你找出上面音频片段的错别字。';
+                correctReply = true;
+              } else {
+                content = '请回复“前”or“后”解锁技能，否则无法领取下一个任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                findInProcessTaskForUser(userId).then(task => {
+                  onReceivePrevNext(data, accessToken, task);                  
+                });
+                user.set('status', 0);
+                user.save();
+              }
+            }
+          } else if (userStatus === 1) {
             // Waiting for WeChat ID
             onReceiveWeChatId(data, accessToken, user);
             sendGA(userId, 'reply_wechat_id');
@@ -1672,7 +1752,12 @@ module.exports.postCtrl = (req, res, next) => {
                     sendGA(userId, 'reply');
                   }
                 } else {
-                  sendGA(userId, 'not_anything');
+                  // User status is 0
+                  // User has no assigned task
+                  if (tasksDone === 0) {
+                    content = '请点击下方“领取任务”，开启1\'61探索之旅。';
+                    sendToUser.text(content, data, accessToken);
+                  }
                 }
               });
             }
@@ -1709,6 +1794,17 @@ module.exports.postCtrl = (req, res, next) => {
             sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
           } else if (userStatus === 2) {
             sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
+          } else if (userStatus === 3) {
+            if (tasksDone === 0) {
+              content = '请回复“XX”解锁技能，否则无法领取你第一个正式的音频任务啦。';
+            } else if (tasksDone === 4) {
+              content = '请回复“修改”解锁技能，否则无法领取下一个任务啦。';
+            } else if (tasksDone === 8) {
+              content = '请回复“过”解锁技能，否则无法领取下一个任务啦。';
+            } else if (tasksDone === 12) {
+              content = '请回复“前”或“后”解锁技能，否则无法领取下一个任务啦。';
+            }
+            sendToUser.text(content, data, accessToken);
           } else if (userStatus >= -104 && userStatus <= -100) {
             order = -100 - userStatus;
             sendToUser.text(savedContent.thirdMin[order], data, accessToken)
