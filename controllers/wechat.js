@@ -1638,6 +1638,8 @@ module.exports.postCtrl = (req, res, next) => {
       } else if (data.content === '取消') {
         // 取消任务音频后5点提醒
         cancelListTip(data, accessToken, user);
+      } else if (data.content === '申诉') {
+        sendToUser.image(wechatConfig.mediaId.image.complain, userId, accessToken, startedAt);
       } else {
         // Check role
         if (userRole === 'B') {
