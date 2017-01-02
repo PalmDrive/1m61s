@@ -1385,11 +1385,23 @@ const onReceiveFromB = (data, accessToken, user) => {
       
       if (currentTaskOrder === 5) {
         content += '恭喜你，你的答案是正确的！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+        });
+      } else if (currentTaskOrder === 6) {
+        content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
+        sendToUser.text(content, data, accessToken);
+        setTimeout(() => {
+          content = '你的技能：\n1）无错别字';
+          sendToUser.text(content, data, accessToken);
+        }, 1000);
+        setTimeout(() => {
+          sendToUser.image(wechatConfig.mediaId.image.rule._2, userId, accessToken, startedAt)
+            .then(() => {
+              sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+            });
+        }, 2000);
       }
-
-      sendToUser.text(content, data, accessToken).then(() => {
-        sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-      });
     }
 
     // Create UserTranscript
