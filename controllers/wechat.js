@@ -1392,12 +1392,12 @@ const onReceiveFromB = (data, accessToken, user) => {
       });
     }
 
-    // Create UserTransctipt
+    // Create UserTranscript
     userTranscript.set(userTranscriptObj);
     userTranscript.save().then(userTranscript => {
       if (!isCorrect) {
         // Get answer times
-        const query = new LeanCloud.Query('UserTransctipt');
+        const query = new LeanCloud.Query('UserTranscript');
         query.equalTo('media_id', 'training');
         query.equalTo('fragment_order', currentTaskOrder);
         query.equalTo('user_open_id', userId);
