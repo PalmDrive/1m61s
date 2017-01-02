@@ -1351,139 +1351,209 @@ const onReceiveFromB = (data, accessToken, user) => {
     const userTotalWords = compare.getTotalWords(userContent),
           correctTotalWords = compare.getTotalWords(currentTask.correct),
           wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
-          isCorrect = wrongWords === 0,
-          is2 = lastWrongWords !== 0 && userContent === '2',
-          isCorrectOr2 = isCorrect || is2;
+          isCorrect = wrongWords === 0;
 
-    // LeanCloud related updates
-    if (is2) {
-      userWrongWords += lastWrongWords;
+    if (isCorrect) {
+      redPacket += 1;
+      let newAmountPaid = amountPaid;
+
+      if (redPacket === 8) {
+        sendToUser.text('*此处应有1元红包*', data, accessToken);
+        // 发红包
+        const _data = {
+              re_openid: userId,
+              total_amount: 1 * 100
+              },
+              _callback = ret => {
+              };
+        wechat_pay.sendMoney(_data, _callback);
+        // Reset red_packet to 0
+        redPacket = 0;
+        // Add 1 to amount_paid
+        newAmountPaid += 1;
+      }
+      
       user.set({
         status: status + 1,
-        wrong_words: userWrongWords,
-        last_wrong_words: 0
+        last_wrong_words: 0,
+        red_packet: redPacket,
+        amount_paid: newAmountPaid
       });
-    } else {
-      // Create UserTransctipt
-      userTranscript.set(userTranscriptObj);
-      userTranscript.save();
-      if (isCorrect) {
-        redPacket += 1;
-        let newAmountPaid = amountPaid;
+      user.save();
 
-        if (redPacket === 8) {
-          // TODO: send red packet to user
-          sendToUser.text('*此处应有1元红包*', data, accessToken);
-          // 发红包
-          const _data = {
-                re_openid: userId,
-                total_amount: 1 * 100
-                },
-                _callback = ret => {
-                };
-          wechat_pay.sendMoney(_data, _callback);
-          // Reset red_packet to 0
-          redPacket = 0;
-          // Add 1 to amount_paid
-          newAmountPaid += 1;
-        }
-        user.set({
-          status: status + 1,
-          last_wrong_words: 0,
-          red_packet: redPacket,
-          amount_paid: newAmountPaid
-        });
-      } else {
-        // Answer is wrong
-        user.set('last_wrong_words', wrongWords);
+      content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
+      
+      if (currentTaskOrder === 5) {
+        content += '恭喜你，你的答案是正确的！';
       }
+
+      sendToUser.text(content, data, accessToken).then(() => {
+        sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+      });
     }
-    user.save().then(user => {
-      // Reply to user
-      if (!isCorrectOr2) {
-        // Answer is wrong
-        sendToUser.text(failContent, data, accessToken).then(() => {
-          sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
-        });
-      } else {
-        // Answer is correct or '2'
-        // Send answer image
-        if ([4, 5, 6, 7].indexOf(status) === -1) {
-          // Task 5-8 do not have answer image
-          sendToUser.image(wechatConfig.mediaId.image.answers['_' + currentTaskOrder], userId, accessToken, startedAt);
-        }
 
-        setTimeout(() => {
-          let ruleOrder = [7, 11, 15, 19, 23, 27].indexOf(status);
-          if (ruleOrder !== -1) {
-            ruleOrder += 2;
-            // Send stats and tell user he's entering next stage
-            if (isCorrect) {
-              content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n恭喜你，你的答案是正确的！集满1元将发送红包给你。\n\n你已经成功挑战该阶段任务，欢迎进阶到下一难度的训练中！（么么哒）`;
-            } else {
-              content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n腻害，该片段视为错误，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。上面是参考答案，认真阅读参考答案，这将有助于提高下一个片段的准确率～（该段没有红包奖励）\n\nAnyway,你已经成功挑战该阶段任务，欢迎进阶到下一难度的训练中！（么么哒）`;
-            }
-            sendToUser.text(content, data, accessToken)
-              .then(() => {
-                // Send rule image
-                setTimeout(() => {
-                  sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt).then(() => {
-                    // Send next task
-                    sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-                  });
-                }, 1000);
+    // Create UserTransctipt
+    userTranscript.set(userTranscriptObj);
+    userTranscript.save().then(userTranscript => {
+      if (!isCorrect) {
+        // Get answer times
+        const query = new LeanCloud.Query('UserTransctipt');
+        query.equalTo('media_id', 'training');
+        query.equalTo('fragment_order', currentTaskOrder);
+        query.equalTo('user_open_id', userId);
+        query.equalTo('review_times', 0);
+        query.equalTo('user_role', 'B');
+        query.count().then(count => {
+          if (count === 1) {
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              sendToUser.text(failContent, data, accessToken).then(() => {
+                sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
               });
-          } else {
-            // Send stats
-            if (isCorrect) {
-              content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n恭喜你，你的答案是正确的！集满1元将发送红包给你，快来挑战下一个片段吧！`;
-            } else {
-              content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n腻害，该片段视为错误，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。上面是参考答案，认真阅读参考答案，这将有助于提高下一个片段的准确率～（该段没有红包奖励）`;
             }
-            sendToUser.text(content, data, accessToken);
-
-            setTimeout(() => {
-              if ([12, 13, 18, 22, 25].indexOf(status) !== -1) {
-                // 1 tip
-                content = wechatData.tips['_' + currentTaskOrder];
-                sendToUser.text(content, data, accessToken).then(() => {
-                  // Next task
-                  sendToUser.schoolTask(nextTaskOrder, data, accessToken);
-                });
-              } else if (status === 10) {
-                // Q&A
-                content = wechatData['Q&A'].rule;
-                sendToUser.text(content, data, accessToken).then(() => {
-                  setTimeout(() => {
-                    // Tip
-                    content = wechatData.tips._11;
-                    sendToUser.text(content, data, accessToken).then(() => {
-                      // Next task
-                      sendToUser.schoolTask(nextTaskOrder, data, accessToken);
-                    });
-                  }, 1000);
-                });
-              } else if (status === 14) {
-                // Two tips
-                content = wechatData.tips._15[0];
-                sendToUser.text(content, data, accessToken).then(() => {
-                  setTimeout(()=> {
-                    content = wechatData.tips._15[1];
-                    sendToUser.text(content, data, accessToken).then(() => {
-                      // Next task
-                      sendToUser.schoolTask(nextTaskOrder, data, accessToken);
-                    });
-                  }, 1000);
-                });
-              } else {
-                // Next task
-                sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-              }
-            }, 1000);
+          } else if (count === 2) {
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+              sendToUser.text(content, data, accessToken);
+            }
+          } else {
+            // count >= 3
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+              sendToUser.text(content, data, accessToken);
+            }
           }
-        }, 1000);
+        });
       }
     });
+
+    // LeanCloud related updates
+    // if (isCorrect) {
+    //   userWrongWords += lastWrongWords;
+    //   user.set({
+    //     status: status + 1,
+    //     wrong_words: userWrongWords,
+    //     last_wrong_words: 0
+    //   });
+    // } else {
+
+    //   if (isCorrect) {
+    //     redPacket += 1;
+    //     let newAmountPaid = amountPaid;
+
+    //     if (redPacket === 8) {
+    //       // TODO: send red packet to user
+    //       sendToUser.text('*此处应有1元红包*', data, accessToken);
+    //       // 发红包
+    //       const _data = {
+    //             re_openid: userId,
+    //             total_amount: 1 * 100
+    //             },
+    //             _callback = ret => {
+    //             };
+    //       wechat_pay.sendMoney(_data, _callback);
+    //       // Reset red_packet to 0
+    //       redPacket = 0;
+    //       // Add 1 to amount_paid
+    //       newAmountPaid += 1;
+    //     }
+    //     user.set({
+    //       status: status + 1,
+    //       last_wrong_words: 0,
+    //       red_packet: redPacket,
+    //       amount_paid: newAmountPaid
+    //     });
+    //   } else {
+    //     // Answer is wrong
+    //     user.set('last_wrong_words', wrongWords);
+    //   }
+    // }
+
+    // user.save().then(user => {
+    //   // Reply to user
+    //   if (!isCorrectOr2) {
+    //     // Answer is wrong
+    //     sendToUser.text(failContent, data, accessToken).then(() => {
+    //       sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
+    //     });
+    //   } else {
+    //     // Answer is correct or '2'
+    //     // Send answer image
+    //     if ([4, 5, 6, 7].indexOf(status) === -1) {
+    //       // Task 5-8 do not have answer image
+    //       sendToUser.image(wechatConfig.mediaId.image.answers['_' + currentTaskOrder], userId, accessToken, startedAt);
+    //     }
+
+    //     setTimeout(() => {
+    //       let ruleOrder = [7, 11, 15, 19, 23, 27].indexOf(status);
+    //       if (ruleOrder !== -1) {
+    //         ruleOrder += 2;
+    //         // Send stats and tell user he's entering next stage
+    //         if (isCorrect) {
+    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n恭喜你，你的答案是正确的！集满1元将发送红包给你。\n\n你已经成功挑战该阶段任务，欢迎进阶到下一难度的训练中！（么么哒）`;
+    //         } else {
+    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n腻害，该片段视为错误，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。上面是参考答案，认真阅读参考答案，这将有助于提高下一个片段的准确率～（该段没有红包奖励）\n\nAnyway,你已经成功挑战该阶段任务，欢迎进阶到下一难度的训练中！（么么哒）`;
+    //         }
+    //         sendToUser.text(content, data, accessToken)
+    //           .then(() => {
+    //             // Send rule image
+    //             setTimeout(() => {
+    //               sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt).then(() => {
+    //                 // Send next task
+    //                 sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+    //               });
+    //             }, 1000);
+    //           });
+    //       } else {
+    //         // Send stats
+    //         if (isCorrect) {
+    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n恭喜你，你的答案是正确的！集满1元将发送红包给你，快来挑战下一个片段吧！`;
+    //         } else {
+    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n腻害，该片段视为错误，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。上面是参考答案，认真阅读参考答案，这将有助于提高下一个片段的准确率～（该段没有红包奖励）`;
+    //         }
+    //         sendToUser.text(content, data, accessToken);
+
+    //         setTimeout(() => {
+    //           if ([12, 13, 18, 22, 25].indexOf(status) !== -1) {
+    //             // 1 tip
+    //             content = wechatData.tips['_' + currentTaskOrder];
+    //             sendToUser.text(content, data, accessToken).then(() => {
+    //               // Next task
+    //               sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+    //             });
+    //           } else if (status === 10) {
+    //             // Q&A
+    //             content = wechatData['Q&A'].rule;
+    //             sendToUser.text(content, data, accessToken).then(() => {
+    //               setTimeout(() => {
+    //                 // Tip
+    //                 content = wechatData.tips._11;
+    //                 sendToUser.text(content, data, accessToken).then(() => {
+    //                   // Next task
+    //                   sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+    //                 });
+    //               }, 1000);
+    //             });
+    //           } else if (status === 14) {
+    //             // Two tips
+    //             content = wechatData.tips._15[0];
+    //             sendToUser.text(content, data, accessToken).then(() => {
+    //               setTimeout(()=> {
+    //                 content = wechatData.tips._15[1];
+    //                 sendToUser.text(content, data, accessToken).then(() => {
+    //                   // Next task
+    //                   sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+    //                 });
+    //               }, 1000);
+    //             });
+    //           } else {
+    //             // Next task
+    //             sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+    //           }
+    //         }, 1000);
+    //       }
+    //     }, 1000);
+    //   }
+    // });
   } else if (status === 31) {
     // Task 32, last task in 1'61 school
     const userTotalWords = compare.getTotalWords(userContent),
