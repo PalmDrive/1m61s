@@ -1459,7 +1459,7 @@ const onReceiveFromB = (data, accessToken, user) => {
             sendToUser.text(content, data, accessToken);
           }, 2000);
 
-          if (skillAndRuleArray.indexOf(currentTaskOrder) !== -1) {
+          if (ruleArray.indexOf(currentTaskOrder) !== -1) {
             // Send rule image
             setTimeout(() => {
               let ruleOrder = 3;
@@ -1570,7 +1570,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                   sendToUser.text(content, data, accessToken);
                 }, 3000);
 
-                if (skillAndRuleArray.indexOf(currentTaskOrder) !== -1) {
+                if (ruleArray.indexOf(currentTaskOrder) !== -1) {
                   // Send rule image
                   setTimeout(() => {
                     let ruleOrder = 3;
