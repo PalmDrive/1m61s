@@ -1272,10 +1272,9 @@ const onReceivePass = (data, accessToken, task, user) => {
 };
 
 // Return user object
-const ruleTeaching = (data, accessToken, user, delay) => {
+const ruleTeaching = (data, accessToken, user, currentTaskOrder, delay) => {
   const skillGotArray = [9, 11, 14, 17, 20, 23],
         ruleArray = [9, 11, 17, 20],
-        currentTaskOrder = user.get('status') + 1,
         nextTaskOrder = currentTaskOrder + 1,
         userId = data.fromusername,
         startedAt = data._startedAt;
@@ -1517,7 +1516,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
         sendToUser.text(content, data, accessToken);
 
-        user = ruleTeaching(data, accessToken, user);
+        user = ruleTeaching(data, accessToken, user, currentTaskOrder);
       }
       user.save();
     }
@@ -1570,7 +1569,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                 sendToUser.text(content, data, accessToken);
               }, 1000);
 
-              user = ruleTeaching(data, accessToken, user, 1000);
+              user = ruleTeaching(data, accessToken, user, currentTaskOrder, 1000);
 
               // Update WeChatUser
               user.save();
