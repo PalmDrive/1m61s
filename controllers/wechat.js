@@ -505,7 +505,7 @@ const sendToUser = {
   },
   schoolTask(order, data, accessToken, user) {
     const self = this,
-          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 29,
+          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 24,
           tipDelay = 1000;
     let textDelay = 1000,
         voiceDelay = 2000;
@@ -1274,7 +1274,6 @@ const onReceivePass = (data, accessToken, task, user) => {
 const onReceiveFromB = (data, accessToken, user) => {
   const status = user.get('status'),
         lastWrongWords = user.get('last_wrong_words') || 0,
-        amountPaid = user.get('amount_paid') || 0,
         currentTaskOrder = status + 1,
         currentTask = Tasks['_' + currentTaskOrder],
         nextTaskOrder = currentTaskOrder + 1,
@@ -1294,7 +1293,8 @@ const onReceiveFromB = (data, accessToken, user) => {
         };
   let content,
       redPacket = user.get('red_packet') || 0,
-      userWrongWords = user.get('wrong_words') || 0;
+      userWrongWords = user.get('wrong_words') || 0,
+      amountPaid = user.get('amount_paid') || 0;
 
   if (status <= 3) {
     // 前4个任务，不判断正确
@@ -1346,8 +1346,42 @@ const onReceiveFromB = (data, accessToken, user) => {
       content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
       sendToUser.text(content, data, accessToken);
     }
-  } else if (status <= 30) {
-    // Task 5-32
+  } else if (status === 13.5) {
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 14);
+      user.save().then(user => {
+        sendToUser.text('恭喜你，你的回答是正确的。', data, accessToken);
+        setTimeout(() => {
+          // 规则图片-5
+          sendToUser.image(wechatConfig.mediaId.image.rule._5, userId, accessToken, startedAt)
+            .then(() => {
+              // Task 15
+              sendToUser.schoolTask(15, data, accessToken);
+            });
+        }, 1000);
+      });
+    } else {
+      content = '不好意思，请再思考，重新选择。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status === 22.5) {
+    if (userContent === '8') {
+      // Change user status
+      user.set('status', 23);
+      user.save().then(user => {
+        content = '恭喜你，你的回答是正确的。下面将会有5道综合题来训练你对【语意】的掌握情况，加油！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          // Task 24
+          sendToUser.schoolTask(24, data, accessToken);
+        });
+      });
+    } else {
+      content = '不好意思，请再思考，重新选择。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status <= 26) {
+    // Task 5-27
     const userTotalWords = compare.getTotalWords(userContent),
           correctTotalWords = compare.getTotalWords(currentTask.correct),
           wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
@@ -1355,7 +1389,6 @@ const onReceiveFromB = (data, accessToken, user) => {
 
     if (isCorrect) {
       redPacket += 1;
-      let newAmountPaid = amountPaid;
 
       if (redPacket === 8) {
         sendToUser.text('*此处应有1元红包*', data, accessToken);
@@ -1370,16 +1403,15 @@ const onReceiveFromB = (data, accessToken, user) => {
         // Reset red_packet to 0
         redPacket = 0;
         // Add 1 to amount_paid
-        newAmountPaid += 1;
+        amountPaid += 1;
       }
       
       user.set({
         status: status + 1,
         last_wrong_words: 0,
         red_packet: redPacket,
-        amount_paid: newAmountPaid
+        amount_paid: amountPaid
       });
-      user.save();
 
       content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
       
@@ -1401,7 +1433,76 @@ const onReceiveFromB = (data, accessToken, user) => {
               sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
             });
         }, 2000);
+      } else {
+        // currentTaskOrder === 7 - 27
+        content = `【任务完成：${currentTaskOrder - 4}/24】\n`;
+        if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
+        content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
+        sendToUser.text(content, data, accessToken);
+
+        const skillGotArray = [9, 11, 14, 17, 20, 23];
+        if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
+          setTimeout(() => {
+            content = '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
+            sendToUser.text(content, data, accessToken);
+          }, 1000);
+
+          // 你的技能
+          setTimeout(() => {
+            if (currentTaskOrder === 9) content = '你的技能：\n1）无错别字\n2）感叹词';
+            if (currentTaskOrder === 11) content = '你的技能：\n1）无错别字\n2）感叹词\n3）语气词';
+            if (currentTaskOrder === 14) content = '你的技能：\n1）无错别字\n2）感叹词\n3）语气词\n4）重复、口误';
+            if (currentTaskOrder === 17) content = '你的技能：\n1）语意（感叹词、语气词、重复口误）\n2）他她它';
+            if (currentTaskOrder === 20) content = '你的技能：\n1）语意（感叹词、语气词、重复口误）\n2）他她它\n3）的地得';
+            if (currentTaskOrder === 23) content = '你的技能：\n1）语意（感叹词、语气词、重复口误）\n2）他她它\n3）的地得\n4）数字';
+            sendToUser.text(content, data, accessToken);
+          }, 2000);
+
+          const ruleArray = [9, 11, 17, 20];
+          if (skillAndRuleArray.indexOf(currentTaskOrder) !== -1) {
+            // Send rule image
+            setTimeout(() => {
+              let ruleOrder = 3;
+              if (currentTaskOrder !== 9) ruleOrder = (currentTaskOrder + 1) / 3;
+              sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt)
+                .then(() => {
+                  sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+                });
+            }, 3000);
+          } else {
+            // currentTaskOrder === 14 or 23
+            user.set('status', status + 0.5);
+            // 回顾与总结
+            setTimeout(() => {
+              if (currentTaskOrder === 14) {
+                content = '【回顾与总结】\n\n恭喜你成功修炼了4种不同的字幕技能，其实它们都在告诉你一个字幕原则：如何判断一部分文字是否应该被删掉？\n\n你只需要记住一点即可：\n\n如果一部分文字在【语意】上没有贡献，就应该被删除掉。';
+              } else {
+                content = '【回顾与总结】\n\n目前为止你总共掌握了7项技能，“快速掌握它们的秘诀是什么？”，你只需要记住一点即可：\n【语意】\n【语意】\n【语意】';
+              }
+              sendToUser.text(content, data, accessToken);
+            }, 3000);
+            
+            if (currentTaskOrder === 14) {
+              setTimeout(() => {
+                content = '【问】为了提高准确率，修改完一个句子后，应该做什么？\n\n1.通过【语意】再检查一遍，判断它是否有贡献\n2.相信自己，不用管了\n\n（回复数字“1”or“2”即可）';
+                sendToUser.text(content, data, accessToken);
+              }, 4000);
+            } else {
+              setTimeout(() => {
+                content = '字幕是一件极为严谨的表达，它是严格基于【语意】来进行修改的，所以你只需要记住你修改的唯一原则是【语意】即可。';
+                sendToUser.text(content, data, accessToken);
+              }, 4000);
+              setTimeout(() => {
+                content = '【问】字幕里修改的最根本原则是什么？\n\n1.无错别字\n2.感叹词\n3.语气词\n4.重复口误\n5.他她它\n6.的地得\n7.数字\n8.语意\n\n（回复数字“1”、“2”...即可）';
+                sendToUser.text(content, data, accessToken);
+              }, 5000);
+            }
+          }
+        } else {
+          sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+        }
       }
+      user.save();
     }
 
     // Create UserTranscript
@@ -1417,21 +1518,45 @@ const onReceiveFromB = (data, accessToken, user) => {
         query.equalTo('user_role', 'B');
         query.count().then(count => {
           if (count === 1) {
-            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
-              sendToUser.text(failContent, data, accessToken).then(() => {
-                sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
-              });
-            }
+            sendToUser.text(failContent, data, accessToken).then(() => {
+              sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
+            });
           } else if (count === 2) {
             if (currentTaskOrder === 5 || currentTaskOrder === 6) {
               content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
               sendToUser.text(content, data, accessToken);
+            } else {
+              content = '【提示】\n\n下面提示图片里标明了这道题错误的地方，只有红色的地方是有错误的，非标红的地方没有错误。\n\n1.如果你修改了非红色部分，请改回来。\n2.如果红色部分你没有发现错误，请努力寻找错误。\n\n注意：你只剩1次机会修改这个片段，将计入你的错别字字数。';
+              sendToUser.text(content, data, accessToken);
+              // TODO: Send hint image
+              setTimeout(() => {
+                sendToUser.text('此处应有hint图片', data, accessToken);
+                // sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
+              }, 1000);
             }
           } else {
             // count >= 3
             if (currentTaskOrder === 5 || currentTaskOrder === 6) {
               content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
               sendToUser.text(content, data, accessToken);
+            } else {
+              userWrongWords += wrongWords;
+              // TODO: Send answer image
+              // sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
+              sendToUser.text('此处应有参考答案图片', data, accessToken);
+
+              // Send text
+              setTimeout(() => {
+                content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n【红包奖励：${redPacket}/8元】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
+                sendToUser.text(content, data, accessToken).then(() => {
+                  // Send next task
+                  sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+                });
+              }, 1000);
+
+              // Update WeChatUser
+              user.set({status: status + 1, wrong_words: userWrongWords});
+              user.save();
             }
           }
         });
