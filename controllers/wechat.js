@@ -1577,25 +1577,29 @@ const onReceiveFromB = (data, accessToken, user) => {
               sendToUser.text(content, data, accessToken);
             } else {
               userWrongWords += wrongWords;
-
-              // TODO: Send answer image
-              // sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
-              sendToUser.text('此处应有参考答案图片', data, accessToken);
-
-              // Send text
-              setTimeout(() => {
-                content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n【红包奖励：${redPacket}/8元】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
+              if (userWrongWords > 10) {
+                content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
                 sendToUser.text(content, data, accessToken);
-              }, 1000);
-
-              if (currentTaskOrder !== 28) {
-                user.set({status: status + 1, wrong_words: userWrongWords});
               } else {
-                // Last task in school
-                user.set({status: 0, role: 'A', wrong_words: userWrongWords});
+                // TODO: Send answer image
+                // sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
+                sendToUser.text('此处应有参考答案图片', data, accessToken);
+
+                // Send text
+                setTimeout(() => {
+                  content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n【红包奖励：${redPacket}/8元】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
+                  sendToUser.text(content, data, accessToken);
+                }, 1000);
+
+                if (currentTaskOrder !== 28) {
+                  user.set({status: status + 1, wrong_words: userWrongWords});
+                } else {
+                  // Last task in school
+                  user.set({status: 0, role: 'A', wrong_words: userWrongWords});
+                }
+                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
+                user.save();                
               }
-              user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
-              user.save();
             }
           }
         });
