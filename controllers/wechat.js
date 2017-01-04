@@ -1580,6 +1580,7 @@ const onReceiveFromB = (data, accessToken, user) => {
               if (userWrongWords > 10) {
                 content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
                 sendToUser.text(content, data, accessToken);
+                user.set({status: 0, role: 'C', wrong_words: 0});
               } else {
                 // TODO: Send answer image
                 // sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
@@ -1598,8 +1599,8 @@ const onReceiveFromB = (data, accessToken, user) => {
                   user.set({status: 0, role: 'A', wrong_words: userWrongWords});
                 }
                 user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
-                user.save();                
               }
+              user.save();
             }
           }
         });
