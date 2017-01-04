@@ -1671,7 +1671,9 @@ module.exports.postCtrl = (req, res, next) => {
         sendToUser.image(wechatConfig.mediaId.image.complain, userId, accessToken, startedAt);
       } else {
         // Check role
-        if (userRole === 'B') {
+        if (userRole === 'C') {
+          // TODO
+        } else if (userRole === 'B') {
           onReceiveFromB(data, accessToken, user);
         } else {
           // A, 帮主, 工作人员, B端用户
