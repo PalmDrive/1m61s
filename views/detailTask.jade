@@ -7,14 +7,14 @@ html
       .circle
         span.rewardRate #{data.rewardRate} 
         .arrowLeft →
-      h3 准确率奖励加倍百分比
+      h2 准确率奖励加倍百分比
       h4 额外奖励
       h4 #{data.reward}元
     
     section.title1
-      h1 今日质量诊断报告
-      h3 我们会将随机抽取你的片段进行抽查，请重点查看红色错误部分！
-      h3 若要进行申诉，请联系小助手：palmdrivefufu(微信号）
+      h1.title11 今日质量诊断报告
+      .title12 我们会将随机抽取你的片段进行抽查，请重点查看红色错误部分！
+      .title12 若要进行申诉，请联系小助手：palmdrivefufu(微信号）
 
     section.content
       each error, i in data.errorTask
