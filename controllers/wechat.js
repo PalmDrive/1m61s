@@ -823,7 +823,6 @@ const completeTaskAndReply = (task, data, accessToken, user) => {
         }, 3000);
       }
     } else {
-      // User has not completed 4 tasks
       let replyContent = 'biu~我已经收到了你的';
 
       if (isCorrect) {
