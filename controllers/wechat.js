@@ -1833,23 +1833,6 @@ module.exports.postCtrl = (req, res, next) => {
               content = '请回复“前”或“后”解锁技能，否则无法领取下一个任务啦。';
             }
             sendToUser.text(content, data, accessToken);
-          } else if (userStatus >= -104 && userStatus <= -100) {
-            order = -100 - userStatus;
-            sendToUser.text(savedContent.thirdMin[order], data, accessToken)
-              .then(() => {
-                sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, startedAt);
-              });
-          } else if (userStatus >= -304 && userStatus <= -300) {
-            order = -300 - userStatus;
-            // Send text
-            sendToUser.text(savedContent.firstMin[order], data, accessToken);
-            // Send voice in 1s
-            setTimeout(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, startedAt);
-            }, 1000);
-          } else if (userStatus >= -206 && userStatus <= -200) {
-            order = -200 - userStatus;
-            sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
           } else if (userStatus === -1) {
             sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
           } else {
