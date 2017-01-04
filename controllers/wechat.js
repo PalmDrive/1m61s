@@ -1059,17 +1059,10 @@ const onReceiveWeChatId = (data, accessToken, user) => {
   const content = data.content;
   if (content === '1') {
     // Change user status
-    user.set('status', -200);
+    user.set('status', 0);
     user.save().then(user => {
-      logger.info(`--- At ${getTime(data._startedAt)} onReceiveWeChatId / set status -200 `);
-      // Send image to let user add xiaozhushou
-      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken, data._startedAt)
-        .then(() => {
-          setTimeout(() => {
-            // Send first question
-            sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
-          }, 2000);
-        });
+      logger.info(`--- At ${getTime(data._startedAt)} onReceiveWeChatId / set status 0 `);
+      sendToUser.text('微信号登记成功！', data.fromusername, accessToken, data._startedAt)
     });
   } else {
     // Save WeChatId, ask for confirmation
