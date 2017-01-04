@@ -1456,7 +1456,7 @@ const onReceiveFromB = (data, accessToken, user) => {
       content = '不好意思，请再思考，重新选择。';
       sendToUser.text(content, data, accessToken);
     }
-  } else if (status <= 26) {
+  } else if (status <= 27) {
     // Task 5-27
     const userTotalWords = compare.getTotalWords(userContent),
           correctTotalWords = compare.getTotalWords(currentTask.correct),
@@ -1557,7 +1557,6 @@ const onReceiveFromB = (data, accessToken, user) => {
               sendToUser.text(content, data, accessToken);
             } else {
               userWrongWords += wrongWords;
-              user.set({status: status + 1, wrong_words: userWrongWords});
 
               // TODO: Send answer image
               // sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
@@ -1569,241 +1568,35 @@ const onReceiveFromB = (data, accessToken, user) => {
                 sendToUser.text(content, data, accessToken);
               }, 1000);
 
-              user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
-
-              // Update WeChatUser
+              if (currentTaskOrder !== 28) {
+                user.set({status: status + 1, wrong_words: userWrongWords});
+                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
+              } else {
+                // Last task in school
+                user.set({status: 0, role: 'A', wrong_words: userWrongWords});
+                setTimeout(() => {
+                  content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
+                  sendToUser.text(content, data, accessToken);
+                }, 2000);
+                // 毕业证书
+                setTimeout(() => {
+                  sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
+                }, 3000);
+                setTimeout(() => {
+                  content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
+                  sendToUser.text(content, data, accessToken);
+                }, 4000);
+                setTimeout(() => {
+                  content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
+                  sendToUser.text(content, data, accessToken);
+                }, 5000);
+              }
               user.save();
             }
           }
         });
       }
     });
-
-    // LeanCloud related updates
-    // if (isCorrect) {
-    //   userWrongWords += lastWrongWords;
-    //   user.set({
-    //     status: status + 1,
-    //     wrong_words: userWrongWords,
-    //     last_wrong_words: 0
-    //   });
-    // } else {
-
-    //   if (isCorrect) {
-    //     redPacket += 1;
-    //     let newAmountPaid = amountPaid;
-
-    //     if (redPacket === 8) {
-    //       // TODO: send red packet to user
-    //       sendToUser.text('*此处应有1元红包*', data, accessToken);
-    //       // 发红包
-    //       const _data = {
-    //             re_openid: userId,
-    //             total_amount: 1 * 100
-    //             },
-    //             _callback = ret => {
-    //             };
-    //       wechat_pay.sendMoney(_data, _callback);
-    //       // Reset red_packet to 0
-    //       redPacket = 0;
-    //       // Add 1 to amount_paid
-    //       newAmountPaid += 1;
-    //     }
-    //     user.set({
-    //       status: status + 1,
-    //       last_wrong_words: 0,
-    //       red_packet: redPacket,
-    //       amount_paid: newAmountPaid
-    //     });
-    //   } else {
-    //     // Answer is wrong
-    //     user.set('last_wrong_words', wrongWords);
-    //   }
-    // }
-
-    // user.save().then(user => {
-    //   // Reply to user
-    //   if (!isCorrectOr2) {
-    //     // Answer is wrong
-    //     sendToUser.text(failContent, data, accessToken).then(() => {
-    //       sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
-    //     });
-    //   } else {
-    //     // Answer is correct or '2'
-    //     // Send answer image
-    //     if ([4, 5, 6, 7].indexOf(status) === -1) {
-    //       // Task 5-8 do not have answer image
-    //       sendToUser.image(wechatConfig.mediaId.image.answers['_' + currentTaskOrder], userId, accessToken, startedAt);
-    //     }
-
-    //     setTimeout(() => {
-    //       let ruleOrder = [7, 11, 15, 19, 23, 27].indexOf(status);
-    //       if (ruleOrder !== -1) {
-    //         ruleOrder += 2;
-    //         // Send stats and tell user he's entering next stage
-    //         if (isCorrect) {
-    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n恭喜你，你的答案是正确的！集满1元将发送红包给你。\n\n你已经成功挑战该阶段任务，欢迎进阶到下一难度的训练中！（么么哒）`;
-    //         } else {
-    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n腻害，该片段视为错误，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。上面是参考答案，认真阅读参考答案，这将有助于提高下一个片段的准确率～（该段没有红包奖励）\n\nAnyway,你已经成功挑战该阶段任务，欢迎进阶到下一难度的训练中！（么么哒）`;
-    //         }
-    //         sendToUser.text(content, data, accessToken)
-    //           .then(() => {
-    //             // Send rule image
-    //             setTimeout(() => {
-    //               sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt).then(() => {
-    //                 // Send next task
-    //                 sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-    //               });
-    //             }, 1000);
-    //           });
-    //       } else {
-    //         // Send stats
-    //         if (isCorrect) {
-    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n恭喜你，你的答案是正确的！集满1元将发送红包给你，快来挑战下一个片段吧！`;
-    //         } else {
-    //           content = `【红包奖励：${redPacket}/8元】\n【学院任务：${currentTaskOrder - 4}/28】\n【当前累计错别字字数:${userWrongWords}】\n\n腻害，该片段视为错误，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。上面是参考答案，认真阅读参考答案，这将有助于提高下一个片段的准确率～（该段没有红包奖励）`;
-    //         }
-    //         sendToUser.text(content, data, accessToken);
-
-    //         setTimeout(() => {
-    //           if ([12, 13, 18, 22, 25].indexOf(status) !== -1) {
-    //             // 1 tip
-    //             content = wechatData.tips['_' + currentTaskOrder];
-    //             sendToUser.text(content, data, accessToken).then(() => {
-    //               // Next task
-    //               sendToUser.schoolTask(nextTaskOrder, data, accessToken);
-    //             });
-    //           } else if (status === 10) {
-    //             // Q&A
-    //             content = wechatData['Q&A'].rule;
-    //             sendToUser.text(content, data, accessToken).then(() => {
-    //               setTimeout(() => {
-    //                 // Tip
-    //                 content = wechatData.tips._11;
-    //                 sendToUser.text(content, data, accessToken).then(() => {
-    //                   // Next task
-    //                   sendToUser.schoolTask(nextTaskOrder, data, accessToken);
-    //                 });
-    //               }, 1000);
-    //             });
-    //           } else if (status === 14) {
-    //             // Two tips
-    //             content = wechatData.tips._15[0];
-    //             sendToUser.text(content, data, accessToken).then(() => {
-    //               setTimeout(()=> {
-    //                 content = wechatData.tips._15[1];
-    //                 sendToUser.text(content, data, accessToken).then(() => {
-    //                   // Next task
-    //                   sendToUser.schoolTask(nextTaskOrder, data, accessToken);
-    //                 });
-    //               }, 1000);
-    //             });
-    //           } else {
-    //             // Next task
-    //             sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-    //           }
-    //         }, 1000);
-    //       }
-    //     }, 1000);
-    //   }
-    // });
-  } else if (status === 31) {
-    // Task 32, last task in 1'61 school
-    const userTotalWords = compare.getTotalWords(userContent),
-          correctTotalWords = compare.getTotalWords(currentTask.correct),
-          wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
-          isCorrect = wrongWords === 0,
-          is2 = lastWrongWords !== 0 && userContent === '2',
-          isCorrectOr2 = isCorrect || is2;
-    let needCreateUserTranscript = false;
-
-    if (isCorrectOr2) {
-      // 更新总错别字数
-      let newAmountPaid = amountPaid;
-      if (isCorrect) {
-        needCreateUserTranscript = true;
-
-        redPacket += 1;
-        if (redPacket === 8) {
-          // TODO: send red packet to user
-          sendToUser.text('*此处应有1元红包*', data, accessToken);
-          // 发红包
-          const _data = {
-                re_openid: userId,
-                total_amount: 1 * 100
-                },
-                _callback = ret => {
-                };
-          wechat_pay.sendMoney(_data, _callback);
-          // Reset red_packet to 0
-          redPacket = 0;
-          // Add 1 to amount_paid
-          newAmountPaid += 1;
-        }
-      } else {
-        // User replies '2'
-        userWrongWords += lastWrongWords;
-      }
-
-      user.set({
-        wrong_words: userWrongWords,
-        last_wrong_words: 0,
-        red_packet: redPacket,
-        amount_paid: newAmountPaid
-      });
-
-      // 判断总错别字数
-      if (userWrongWords > 10) {
-        user.set({status: 0, role: 'C'});
-
-        sendToUser.text('非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。', data, accessToken);
-      } else {
-        user.set({status: 0, role: 'A'});
-
-        // Find the number of graduates before this user
-        let query = new LeanCloud.Query('WeChatUser');
-        const query2 = new LeanCloud.Query('WeChatUser');
-        query.equalTo('role', 'A');
-        query2.equalTo('role', '帮主');
-        query = LeanCloud.Query.or(query, query2);
-        query.count().then(count => {
-          content = `恭喜你成为1'61新手学院第${count + 1}名毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书礼物，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。`;
-          sendToUser.text(content, data, accessToken).then(() => {
-            // 毕业证书
-            setTimeout(() => {
-              sendToUser.text('*此处应有毕业证书*', data, accessToken).then(() => {
-                // 毕业宣言
-                setTimeout(() => {
-                  content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都会有一张人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。\n\nPs:集满36张还会有1000元现金奖励。';
-                  sendToUser.text(content, data, accessToken).then(() => {
-                    setTimeout(() => {
-                      content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
-                      sendToUser.text(content, data, accessToken);
-                    }, 1000);
-                  });
-                }, 1000);
-              });
-            }, 1000);
-          });
-        });
-      }
-      user.save();
-    } else {
-      // Answer is wrong
-      needCreateUserTranscript = true;
-
-      user.set('last_wrong_words', wrongWords);
-      user.save();
-
-      sendToUser.text(failContent, data, accessToken).then(() => {
-        sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
-      });
-    }
-
-    if (needCreateUserTranscript) {
-      userTranscript.set(userTranscriptObj);
-      userTranscript.save();
-    }
   }
 };
 
