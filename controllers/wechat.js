@@ -1479,14 +1479,15 @@ const onReceiveFromB = (data, accessToken, user) => {
 
       if (redPacket === 8) {
         sendToUser.text('*此处应有1元红包*', data, accessToken);
-        // 发红包
-        const _data = {
-              re_openid: userId,
-              total_amount: 1 * 100
-              },
-              _callback = ret => {
-              };
-        wechat_pay.sendMoney(_data, _callback);
+        // // 发红包
+        // const _data = {
+        //       re_openid: userId,
+        //       total_amount: 1 * 100
+        //       },
+        //       _callback = ret => {
+        //       };
+        // wechat_pay.sendMoney(_data, _callback);
+
         // Reset red_packet to 0
         redPacket = 0;
         // Add 1 to amount_paid
