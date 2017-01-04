@@ -1557,10 +1557,9 @@ const onReceiveFromB = (data, accessToken, user) => {
             } else {
               content = '【提示】\n\n下面提示图片里标明了这道题错误的地方，只有红色的地方是有错误的，非标红的地方没有错误。\n\n1.如果你修改了非红色部分，请改回来。\n2.如果红色部分你没有发现错误，请努力寻找错误。\n\n注意：你只剩1次机会修改这个片段，将计入你的错别字字数。';
               sendToUser.text(content, data, accessToken);
-              // TODO: Send hint image
+              // Send hint image
               setTimeout(() => {
-                sendToUser.text('此处应有hint图片', data, accessToken);
-                // sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
+                sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
               }, 1000);
             }
           } else {
@@ -1575,9 +1574,8 @@ const onReceiveFromB = (data, accessToken, user) => {
                 sendToUser.text(content, data, accessToken);
                 user.set({status: 0, role: 'C', wrong_words: 0});
               } else {
-                // TODO: Send answer image
-                // sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
-                sendToUser.text('此处应有参考答案图片', data, accessToken);
+                // Send answer image
+                sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
 
                 // Send text
                 setTimeout(() => {
