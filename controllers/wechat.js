@@ -1806,7 +1806,9 @@ module.exports.postCtrl = (req, res, next) => {
           setPrice(data, user);
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
-        if (userRole === 'B') {
+        if (userRole === 'C') {
+          // TODO
+        } else if (userRole === 'B') {
           onGetTaskForB(data, accessToken, user);
         } else {
           // A, 帮主, 工作人员, B端用户
