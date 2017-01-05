@@ -812,8 +812,6 @@ const completeTaskAndReply = (task, data, accessToken, user) => {
         sendToUser.text(content, data, accessToken);
       }, 2000);
 
-      // sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将现金红包发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
-      // user.set('status', 1);
       user.set('status', 3);
       user.save();
 
@@ -1382,19 +1380,40 @@ const onReceiveFromB = (data, accessToken, user) => {
       userWrongWords = user.get('wrong_words') || 0,
       amountPaid = user.get('amount_paid') || 0;
 
-  if (status <= 3) {
+  if (status === 1.5) {
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 2);
+      user.save().then(user => {
+        logger.info(`--- At ${getTime(startedAt)} onReceiveWeChatId / set status 2 `);
+        sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, userId, accessToken, startedAt)
+          .then(() => {
+            sendToUser.schoolTask(3, data, accessToken);
+          });
+      });
+    } else {
+      // Save WeChatId, ask for confirmation
+      user.set('wechat_id', content);
+      user.save().then(user => {
+        logger.info(`--- At ${getTime(startedAt)} onReceiveWeChatId / set wechat_id :${userContent}`);
+        sendToUser.text(`微信号：${userContent}。确认请回复1，修改请回复新的微信号。`, data, accessToken);
+      });
+    }
+  } else if (status <= 3) {
     // 前4个任务，不判断正确
     // Create UserTranscript        
     userTranscript.set(userTranscriptObj);
     userTranscript.save().then(userTranscript => {
-      if (status === 3) {
+      if (status === 3 || status === 1) {
         user.set('status', status + 0.5);
       } else {
         user.set('status', status + 1);
       }
       user.set('red_packet', redPacket + 1);
       user.save().then(user => {
-        if (status === 3) {
+        if (status === 1) {
+          content = '么么哒，请回复你的微信号（非微信昵称），在接下来的任务里，你可能会遇到各种各样的问题，我们的小助手将通过微信来协助你。';
+        } else if (status === 3) {
           content = '【1\'61是干什么？】\n\n我们来自硅谷斯坦福大学，是一家以人工智能驱动的语音识别初创企业，因为我们的机器只能正确翻译90%的语音，所以我们将机器翻译错误的部分（10%）通过众包的形式分发给大家进行人工校对。\n\n目前，我们主要为各大教育视频机构做字幕，你修改的每一条文字都将直接呈现在各大教育视频网站里，让数千万的学生看见。';
         } else {
           content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
@@ -1409,7 +1428,7 @@ const onReceiveFromB = (data, accessToken, user) => {
             setTimeout(() => {
               sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
             }, 2000);
-          } else {
+          } else if (status !== 1) {
             sendToUser.schoolTask(nextTaskOrder, data, accessToken);
           }
         });
@@ -1459,7 +1478,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         content = '恭喜你，你的回答是正确的。下面将会有5道综合题来训练你对【语意】的掌握情况，加油！';
         sendToUser.text(content, data, accessToken).then(() => {
           // Task 24
-          sendToUser.schoolTask(24, data, accessToken);
+          sendToUser.schoolTask(24, data, accessToken, user);
         });
       });
     } else {
