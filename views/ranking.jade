@@ -3,10 +3,10 @@ html
     link(href="../static/style/ranking.css",type="text/css", rel="stylesheet")
     
     script(src="http://lib.sinaapp.com/js/jquery/1.9.1/jquery-1.9.1.js")
-    script(src="http://lib.sinaapp.com/js/angular.js/angular-1.2.19/angular.min.js")
+    // script(src="http://lib.sinaapp.com/js/angular.js/angular-1.2.19/angular.min.js")
     script(src="../static/app.js")
 
-  body.runking(ng-app="1m61s", ng-controller="appController")
+  body.runking
     section.title
       .circle
         span.rewardRate #{data.rewardRate} 
@@ -19,17 +19,17 @@ html
       table
         tr
           th 
-            a(href="", ng-click="todayTaskClick()") 今日完成片段数
+            a.todayTaskClick(href="###", onclick="todayTaskClick();return true;") 今日完成片段数
           th 
-            a(href="", ng-click="rightRateClick()") 准确率排名
+            a.rightRateClick(href="###", onclick="rightRateClick();return true;")  准确率排名
           th 
-            a(href="", ng-click="totalTaskClick()") 累积总完成片段数
+            a.totalTaskClick(href="###", onclick="totalTaskClick();return true;")  累积总完成片段数
         tr 
           td #{data.task_amount}
           td #{data.ranking}
           td #{data.total_task_amount}
 
-    section.three.rightRate(ng-show="rightRateShow")
+    section.three.rightRate
       table
         tr
           th 排名
@@ -43,7 +43,7 @@ html
             td #{result.right_task_rate}
             td #{result.reward_rate}
 
-    section.three.todayTask(ng-show="todayTaskShow")
+    section.three.todayTask
       table
         tr
           th 排名
@@ -57,7 +57,7 @@ html
             td #{result.task_amount}
             td #{result.total_task_amount}
 
-    section.three.totalTask(ng-show="totalTaskShow")
+    section.three.totalTask
       table
         tr
           th 排名

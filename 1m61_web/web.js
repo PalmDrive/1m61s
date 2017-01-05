@@ -118,7 +118,7 @@ app.get('/ranking', function (req, res, next) {
 });
 
 const promiseQuery = (ranking) => {
-  const query = new LeanCloud.Query("WeChatUser");
+  const query = new LeanCloud.Query('WeChatUser');
   query.greaterThanOrEqualTo('updatedAt', date1);
   query.lessThanOrEqualTo('updatedAt', date2);
   query.descending(ranking);
