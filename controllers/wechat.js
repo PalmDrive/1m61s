@@ -1576,6 +1576,7 @@ const onReceiveFromB = (data, accessToken, user) => {
               sendToUser.text(content, data, accessToken);
             } else {
               userWrongWords += wrongWords;
+              user.set('wrong_words', userWrongWords);
               if (userWrongWords > 10) {
                 content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
                 sendToUser.text(content, data, accessToken);
@@ -1591,10 +1592,10 @@ const onReceiveFromB = (data, accessToken, user) => {
                 }, 1000);
 
                 if (currentTaskOrder !== 28) {
-                  user.set({status: status + 1, wrong_words: userWrongWords});
+                  user.set('status', status + 1);
                 } else {
                   // Last task in school
-                  user.set({status: 0, role: 'A', wrong_words: userWrongWords});
+                  user.set({status: 0, role: 'A'});
                 }
                 user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
               }
