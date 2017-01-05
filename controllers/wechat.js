@@ -1579,7 +1579,7 @@ const onReceiveFromB = (data, accessToken, user) => {
               if (userWrongWords > 10) {
                 content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
                 sendToUser.text(content, data, accessToken);
-                user.set({status: 0, role: 'C', wrong_words: 0});
+                user.set('status', -1);
               } else {
                 // Send answer image
                 sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
@@ -1672,7 +1672,9 @@ module.exports.postCtrl = (req, res, next) => {
         if (userRole === 'C') {
           // TODO
         } else if (userRole === 'B') {
-          onReceiveFromB(data, accessToken, user);
+          if (userStatus !== -1) {
+            onReceiveFromB(data, accessToken, user);
+          }
         } else {
           // A, 帮主, 工作人员, B端用户
           // Check user status
@@ -1811,7 +1813,9 @@ module.exports.postCtrl = (req, res, next) => {
         if (userRole === 'C') {
           // TODO
         } else if (userRole === 'B') {
-          onGetTaskForB(data, accessToken, user);
+          if (userStatus !== -1) {
+            onGetTaskForB(data, accessToken, user);
+          }
         } else {
           // A, 帮主, 工作人员, B端用户
           // Check if the user has wechat_id recorded if the user has done more than 4 tasks
