@@ -821,18 +821,6 @@ const completeTaskAndReply = (task, data, accessToken, user) => {
         }, 3000);
       }
     } else {
-      let replyContent = 'biu~我已经收到了你的';
-
-      if (isCorrect) {
-        replyContent += '回复';
-      } else {
-        replyContent += '文字';
-      }
-
-      replyContent += '啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。';
-
-      sendToUser.text(replyContent, data, accessToken);
-
       findAndSendNewTaskForUser(data, accessToken, user);
     }
   });
