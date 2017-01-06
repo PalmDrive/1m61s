@@ -18,7 +18,7 @@ const request = require('request'),
       redisClient = require('../redis_client'),
       wechatLib = require('../lib/wechat'),
       compare = require('../lib/compare_transcript'),
-      wechat_pay = require('../lib/wechat_pay');
+      wechatPay = require('../lib/wechat_pay');
 
 const taskTimers = {};
 
@@ -532,6 +532,16 @@ const sendToUser = {
     } else {
       return Promise.resolve(false);
     }
+  },
+  // 发红包
+  redPacket(userId, yuan, callback) {
+    const data = {
+            re_openid: userId,
+            total_amount: yuan * 100
+          },
+          _callback = ret => {};
+    callback = callback || _callback;
+    wechatPay.sendMoney(data, callback);
   }
 };
 
@@ -1486,38 +1496,19 @@ const onReceiveFromB = (data, accessToken, user) => {
 
     if (isCorrect) {
       redPacket += 1;
-
-      if (redPacket === 8) {
-        sendToUser.text('*此处应有1元红包*', data, accessToken);
-        // // 发红包
-        // const _data = {
-        //       re_openid: userId,
-        //       total_amount: 1 * 100
-        //       },
-        //       _callback = ret => {
-        //       };
-        // wechat_pay.sendMoney(_data, _callback);
-
-        // Reset red_packet to 0
-        redPacket = 0;
-        // Add 1 to amount_paid
-        amountPaid += 1;
-      }
-      
-      user.set({
-        status: status + 1,
-        last_wrong_words: 0,
-        red_packet: redPacket,
-        amount_paid: amountPaid
-      });
-
+      const sendRedPacket = redPacket === 8;
       content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
       
       if (currentTaskOrder === 5) {
         content += '恭喜你，你的答案是正确的！';
-        sendToUser.text(content, data, accessToken).then(() => {
+        sendToUser.text(content, data, accessToken);
+        setTimeout(() => {
+          if (sendRedPacket) {
+            // sendToUser.redPacket(userId, 1);
+            sendToUser.text('*此处应有1元红包*', data, accessToken);
+          }
           sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-        });
+        }, 1000);
       } else if (currentTaskOrder === 6) {
         content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
         sendToUser.text(content, data, accessToken);
@@ -1542,6 +1533,20 @@ const onReceiveFromB = (data, accessToken, user) => {
           user.set({status: 0, role: 'A'});
         }
       }
+
+      if (redPacket === 8) {
+        // Reset red_packet to 0
+        redPacket = 0;
+        // Add 1 to amount_paid
+        amountPaid += 1;
+      }
+
+      user.set({
+        status: status + 1,
+        last_wrong_words: 0,
+        red_packet: redPacket,
+        amount_paid: amountPaid
+      });
       user.save();
     }
 
