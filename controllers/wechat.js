@@ -650,9 +650,13 @@ const onGetTask = (data, accessToken, user) => {
 
 const onGetTaskForB = (data, accessToken, user) => {
   const status = user.get('status');
-  if (status === 3.5) {
+  if (status === 1.5) {
+    sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
+  } else if (status === 3.5) {
     const content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
     sendToUser.text(content, data, accessToken);
+  } else if (status === 13.5 || status === 22.5) {
+    sendToUser.text('biu~请先回答问题噢。', data, accessToken);
   } else {
     // Send current task
     sendToUser.schoolTask(status + 1, data, accessToken, user);
