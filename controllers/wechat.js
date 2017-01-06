@@ -1357,7 +1357,6 @@ const ruleTeaching = (data, accessToken, user, currentTaskOrder, status, delay) 
 
 const onReceiveFromB = (data, accessToken, user) => {
   const status = user.get('status'),
-        lastWrongWords = user.get('last_wrong_words') || 0,
         currentTaskOrder = status + 1,
         currentTask = Tasks['_' + currentTaskOrder],
         nextTaskOrder = currentTaskOrder + 1,
@@ -1374,9 +1373,7 @@ const onReceiveFromB = (data, accessToken, user) => {
           user_open_id: userId,
           review_times: 0,
           user_role: 'B'
-        },
-        skillGotArray = [9, 11, 14, 17, 20, 23],
-        ruleArray = [9, 11, 17, 20];
+        };
   let content,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0,
@@ -1622,6 +1619,173 @@ const onReceiveFromB = (data, accessToken, user) => {
   }
 };
 
+const onReceiveFromC = (data, accessToken, user) => {
+  const status = user.get('status'),
+        currentTaskOrder = status + 5,
+        currentTask = Tasks['_' + currentTaskOrder],
+        nextTaskOrder = currentTaskOrder + 1,
+        nextTask = Tasks['_' + nextTaskOrder],
+        startedAt = data._startedAt,
+        userId = data.fromusername,
+        userContent = data.content,
+        userTranscript = new UserTranscript(),
+        failContent = 'I’ll fail and fail again until I succeed(我将持续失败直到成功！）\n\n你的回答错误，请仔细回顾图片规则，再次回答。',
+        userTranscriptObj = {
+          media_id: `training`,
+          content: userContent,
+          fragment_order: currentTaskOrder,
+          user_open_id: userId,
+          review_times: 0,
+          user_role: 'C'
+        };
+  let content,
+      userWrongWords = user.get('wrong_words') || 0;
+
+  if (status === 9.5) {
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 10);
+      user.save().then(user => {
+        sendToUser.text('恭喜你，你的回答是正确的。', data, accessToken);
+        setTimeout(() => {
+          // 规则图片-5
+          sendToUser.image(wechatConfig.mediaId.image.rule._5, userId, accessToken, startedAt)
+            .then(() => {
+              // Task 15
+              sendToUser.schoolTask(15, data, accessToken);
+            });
+        }, 1000);
+      });
+    } else {
+      content = '不好意思，请再思考，重新选择。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status === 18.5) {
+    if (userContent === '8') {
+      // Change user status
+      user.set('status', 19);
+      user.save().then(user => {
+        content = '恭喜你，你的回答是正确的。下面将会有5道综合题来训练你对【语意】的掌握情况，加油！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          // Task 24
+          sendToUser.schoolTask(24, data, accessToken, user);
+        });
+      });
+    } else {
+      content = '不好意思，请再思考，重新选择。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status <= 23) {
+    // Task 5-28
+    const userTotalWords = compare.getTotalWords(userContent),
+          correctTotalWords = compare.getTotalWords(currentTask.correct),
+          wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
+          isCorrect = wrongWords === 0;
+
+    if (isCorrect) {      
+      user.set('status', status + 1);
+
+      content = `【任务完成：${currentTaskOrder - 4}/24】\n\n`;
+      
+      if (currentTaskOrder === 5) {
+        content += '恭喜你，你的答案是正确的！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+        });
+      } else if (currentTaskOrder === 6) {
+        content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
+        sendToUser.text(content, data, accessToken);
+        setTimeout(() => {
+          content = '你的技能：\n1）无错别字';
+          sendToUser.text(content, data, accessToken);
+        }, 1000);
+        setTimeout(() => {
+          sendToUser.image(wechatConfig.mediaId.image.rule._2, userId, accessToken, startedAt)
+            .then(() => {
+              sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+            });
+        }, 2000);
+      } else {
+        // currentTaskOrder === 7 - 28
+        content = `【任务完成：${currentTaskOrder - 4}/24】\n`;
+        if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
+        content += '\n恭喜你，你的答案是正确的！';
+        sendToUser.text(content, data, accessToken);
+        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status);
+        if (currentTaskOrder === 28) {
+          user.set({status: 0, role: 'A'});
+        }
+      }
+      user.save();
+    }
+
+    // Create UserTranscript
+    userTranscript.set(userTranscriptObj);
+    userTranscript.save().then(userTranscript => {
+      if (!isCorrect) {
+        // Get answer times
+        const query = new LeanCloud.Query('UserTranscript');
+        query.equalTo('media_id', 'training');
+        query.equalTo('fragment_order', currentTaskOrder);
+        query.equalTo('user_open_id', userId);
+        query.equalTo('review_times', 0);
+        query.equalTo('user_role', 'C');
+        query.count().then(count => {
+          if (count === 1) {
+            sendToUser.text(failContent, data, accessToken).then(() => {
+              sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
+            });
+          } else if (count === 2) {
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+              sendToUser.text(content, data, accessToken);
+            } else {
+              content = '【提示】\n\n下面提示图片里标明了这道题错误的地方，只有红色的地方是有错误的，非标红的地方没有错误。\n\n1.如果你修改了非红色部分，请改回来。\n2.如果红色部分你没有发现错误，请努力寻找错误。\n\n注意：你只剩1次机会修改这个片段，将计入你的错别字字数。';
+              sendToUser.text(content, data, accessToken);
+              // Send hint image
+              setTimeout(() => {
+                sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
+              }, 1000);
+            }
+          } else {
+            // count >= 3
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+              sendToUser.text(content, data, accessToken);
+            } else {
+              userWrongWords += wrongWords;
+              user.set('wrong_words', userWrongWords);
+              if (userWrongWords > 10) {
+                content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
+                sendToUser.text(content, data, accessToken);
+                user.set('status', -1);
+              } else {
+                // Send answer image
+                sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
+
+                // Send text
+                setTimeout(() => {
+                  content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
+                  sendToUser.text(content, data, accessToken);
+                }, 1000);
+
+                if (currentTaskOrder !== 28) {
+                  user.set('status', status + 1);
+                } else {
+                  // Last task in school
+                  user.set({status: 0, role: 'A'});
+                }
+                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
+              }
+              user.save();
+            }
+          }
+        });
+      }
+    });
+  }
+};
+
 const cancelListTip = (data, accessToken, user) => {
   const preference = user.get('preference') || {};
   preference.disableTip = true;
@@ -1685,7 +1849,9 @@ module.exports.postCtrl = (req, res, next) => {
       } else {
         // Check role
         if (userRole === 'C') {
-          // TODO
+          if (userStatus !== -1) {
+            onReceiveFromC(data, accessToken, user);
+          }
         } else if (userRole === 'B') {
           if (userStatus !== -1) {
             onReceiveFromB(data, accessToken, user);
@@ -1826,7 +1992,9 @@ module.exports.postCtrl = (req, res, next) => {
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
         if (userRole === 'C') {
-          onGetTaskForC(data, accessToken, user);
+          if (userStatus !== -1) {
+            onGetTaskForC(data, accessToken, user);
+          }
         } else if (userRole === 'B') {
           if (userStatus !== -1) {
             onGetTaskForB(data, accessToken, user);
