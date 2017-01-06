@@ -18,7 +18,7 @@ const request = require('request'),
       redisClient = require('../redis_client'),
       wechatLib = require('../lib/wechat'),
       compare = require('../lib/compare_transcript'),
-      wechat_pay = require('../lib/wechat_pay');
+      wechatPay = require('../lib/wechat_pay');
 
 const taskTimers = {};
 
@@ -532,6 +532,16 @@ const sendToUser = {
     } else {
       return Promise.resolve(false);
     }
+  },
+  // 发红包
+  redPacket(userId, yuan, callback) {
+    const data = {
+            re_openid: userId,
+            total_amount: yuan * 100
+          },
+          _callback = ret => {};
+    callback = callback || _callback;
+    wechatPay.sendMoney(data, callback);
   }
 };
 
@@ -555,14 +565,13 @@ const onSubscribe = (data, accessToken) => {
   const userId = data.fromusername;
   // Send image of introduction
   sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken, data._startedAt).then(() => {
-    // Send text in 1s
+    // Send first task
     setTimeout(() => {
       sendToUser.text(Tasks._1.text, data, accessToken);
-    }, 1000);
-    // Send voice in 2s
+    }, 2000);
     setTimeout(() => {
       sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], userId, accessToken, data._startedAt);
-    }, 2000);
+    }, 3000);
   });
 };
 
@@ -650,9 +659,13 @@ const onGetTask = (data, accessToken, user) => {
 
 const onGetTaskForB = (data, accessToken, user) => {
   const status = user.get('status');
-  if (status === 3.5) {
+  if (status === 1.5) {
+    sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
+  } else if (status === 3.5) {
     const content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
     sendToUser.text(content, data, accessToken);
+  } else if (status === 13.5 || status === 22.5) {
+    sendToUser.text('biu~请先回答问题噢。', data, accessToken);
   } else {
     // Send current task
     sendToUser.schoolTask(status + 1, data, accessToken, user);
@@ -812,8 +825,6 @@ const completeTaskAndReply = (task, data, accessToken, user) => {
         sendToUser.text(content, data, accessToken);
       }, 2000);
 
-      // sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将现金红包发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
-      // user.set('status', 1);
       user.set('status', 3);
       user.save();
 
@@ -823,18 +834,6 @@ const completeTaskAndReply = (task, data, accessToken, user) => {
         }, 3000);
       }
     } else {
-      let replyContent = 'biu~我已经收到了你的';
-
-      if (isCorrect) {
-        replyContent += '回复';
-      } else {
-        replyContent += '文字';
-      }
-
-      replyContent += '啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。';
-
-      sendToUser.text(replyContent, data, accessToken);
-
       findAndSendNewTaskForUser(data, accessToken, user);
     }
   });
@@ -1377,24 +1376,45 @@ const onReceiveFromB = (data, accessToken, user) => {
         },
         skillGotArray = [9, 11, 14, 17, 20, 23],
         ruleArray = [9, 11, 17, 20];
-  let content,
+  let content, delay,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0,
       amountPaid = user.get('amount_paid') || 0;
 
-  if (status <= 3) {
+  if (status === 1.5) {
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 2);
+      user.save().then(user => {
+        logger.info(`--- At ${getTime(startedAt)} onReceiveWeChatId / set status 2 `);
+        sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, userId, accessToken, startedAt)
+          .then(() => {
+            sendToUser.schoolTask(3, data, accessToken);
+          });
+      });
+    } else {
+      // Save WeChatId, ask for confirmation
+      user.set('wechat_id', content);
+      user.save().then(user => {
+        logger.info(`--- At ${getTime(startedAt)} onReceiveWeChatId / set wechat_id :${userContent}`);
+        sendToUser.text(`微信号：${userContent}。确认请回复1，修改请回复新的微信号。`, data, accessToken);
+      });
+    }
+  } else if (status <= 3) {
     // 前4个任务，不判断正确
     // Create UserTranscript        
     userTranscript.set(userTranscriptObj);
     userTranscript.save().then(userTranscript => {
-      if (status === 3) {
+      if (status === 3 || status === 1) {
         user.set('status', status + 0.5);
       } else {
         user.set('status', status + 1);
       }
       user.set('red_packet', redPacket + 1);
       user.save().then(user => {
-        if (status === 3) {
+        if (status === 1) {
+          content = '么么哒，请回复你的微信号（非微信昵称），在接下来的任务里，你可能会遇到各种各样的问题，我们的小助手将通过微信来协助你。';
+        } else if (status === 3) {
           content = '【1\'61是干什么？】\n\n我们来自硅谷斯坦福大学，是一家以人工智能驱动的语音识别初创企业，因为我们的机器只能正确翻译90%的语音，所以我们将机器翻译错误的部分（10%）通过众包的形式分发给大家进行人工校对。\n\n目前，我们主要为各大教育视频机构做字幕，你修改的每一条文字都将直接呈现在各大教育视频网站里，让数千万的学生看见。';
         } else {
           content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
@@ -1409,7 +1429,7 @@ const onReceiveFromB = (data, accessToken, user) => {
             setTimeout(() => {
               sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
             }, 2000);
-          } else {
+          } else if (status !== 1) {
             sendToUser.schoolTask(nextTaskOrder, data, accessToken);
           }
         });
@@ -1425,7 +1445,9 @@ const onReceiveFromB = (data, accessToken, user) => {
         sendToUser.image(wechatConfig.mediaId.image.rule._1, userId, accessToken, startedAt)
           .then(() => {
             // Task 5
-            sendToUser.schoolTask(5, data, accessToken);
+            setTimeout(() => {
+              sendToUser.schoolTask(5, data, accessToken);
+            }, 1000);
           });
       });
     } else {
@@ -1459,7 +1481,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         content = '恭喜你，你的回答是正确的。下面将会有5道综合题来训练你对【语意】的掌握情况，加油！';
         sendToUser.text(content, data, accessToken).then(() => {
           // Task 24
-          sendToUser.schoolTask(24, data, accessToken);
+          sendToUser.schoolTask(24, data, accessToken, user);
         });
       });
     } else {
@@ -1474,32 +1496,10 @@ const onReceiveFromB = (data, accessToken, user) => {
           isCorrect = wrongWords === 0;
 
     if (isCorrect) {
+      user.set('status', status + 1);
+
       redPacket += 1;
-
-      if (redPacket === 8) {
-        sendToUser.text('*此处应有1元红包*', data, accessToken);
-        // // 发红包
-        // const _data = {
-        //       re_openid: userId,
-        //       total_amount: 1 * 100
-        //       },
-        //       _callback = ret => {
-        //       };
-        // wechat_pay.sendMoney(_data, _callback);
-
-        // Reset red_packet to 0
-        redPacket = 0;
-        // Add 1 to amount_paid
-        amountPaid += 1;
-      }
-      
-      user.set({
-        status: status + 1,
-        last_wrong_words: 0,
-        red_packet: redPacket,
-        amount_paid: amountPaid
-      });
-
+      const sendRedPacket = redPacket === 8;
       content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
       
       if (currentTaskOrder === 5) {
@@ -1526,11 +1526,29 @@ const onReceiveFromB = (data, accessToken, user) => {
         if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
         content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
         sendToUser.text(content, data, accessToken);
-        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status);
+        if (sendRedPacket) {
+          setTimeout(() => {
+              // sendToUser.redPacket(userId, 1);
+              sendToUser.text('*此处应有1元红包*', data, accessToken);
+          }, 1000);
+          delay = 2000;
+        } else {
+          delay = 0;
+        }
+        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, delay);
         if (currentTaskOrder === 28) {
           user.set({status: 0, role: 'A'});
         }
       }
+
+      if (redPacket === 8) {
+        // Reset red_packet to 0
+        redPacket = 0;
+        // Add 1 to amount_paid
+        amountPaid += 1;
+      }
+
+      user.set({red_packet: redPacket, amount_paid: amountPaid});
       user.save();
     }
 
@@ -1569,10 +1587,11 @@ const onReceiveFromB = (data, accessToken, user) => {
               sendToUser.text(content, data, accessToken);
             } else {
               userWrongWords += wrongWords;
+              user.set('wrong_words', userWrongWords);
               if (userWrongWords > 10) {
                 content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
                 sendToUser.text(content, data, accessToken);
-                user.set({status: 0, role: 'C', wrong_words: 0});
+                user.set('status', -1);
               } else {
                 // Send answer image
                 sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
@@ -1584,12 +1603,12 @@ const onReceiveFromB = (data, accessToken, user) => {
                 }, 1000);
 
                 if (currentTaskOrder !== 28) {
-                  user.set({status: status + 1, wrong_words: userWrongWords});
+                  user.set('status', status + 1);
                 } else {
                   // Last task in school
-                  user.set({status: 0, role: 'A', wrong_words: userWrongWords});
+                  user.set({status: 0, role: 'A'});
                 }
-                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
+                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 2000);
               }
               user.save();
             }
@@ -1665,7 +1684,9 @@ module.exports.postCtrl = (req, res, next) => {
         if (userRole === 'C') {
           // TODO
         } else if (userRole === 'B') {
-          onReceiveFromB(data, accessToken, user);
+          if (userStatus !== -1) {
+            onReceiveFromB(data, accessToken, user);
+          }
         } else {
           // A, 帮主, 工作人员, B端用户
           // Check user status
@@ -1804,7 +1825,9 @@ module.exports.postCtrl = (req, res, next) => {
         if (userRole === 'C') {
           // TODO
         } else if (userRole === 'B') {
-          onGetTaskForB(data, accessToken, user);
+          if (userStatus !== -1) {
+            onGetTaskForB(data, accessToken, user);
+          }
         } else {
           // A, 帮主, 工作人员, B端用户
           // Check if the user has wechat_id recorded if the user has done more than 4 tasks
