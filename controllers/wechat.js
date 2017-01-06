@@ -1377,7 +1377,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         },
         skillGotArray = [9, 11, 14, 17, 20, 23],
         ruleArray = [9, 11, 17, 20];
-  let content,
+  let content, delay,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0,
       amountPaid = user.get('amount_paid') || 0;
@@ -1495,20 +1495,17 @@ const onReceiveFromB = (data, accessToken, user) => {
           isCorrect = wrongWords === 0;
 
     if (isCorrect) {
+      user.set('status', status + 1);
+
       redPacket += 1;
       const sendRedPacket = redPacket === 8;
       content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
       
       if (currentTaskOrder === 5) {
         content += '恭喜你，你的答案是正确的！';
-        sendToUser.text(content, data, accessToken);
-        setTimeout(() => {
-          if (sendRedPacket) {
-            // sendToUser.redPacket(userId, 1);
-            sendToUser.text('*此处应有1元红包*', data, accessToken);
-          }
+        sendToUser.text(content, data, accessToken).then(() => {
           sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-        }, 1000);
+        });
       } else if (currentTaskOrder === 6) {
         content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
         sendToUser.text(content, data, accessToken);
@@ -1528,7 +1525,16 @@ const onReceiveFromB = (data, accessToken, user) => {
         if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
         content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
         sendToUser.text(content, data, accessToken);
-        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status);
+        if (sendRedPacket) {
+          setTimeout(() => {
+              // sendToUser.redPacket(userId, 1);
+              sendToUser.text('*此处应有1元红包*', data, accessToken);
+          }, 1000);
+          delay = 1000;
+        } else {
+          delay = 0;
+        }
+        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, delay);
         if (currentTaskOrder === 28) {
           user.set({status: 0, role: 'A'});
         }
@@ -1541,12 +1547,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         amountPaid += 1;
       }
 
-      user.set({
-        status: status + 1,
-        last_wrong_words: 0,
-        red_packet: redPacket,
-        amount_paid: amountPaid
-      });
+      user.set({red_packet: redPacket, amount_paid: amountPaid});
       user.save();
     }
 
