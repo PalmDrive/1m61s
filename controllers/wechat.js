@@ -565,14 +565,13 @@ const onSubscribe = (data, accessToken) => {
   const userId = data.fromusername;
   // Send image of introduction
   sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken, data._startedAt).then(() => {
-    // Send text in 1s
+    // Send first task
     setTimeout(() => {
       sendToUser.text(Tasks._1.text, data, accessToken);
-    }, 1000);
-    // Send voice in 2s
+    }, 2000);
     setTimeout(() => {
       sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], userId, accessToken, data._startedAt);
-    }, 2000);
+    }, 3000);
   });
 };
 
@@ -1446,7 +1445,9 @@ const onReceiveFromB = (data, accessToken, user) => {
         sendToUser.image(wechatConfig.mediaId.image.rule._1, userId, accessToken, startedAt)
           .then(() => {
             // Task 5
-            sendToUser.schoolTask(5, data, accessToken);
+            setTimeout(() => {
+              sendToUser.schoolTask(5, data, accessToken);
+            }, 1000);
           });
       });
     } else {
@@ -1607,7 +1608,7 @@ const onReceiveFromB = (data, accessToken, user) => {
                   // Last task in school
                   user.set({status: 0, role: 'A'});
                 }
-                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 1000);
+                user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, 2000);
               }
               user.save();
             }
