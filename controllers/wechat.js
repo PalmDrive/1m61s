@@ -18,7 +18,7 @@ const request = require('request'),
       redisClient = require('../redis_client'),
       wechatLib = require('../lib/wechat'),
       compare = require('../lib/compare_transcript'),
-      wechat_pay = require('../lib/wechat_pay');
+      wechatPay = require('../lib/wechat_pay');
 
 const taskTimers = {};
 
@@ -532,6 +532,16 @@ const sendToUser = {
     } else {
       return Promise.resolve(false);
     }
+  },
+  // 发红包
+  redPacket(userId, yuan, callback) {
+    const data = {
+            re_openid: userId,
+            total_amount: yuan * 100
+          },
+          _callback = ret => {};
+    callback = callback || _callback;
+    wechatPay.sendMoney(data, callback);
   }
 };
 
@@ -1367,7 +1377,7 @@ const onReceiveFromB = (data, accessToken, user) => {
         },
         skillGotArray = [9, 11, 14, 17, 20, 23],
         ruleArray = [9, 11, 17, 20];
-  let content,
+  let content, delay,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0,
       amountPaid = user.get('amount_paid') || 0;
@@ -1485,32 +1495,10 @@ const onReceiveFromB = (data, accessToken, user) => {
           isCorrect = wrongWords === 0;
 
     if (isCorrect) {
+      user.set('status', status + 1);
+
       redPacket += 1;
-
-      if (redPacket === 8) {
-        sendToUser.text('*此处应有1元红包*', data, accessToken);
-        // // 发红包
-        // const _data = {
-        //       re_openid: userId,
-        //       total_amount: 1 * 100
-        //       },
-        //       _callback = ret => {
-        //       };
-        // wechat_pay.sendMoney(_data, _callback);
-
-        // Reset red_packet to 0
-        redPacket = 0;
-        // Add 1 to amount_paid
-        amountPaid += 1;
-      }
-      
-      user.set({
-        status: status + 1,
-        last_wrong_words: 0,
-        red_packet: redPacket,
-        amount_paid: amountPaid
-      });
-
+      const sendRedPacket = redPacket === 8;
       content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
       
       if (currentTaskOrder === 5) {
@@ -1537,11 +1525,29 @@ const onReceiveFromB = (data, accessToken, user) => {
         if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
         content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
         sendToUser.text(content, data, accessToken);
-        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status);
+        if (sendRedPacket) {
+          setTimeout(() => {
+              // sendToUser.redPacket(userId, 1);
+              sendToUser.text('*此处应有1元红包*', data, accessToken);
+          }, 1000);
+          delay = 2000;
+        } else {
+          delay = 0;
+        }
+        user = ruleTeaching(data, accessToken, user, currentTaskOrder, status, delay);
         if (currentTaskOrder === 28) {
           user.set({status: 0, role: 'A'});
         }
       }
+
+      if (redPacket === 8) {
+        // Reset red_packet to 0
+        redPacket = 0;
+        // Add 1 to amount_paid
+        amountPaid += 1;
+      }
+
+      user.set({red_packet: redPacket, amount_paid: amountPaid});
       user.save();
     }
 
