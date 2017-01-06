@@ -663,6 +663,16 @@ const onGetTaskForB = (data, accessToken, user) => {
   }
 };
 
+const onGetTaskForC = (data, accessToken, user) => {
+  const status = user.get('status');
+  if (status === 9.5 || status === 18.5) {
+    sendToUser.text('biu~请先回答问题噢。', data, accessToken);
+  } else {
+    // Send current task
+    sendToUser.schoolTask(status + 5, data, accessToken, user);
+  }
+};
+
 // Find a task the user is working on
 const findInProcessTaskForUser = userId => {
   const query = new LeanCloud.Query('CrowdsourcingTask');
@@ -1816,7 +1826,7 @@ module.exports.postCtrl = (req, res, next) => {
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
         if (userRole === 'C') {
-          // TODO
+          onGetTaskForC(data, accessToken, user);
         } else if (userRole === 'B') {
           if (userStatus !== -1) {
             onGetTaskForB(data, accessToken, user);
