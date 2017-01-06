@@ -1530,7 +1530,7 @@ const onReceiveFromB = (data, accessToken, user) => {
               // sendToUser.redPacket(userId, 1);
               sendToUser.text('*此处应有1元红包*', data, accessToken);
           }, 1000);
-          delay = 1000;
+          delay = 2000;
         } else {
           delay = 0;
         }
