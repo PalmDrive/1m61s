@@ -1284,7 +1284,7 @@ const ruleTeaching = (data, accessToken, user, obj) => {
   if (isCorrect) {
     content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n';
   } else {
-    content += '不好意思，该片段错误，无红包精力，你已成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n';
+    content += '不好意思，该片段错误，无红包奖励，你已成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n';
   }
 
   // 你的技能
