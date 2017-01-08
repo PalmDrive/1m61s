@@ -1300,8 +1300,8 @@ const ruleTeaching = (data, accessToken, user, obj) => {
 
   if (sendRedPacket) {
     setTimeout(() => {
-        // sendToUser.redPacket(userId, 1);
-        sendToUser.text('*此处应有1元红包*', data, accessToken);
+        sendToUser.redPacket(userId, 1);
+        logger.info(`RedPacket: send 1 yuan to ${userId}`);
     }, 1000 + delay);
     redPacketDelay = 1000;
   } else {
