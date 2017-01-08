@@ -4,117 +4,26 @@ const request = require('request'),
       exec = require('child_process').exec,
       fs = require('fs'),
       leanCloud = require('../lib/lean_cloud'),
-      UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
+      LeanCloud = leanCloud.AV,
+      WeChatUser = LeanCloud.Object.extend('WeChatUser'),
+      UserTranscript = LeanCloud.Object.extend('UserTranscript'),
+      CrowdsourcingTask = LeanCloud.Object.extend('CrowdsourcingTask'),
       xml = require('xml'),
       datetime = require('../lib/datetime'),
       logger = require('../lib/logger'),
       wechatConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).wechat,
+      wechatData = require('../static/wechat_data.json'),
+      Tasks = wechatData.tasks,
       gaConfig = require(`../config/${process.env.NODE_ENV || 'development'}.json`).ga,
-      redisClient = require('../redis_client');
+      redisClient = require('../redis_client'),
+      wechatLib = require('../lib/wechat'),
+      compare = require('../lib/compare_transcript'),
+      wechatPay = require('../lib/wechat_pay');
 
 const taskTimers = {};
 
 const getTime = (startedAt) => {
   return (new Date() - startedAt) + ' ms';
-};
-
-const savedContent = {};
-savedContent.firstMin = [
-  '我今天演讲猪蹄是努力把最简单的事情做到最好，剩下的就是坚持，我会大概回顾一下KEEP在过去二十个月成长的点点滴滴，也跟大家做一个分享和交流，',
-  '知道今天非常冷！我来之前说，这个现场可能这个来的人也会比多，因为大家在这么早的时间就可以来到这里好听分享和交流，也许还有一些人还没有完全打开睡眼，',
-  '她老说你是不是可以带大家一起跳一个健身操啊，我说这个健身操有一点点难，但是我还是希望可以带着大家做一些简单的简单的小的放松，我们先来一场这个身体的奇幻旅程却在可以发现，',
-  '每个人的身体是非常有趣的一件事情，可能通过一些简单的变化，只说一种一种心理和生理上变化，你就会觉得你的身体会发生很多奇妙的变化，如果大家现在方便的话可以一起的，做几个简单的动作好吗？'
-];
-savedContent.secondMin = [
-  {
-    q: '第1题：他 v.s 她 v.s 它\n你收到的文字都是机器转移的，机器一般会默认写“他”，但大部分其实是“它”，比如公司名呀、商业模式呀等等，大家一定要留意一下。\n\n问：如果语音里是公司名，你收到对应的文字是“他”，那么，你是否需要修改这个字？\n1. 需要\n2. 不需要\n\n回复数字“1” 或“2” 即可。',
-    a: '1'
-  },
-  {
-    q: '第2题：的 v.s 得 v.s 地\n-“的”前面接的是形容词或者名词，是形容名词的；\n-“地”前面是副词，是形容动作哒；\n-“得”…大家自行脑补…\n\n问：“小明今天很开心的完成了作业！”这句话中“的”是否正确？\n1. 正确\n2. 错误',
-    a: '2'
-  },
-  {
-    q: '第3题：英文单词首字母要大写\n比如：stanford要写成Stanford，student要写成Student\n\n问：“uber”这种英文写法是正确还是错误？\n1. 正确\n2. 错误',
-    a: '2'
-  },
-  {
-    q: '第4题：语气词、没有实际意义的口语、重复的话可以自行删减\n比如：主讲人会“…这个…那个…哈…”等\n\n问：“啊，这个，这个，这个…我今天的演讲主题是…”其中“这个”是否应该去掉？\n1. 去掉\n2. 不去掉',
-    a: '1'
-  },
-  {
-    q: '第5题： 加标点\n机器加标点很傻瓜的，大家可以根据语意给文字加标点噢，特别是句子的开头或者结尾，标点一定要慎重，如果不是一句完整的句子就千万不要加标点啦！！\n\n问：“在一段文字最后加标点”这句话是正确还是错误？\n1. 正确\n2. 错误\n3. 看情况，有时候正确，有时候错误',
-    a: '3'
-  },
-  {
-    q: '第6题： 规则\n任何时候当你想不起来一个具体情况该如何处理时，回复“规则”就能蹦出来所有文字修改规则啦（同时修改规则在不断更新噢~）\n\n问：当你不知道一个具体情况该如何处理时，回复什么?',
-    a: '规则'
-  }
-];
-savedContent.thirdMin = [
-  '首先大家不知道有没有做过，这种像这种拉伸得运动，就是用用最长用用你最大的幅度来去勾你的脚ok，等待可以看一下，并且记录一下，你现在可以触碰到的位置',
-  '最高的，可以触碰到的最高的限度是多少？对，可能有得同学可以触碰到地面，但是有地同学可能这个由于韧带的问题可能并不会触碰到地面，对，ok，',
-  '大家记住自己可以下呀的最大的幅度，所有人都闭上的眼睛，眼球，哦，顺时针转五圈一下用于自己眼球顺时针转五圈，',
-  '当你闭上眼睛的时候，重新转五圈眼球得时候再下去，下了的时候你会发现你可以突破你之前的极限。这的一个很有意思的小的实验，第二小的实验大家所有人双脚与肩同宽，然后伸出自己的左手，'
-];
-
-const getAccessTokenFromWechat = () => {
-  console.log('get access token from wechat...');
-  const APPID = wechatConfig.appId,
-        APPSECRET = wechatConfig.appSecret,
-        url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${APPID}&secret=${APPSECRET}`;
-  return new Promise((resolve, reject) => {
-    request({
-      url,
-      json: true
-    }, (error, response, body) => {
-      if (error) return reject(error);
-
-      if (body.errcode) {
-        reject(body);
-      } else {
-        resolve(body);
-      }
-    });
-  });
-};
-
-const getAccessTokenFromCache = (options, startedAt) => {
-  console.log('get access token from cache...');
-  options = options || {};
-  const name = 'wechat_access_token';
-
-  return new Promise((resolve, reject) => {
-    redisClient.get(name, (error, reply) => {
-      if (error) {
-        return reject(error);
-      }
-
-      if (reply && !options.updateCache) {
-        logger.info('hit the cache: ');
-        logger.info(reply);
-        resolve(reply);
-      } else {
-        getAccessTokenFromWechat().then(data => {
-          console.log(data);
-          // Add to cache
-          redisClient.set(name, data.access_token, (err, ret) => {
-            if (err) {
-              logger.info('error: ');
-              logger.info(err);
-            } else {
-              logger.info('added to the cache: ');
-            }
-          });
-          // Set redis expire time as 1min less than actual access token expire time
-          redisClient.expire(name, data.expires_in - 60);
-
-          logger.info(`--- At ${startedAt} getAccessTokenFromWechat / access_token: ${data.access_token}`);
-          resolve(data.access_token);
-        }, err => reject(err));
-      }
-    });
-  });
 };
 
 // const createQRTicket = (scene, token) => {
@@ -199,8 +108,8 @@ const uploadMedia = (mediaSrc, type, token, _startedAt) => {
  * @param  {String} data.content 将要创建的scene的eventName
  */
 // const sendQRCodeMessage = (data, token, res) => {
-//   const Scene = leanCloud.AV.Object.extend('Scene'),
-//         query = new leanCloud.AV.Query('Scene'),
+//   const Scene = LeanCloud.Object.extend('Scene'),
+//         query = new LeanCloud.Query('Scene'),
 //         scene = new Scene();
 
 //   query.count()
@@ -291,7 +200,7 @@ const uploadMedia = (mediaSrc, type, token, _startedAt) => {
 // const onQRCodeScanned = (data, token, res) => {
 //   const scannerLimit = 3,
 //         sceneId = data.event === 'SCAN' ? +data.eventkey : +(data.eventkey.replace('qrscene_', '')),
-//         query = new leanCloud.AV.Query('Scene');
+//         query = new LeanCloud.Query('Scene');
 
 //   let scanUsers;
 
@@ -388,7 +297,7 @@ const sendToUser = {
     }, accessToken);
   },
   // Send a voice message to user, if audio length > 8s, split audio into two
-  voice(transcript, data, accessToken) {
+  voice(transcript, data, accessToken, user) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
           mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
@@ -403,7 +312,7 @@ const sendToUser = {
 
         exec(`ffprobe ${mediaSrc} 2>&1 | grep Duration`, (error, stdout, stderr) => {
           if (error) {
-            logError(`--- At ${getTime(_startedAt)} exec error`, error);
+            wechatLib.logError(`--- At ${getTime(_startedAt)} exec error`, error);
             return;
           }
           const duration = parseDuration(stdout);
@@ -463,12 +372,12 @@ const sendToUser = {
                         }, accessToken);
                       }, 1000);
                     }, err => {
-                      logError('upload split media 2 failed', err);
+                      wechatLib.logError('upload split media 2 failed', err);
                     });
                   });
                 });
               }, err => {
-                logError('upload split media 1 failed', err);
+                wechatLib.logError('upload split media 1 failed', err);
               });
             });
           } else {
@@ -489,12 +398,12 @@ const sendToUser = {
                   _startedAt
                 }, accessToken);
               }, err => {
-                logError('upload media failed', err);
+                wechatLib.logError('upload media failed', err);
               });
           }
         });
     }, err => {
-      logError('voice message ws', err);
+      wechatLib.logError('voice message ws', err);
     });
 
     // Save the audio to local
@@ -503,7 +412,7 @@ const sendToUser = {
       logger.info(audioURL);
       if (err) {
         self.text('biu~抱歉，获取语音出现问题，请回复“没有语音”，系统会为你准备新的任务。', data, accessToken);
-        logError('request audio error', err);
+        wechatLib.logError('request audio error', err);
       }
     }).pipe(ws);
   },
@@ -544,10 +453,10 @@ const sendToUser = {
             _startedAt
           }, accessToken);
         }, err => {
-          logError('upload media failed', err);
+          wechatLib.logError('upload media failed', err);
         });
     }, err => {
-      logError('voice message ws', err);
+      wechatLib.logError('voice message ws', err);
     });
 
     // Save the audio to local
@@ -556,16 +465,16 @@ const sendToUser = {
       logger.info(audioURL);
       if (err) {
         self.text('biu~抱歉，获取语音出现问题。', data, accessToken);
-        logError('request audio error', err);
+        wechatLib.logError('request audio error', err);
       }
     }).pipe(ws);
   },
   // Send voice and text to the user
-  task(task, data, accessToken) {
+  task(task, data, accessToken, user) {
     // get Transcript or UserTranscript
     const type = task.get('fragment_type'),
           fragmentId = task.get('fragment_id'),
-          query = new leanCloud.AV.Query(type),
+          query = new LeanCloud.Query(type),
           self = this,
           _startedAt = data._startedAt;
     return query.get(fragmentId).then(transcript => {
@@ -573,10 +482,11 @@ const sendToUser = {
       logger.info(`--- At ${getTime(_startedAt)} find transcript with id : ${fragmentId}`);
       if (transcript) {
         const content = type === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
-        // Send text in transcript
+        // Send check-list tip
+        self.listTip(data, accessToken, user);
+        // Send text and voice
         self.text(content, data, accessToken);
-        // Send voice
-        self.voice(transcript, data, accessToken);
+        self.voice(transcript, data, accessToken, user);
       } else {
         // Should not get here because error occurs when query by id cannot find object
         logger.info('Did not find transcript with id: ');
@@ -584,25 +494,70 @@ const sendToUser = {
         return self.text('对不起，系统错误，请联系管理员。', data, accessToken);
       }
     }, err => {
-      logError('failed getting transcript when sending task', err);
+      wechatLib.logError('failed getting transcript when sending task', err);
       logger.info(`--- At ${getTime(_startedAt)} error: find transcript with id : ${fragmentId}`);
       task.destroy().then(success => {
-        findAndSendNewTaskForUser(data, accessToken);
+        findAndSendNewTaskForUser(data, accessToken, user);
       }, err => {
-        logError('failed destroying task', err);
+        wechatLib.logError('failed destroying task', err);
       });
     });
+  },
+  schoolTask(order, data, accessToken, user) {
+    const self = this,
+          sendTip = !(user && user.get('preference') && user.get('preference').disableTip) && order >= 24,
+          tipDelay = 1000;
+    let textDelay = 1000,
+        voiceDelay = 2000;
+    if (sendTip) {
+      setTimeout(() => {
+        self.text(wechatData.tips.list, data, accessToken);
+      }, tipDelay);
+      textDelay = 2000;
+      voiceDelay = 3000;
+    }
+    setTimeout(() => {
+      self.text(Tasks['_' + order].text, data, accessToken);
+    }, textDelay);
+    setTimeout(() => {
+      self.voiceByMediaId(wechatConfig.mediaId.voice.tasks['_' + order], data.fromusername, accessToken, data._startedAt);
+    }, voiceDelay);
+  },
+  // Send check-list tip
+  listTip(data, accessToken, user) {
+    const self = this,
+          disableTip = user.get('preference') && user.get('preference').disableTip;
+    if (!disableTip) {
+      return self.text(wechatData.tips.list, data, accessToken);
+    } else {
+      return Promise.resolve(false);
+    }
+  },
+  // 发红包
+  redPacket(userId, yuan, callback) {
+    const data = {
+            re_openid: userId,
+            total_amount: yuan * 100
+          },
+          _callback = ret => {};
+    callback = callback || _callback;
+    wechatPay.sendMoney(data, callback);
   }
 };
 
-const createUser = (userId, tasksDone) => {
-  const WeChatUser = leanCloud.AV.Object.extend('WeChatUser'),
-        weChatUser = new WeChatUser();
-  tasksDone = tasksDone || 0;
-  weChatUser.set('open_id', userId);
-  weChatUser.set('tasks_done', tasksDone);
-  weChatUser.set('status', -300);
-  weChatUser.set('price', 0.5);
+const createUser = userId => {
+  const weChatUser = new WeChatUser();
+  weChatUser.set({
+    open_id: userId,
+    tasks_done: 0,
+    status: 0,
+    price: 0.5,
+    amount_paid: 0,
+    need_pay: false,
+    role: 'B',
+    wrong_words: 0,
+    red_packet: 0
+  });
   return weChatUser.save();
 };
 
@@ -610,14 +565,13 @@ const onSubscribe = (data, accessToken) => {
   const userId = data.fromusername;
   // Send image of introduction
   sendToUser.image(wechatConfig.mediaId.image.subscribe, userId, accessToken, data._startedAt).then(() => {
-    // Send text in 1s
+    // Send first task
     setTimeout(() => {
-      sendToUser.text(savedContent.firstMin[0], data, accessToken);
-    }, 1000);
-    // Send voice in 2s
+      sendToUser.text(Tasks._1.text, data, accessToken);
+    }, 2000);
     setTimeout(() => {
       sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[0], userId, accessToken, data._startedAt);
-    }, 2000);
+    }, 3000);
   });
 };
 
@@ -633,15 +587,13 @@ const assignTask = (task, data, accessToken) => {
     }
     // Set new 1-hour timer
     taskTimers[userId] = setTimeout(() => {
-      const query = new leanCloud.AV.Query('CrowdsourcingTask');
+      const query = new LeanCloud.Query('CrowdsourcingTask');
       query.get(task.id).then(task => {
         logger.info(`--- At ${getTime(data._startedAt)} Assign task / query.get(task.id) with task.id : ${task.id}`);
         if (task.get('status') === 0) {
           task.unset('user_id');
           task.save().then(task => {
             logger.info(`--- At ${getTime(data._startedAt)} Assign task / Task recycled with task.id : ${task.id}`);
-            logger.info('Task recycled:');
-            logger.info(task.id);
             sendToUser.text('biu~每次任务如果在1个小时内没有被解决掉，它就会被自动分配给其它童鞋呢，现在你的任务已经失效，如果要领取新的任务，请点击“领取任务”（每天9点发布新的任务哦）', data, accessToken);
           });
         }
@@ -650,14 +602,14 @@ const assignTask = (task, data, accessToken) => {
 
     return task;
   }, err => {
-    logError('assign task error', err);
+    wechatLib.logError('assign task error', err);
   });
 };
 
 const isTaskValid = (task, _startedAt) => {
   const type = task.get('fragment_type'),
         id = task.get('fragment_id'),
-        query = new leanCloud.AV.Query(type);
+        query = new LeanCloud.Query(type);
 
   return query.get(id).then(transcript => {
     logger.info(`--- At ${getTime(_startedAt)} isTaskValid / get task with fragment_id : ${id}`);
@@ -676,23 +628,53 @@ const isTaskValid = (task, _startedAt) => {
   });
 };
 
-const onGetTask = (data, accessToken) => {
-  const userId = data.fromusername;
-  findInProcessTaskForUser(userId).then(task => {
-    logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
-    if (task) {
-      // There is a task in process
-      return sendToUser.task(task, data, accessToken);
-    } else {
-      // There is no task in process
-      return findAndSendNewTaskForUser(data, accessToken);
-    }
-  });
+const onGetTask = (data, accessToken, user) => {
+  const userId = data.fromusername,
+        tasksDone = user.get('tasks_done');
+  if (tasksDone === 0) {
+    // 技能卡片-1
+    sendToUser.image(wechatConfig.mediaId.image.skills[1], userId, accessToken, data._startedAt);
+    setTimeout(() => {
+      const content = '哇咔咔~恭喜你获得了第一张强大的技能卡，回复“XX”即可开启这个功能。';
+      sendToUser.text(content, data, accessToken);
+    }, 2000);
+    setTimeout(() => {
+      sendToUser.text(wechatData['Q&A'].pay, data, accessToken);
+    }, 3000);
+    user.set('status', 3);
+    user.save();
+  } else {
+    findInProcessTaskForUser(userId).then(task => {
+      logger.info(`--- At ${getTime(data._startedAt)} findInProcessTaskForUser with userId: ${userId}`);
+      if (task) {
+        // There is a task in process
+        return sendToUser.task(task, data, accessToken, user);
+      } else {
+        // There is no task in process
+        return findAndSendNewTaskForUser(data, accessToken, user);
+      }
+    });
+  }
+};
+
+const onGetTaskForB = (data, accessToken, user) => {
+  const status = user.get('status');
+  if (status === 1.5) {
+    sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
+  } else if (status === 3.5) {
+    const content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
+    sendToUser.text(content, data, accessToken);
+  } else if (status === 13.5 || status === 22.5) {
+    sendToUser.text('biu~请先回答问题噢。', data, accessToken);
+  } else {
+    // Send current task
+    sendToUser.schoolTask(status + 1, data, accessToken, user);
+  }
 };
 
 // Find a task the user is working on
 const findInProcessTaskForUser = userId => {
-  const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  const query = new LeanCloud.Query('CrowdsourcingTask');
   query.equalTo('user_id', userId);
   query.equalTo('status', 0);
   return query.first();
@@ -702,20 +684,27 @@ const findInProcessTaskForUser = userId => {
 // content: text content
 // task: task user was doing to create this userTranscript
 // transcript: transcript from which the task was created
-const createUserTranscript = (userId, content, task, transcript) => {
+const createUserTranscript = (user, content, task, transcript) => {
   const type = task.get('fragment_type'),
-        UserTranscript = leanCloud.AV.Object.extend('UserTranscript'),
+        userId = user.get('open_id'),
+        userRole = user.get('role'),
         userTranscript = new UserTranscript(),
         needContent = content === '0';
-
+  let lastReviewTimes;
+  if (transcript) {
+    lastReviewTimes = transcript.get('review_times') || 0;
+  } else {
+    lastReviewTimes = 0;
+  }
+  userTranscript.set('user_role', userRole);
   userTranscript.set('media_id', task.get('media_id'));
-  if (!needContent) userTranscript.set('content', content);
   userTranscript.set('fragment_order', task.get('fragment_order'));
   userTranscript.set('user_open_id', userId);
+  if (!needContent) userTranscript.set('content', content);
   if (type === 'Transcript') {
     userTranscript.set('review_times', 1);
   } else {
-    userTranscript.set('review_times', 2);
+    userTranscript.set('review_times', lastReviewTimes + 1);
   }
 
   if (transcript && type === 'Transcript') {
@@ -754,25 +743,26 @@ const createUserTranscript = (userId, content, task, transcript) => {
         });
       }
     }, err => {
-      logError('failed getMachineTranscript', err);
+      wechatLib.logError('failed getMachineTranscript', err);
     });
   }
 };
 
 // userTranscript: on which the task is based
 // lastUserId: user who created this task
-const createCrowdsourcingTask = (userTranscript, lastUserId) => {
-  const CrowdsourcingTask = leanCloud.AV.Object.extend('CrowdsourcingTask'),
-        newTask = new CrowdsourcingTask();
-
-    newTask.set('fragment_id', userTranscript.id);
-    newTask.set('fragment_type', 'UserTranscript');
-    newTask.set('fragment_order', userTranscript.get('fragment_order'));
-    newTask.set('status', 0);
-    newTask.set('media_id', userTranscript.get('media_id'));
-    newTask.set('last_user', lastUserId);
-
-    return newTask.save();
+// source: CrowdsourcingTask.source
+// lastTask: the task user did before creating this one
+const createCrowdsourcingTask = (userTranscript, lastUserId, source, lastTask) => {
+  const newTask = new CrowdsourcingTask();
+  newTask.set('fragment_id', userTranscript.id);
+  newTask.set('fragment_type', 'UserTranscript');
+  newTask.set('fragment_order', userTranscript.get('fragment_order'));
+  newTask.set('status', 0);
+  newTask.set('media_id', userTranscript.get('media_id'));
+  newTask.set('last_user', lastUserId);
+  newTask.set('source', source);
+  newTask.set('fields', lastTask.get('fields'));
+  return newTask.save();
 };
 
 // Set user's need_pay
@@ -784,10 +774,9 @@ const setNeedPay = user => {
   }
 };
 
-// Very similar to onGetTask, however doesn't check for in process task
-const findAndSendNewTaskForUser = (data, accessToken) => {
+const findAndSendNewTaskForUser = (data, accessToken, user) => {
   const userId = data.fromusername;
-  findNewTaskForUser(userId, data._startedAt).then(task => {
+  findNewTaskForUser(user, data._startedAt).then(task => {
     if (task) {
       return assignTask(task, data, accessToken);
     } else {
@@ -795,7 +784,7 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
     }
   }).then(task => {
     if (task) {
-      sendToUser.task(task, data, accessToken);
+      sendToUser.task(task, data, accessToken, user);
     } else {
       // inform user there is no available task
       return sendToUser.text('今天的任务已经被领取完啦，每天我们会在上午9点和下午9点发布任务，欢迎来领取～', data, accessToken);
@@ -803,63 +792,62 @@ const findAndSendNewTaskForUser = (data, accessToken) => {
   });
 };
 
-const completeTaskAndReply = (task, data, accessToken) => {
+const completeTaskAndReply = (task, data, accessToken, user) => {
   const userId = data.fromusername,
-        isCorrect = data.content === '0';
+        isCorrect = data.content === '0',
+        tasksDone = user.get('tasks_done');
   // Change task status to 1
-  task.set('status', 1);
+  task.set({
+    status: 1,
+    completed_at: new Date()
+  });
   task.save();
 
-  // Find user object
-  getUser(userId).then(user => {
-    logger.info(`--- At ${getTime(data._startedAt)} completeTaskAndReply / getUser(userId) with userId : ${userId}`);
-    // Add 1 to user's tasks done
-    const tasksDone = user.get('tasks_done');
-    user.set('tasks_done', tasksDone + 1);
-    return user.save();
-  }).then(user => {
+  // Add 1 to user's tasks done
+  user.set('tasks_done', tasksDone + 1);
+  user.save().then(user => {
     const tasksDone = user.get('tasks_done');
     logger.info(`--- At ${getTime(data._startedAt)} completeTaskAndReply / 获取完成任务数量 userId : ${userId} / 完成数量: ${tasksDone}`);
     // Check for tasks done
-    if (tasksDone === 4) {
-      // User has just completed 4 tasks
-      sendToUser.text('么么哒，请回复你的微信号（非微信昵称），稍后我会将现金红包发送给你！\n\n微信号登记完成后，领取下一分钟任务，请点击“领取任务”', data, accessToken);
-
-      // Change user status to 1
-      user.set('status', 1);
-
-      setNeedPay(user);
-      user.save();
-    } else if (tasksDone % 4 === 0) {
-      // User has completed another 4 tasks. Send text
-      sendToUser.text('么么哒，恭喜你又完成了4个任务，我们会将现金红包发送给你！\n\n领取下一分钟任务，请点击“领取任务”', data, accessToken);
-
-      setNeedPay(user);
-      user.save();
-    } else {
-      // User has not completed 4 tasks
-      let replyContent = 'biu~我已经收到了你的';
-
-      if (isCorrect) {
-        replyContent += '回复';
+    if ([4, 8, 12].indexOf(tasksDone) !== -1) {
+      const skillCardOrder = tasksDone / 4 + 1;
+      sendToUser.image(wechatConfig.mediaId.image.skills[skillCardOrder], userId, accessToken, data._startedAt);
+      let content = '哇咔咔~恭喜你获得了一张强大的技能卡，回复“';
+      if (skillCardOrder === 2) {
+        content += '修改';
+      } else if (skillCardOrder === 3) {
+        content += '过';
       } else {
-        replyContent += '文字';
+        content += '前”or“后';
       }
+      content += '”即可开启这个功能。';
+      setTimeout(() => {
+        sendToUser.text(content, data, accessToken);
+      }, 2000);
 
-      replyContent += '啦，现在正传输给另外一个小伙伴审核。（错误太多，就会把你拉入黑名单，很恐怖哒。）\n\n下一个片段的任务正在路上赶来，一般需要1～3秒时间。';
+      user.set('status', 3);
+      user.save();
 
-      sendToUser.text(replyContent, data, accessToken);
-
-      findAndSendNewTaskForUser(data, accessToken);
+      if (tasksDone === 8 || tasksDone === 12) {
+        setTimeout(() => {
+          findAndSendNewTaskForUser(data, accessToken, user);
+        }, 3000);
+      }
+    } else {
+      findAndSendNewTaskForUser(data, accessToken, user);
     }
   });
 };
 
-const onReceiveTranscription = (data, accessToken, task) => {
+const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
-        content = data.content;
+        content = data.content,
+        hasXX = content.match(/xx/gi),
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
+  let source = 0;
 
-  completeTaskAndReply(task, data, accessToken);
+  completeTaskAndReply(task, data, accessToken, user);
 
   // Get the relevant transcript / userTranscript
   getTranscript(task).then(transcript => {
@@ -875,12 +863,22 @@ const onReceiveTranscription = (data, accessToken, task) => {
     }
     transcript.save().then(transcript => {
       // create new UserTranscript to record transcription
-      createUserTranscript(userId, content, task, transcript).then(userTranscript => {
-        // // Create crowdsourcingTask only when the previous transcript is machine-produced. This ensures a fragment is only distributed 2 times
-        // if (userTranscript && taskType === 'Transcript') {
-        //   // Create new crowdsourcingTask
-        //   createCrowdsourcingTask(userTranscript, userId);
-        // }
+      createUserTranscript(user, content, task, transcript).then(userTranscript => {
+        if (userTranscript) {
+          if (userRole === '帮主' && hasXX) {
+            source = 2.1;
+          } else if (userRole === 'A' && hasXX) {
+            source = 1.1;
+          } else if (userRole === '工作人员' && hasXX) {
+            source = 3.1;
+          }
+
+          if (source) {
+            createCrowdsourcingTask(userTranscript, userId, source, task);
+          }
+        }
+      }, err => {
+        wechatLib.logError('createUserTranscript', err);
       });
     });
   });
@@ -888,50 +886,125 @@ const onReceiveTranscription = (data, accessToken, task) => {
 
 // Find last completed task for user
 const findLastTaskForUser = userId => {
-  const query = new leanCloud.AV.Query('CrowdsourcingTask');
+  const query = new LeanCloud.Query('CrowdsourcingTask');
   query.equalTo('user_id', userId);
   query.equalTo('status', 1);
   query.descending('updatedAt');
   return query.first();
 };
 
-const findNewTaskForUser = (userId, _startedAt) => {
-  const _constructQuery = fragmentType => {
-    const query = new leanCloud.AV.Query('CrowdsourcingTask');
-    // query.equalTo('is_head', true);
+// Used in findNewTaskForUser, get the task before testing if it is valid
+const getTask = user => {
+  const userId = user.get('open_id'),
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
+
+  /**
+   * @param  {Dict} options
+   * @param  {Array} options.source  Min and Max (excluding) for source, e.g. [1, 2]
+   * @param  {String} options.field
+   * @param  {Bolean} options.noField
+   * @param  {String} options.notField
+   */
+  const _constructQuery = options => {
+    let query = new LeanCloud.Query('CrowdsourcingTask');
+    const source = options.source || 0;
+    if (source) {
+      query.greaterThan('source', source[0]);
+      query.lessThan('source', source[1]);
+    } else {
+      query.equalTo('source', source);
+      const queryNoSource = new LeanCloud.Query('CrowdsourcingTask');
+      queryNoSource.doesNotExist('source');
+      query = LeanCloud.Query.or(query, queryNoSource);
+    }
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
-    query.equalTo('fragment_type', fragmentType);
+    query.notEqualTo('passed_users', userId);
+    if (options.field) query.equalTo('fields', options.field);
+    if (options.noField) query.doesNotExist('fields');
+    if (options.notField) query.notEqualTo('fields', options.notField);
+
     return query;
   };
 
-  let query = _constructQuery('UserTranscript');
-
-  return query.first().then(task => {
-    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / <fragment_type = UserTranscript > with userId: ${userId}`);
-    if (task){
-      return task;
-    } else {
-      query = _constructQuery('Transcript');
+  let query;
+  if (userRole === '帮主') {
+    // 帮主
+    // 1. 自己专业领域的机器任务
+    query = _constructQuery({field: userField});
+    return query.first().then(task => {
+      if (task) return task;
+      // 2. 自己专业领域的，帮众做完带XX或者“过”的
+      query = _constructQuery({field: userField, source: [1, 2]});
+      return query.first().then(task => {
+        if (task) return task;
+        // 3. 没有任何专业领域的机器任务
+        query = _constructQuery({noField: true});
+        return query.first().then(task => {
+          if (task) return task;
+          // 4. 其他专业领域的机器任务
+          query = _constructQuery({notField: userField});
+          return query.first();
+        });
+      });
+    });
+  } else if (userRole === 'A') {
+    // 帮众
+    query = _constructQuery({noField: true});
+    return query.first().then(task => {
+      if (task) return task;
+      query = _constructQuery({});
       return query.first();
-    }
-  }).then(task => {
-    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / <fragment_type = Transcript > with userId: ${userId}`);
+    });
+  } else if (userRole === '工作人员') {
+    // 工作人员
+    // 1. 帮主做完带XX或者“过”的
+    query = _constructQuery({source: [2, 3]});
+    return query.first().then(task => {
+      if (task) return task;
+      // 2. 没有任何专业领域的，帮众做完带XX或者“过”的
+      query = _constructQuery({noField: true, source: [1, 2]});
+      return query.first().then(task => {
+        if (task) return task;
+        // 3. 有专业领域的，帮众做完带XX或者“过”的
+        query = _constructQuery({source: [1, 2]});
+        return query.first().then(task => {
+          if (task) return task;
+          // 4. 任何机器任务
+          query = _constructQuery({});
+          return query.first();
+        });
+      });
+    });
+  } else if (userRole === 'B端用户') {
+    // B端用户
+    // 工作人员做完带XX或者“过”的
+    query = _constructQuery({source: [3, 4]});
+    return query.first();
+  } else {
+    logger.info(`Error: invalid role to get task. User role: ${userRole}. User open id: ${userId}`);
+    return Promise.resolve(false);
+  }
+};
+
+const findNewTaskForUser = (user, _startedAt) => {
+  const userId = user.get('open_id');
+  return getTask(user).then(task => {
+    logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / get task with userOpenId: ${userId}`);
     if (task) {
       // Check if content and fragment_src are empty
       return isTaskValid(task, _startedAt).then(taskValid => {
-        if (taskValid) {
-          return task;
-        }
+        if (taskValid) return task;
         // Destroy the task
         return task.destroy().then(success => {
-          logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / task.destroy() with userId: ${userId}`);
+          logger.info(`--- At ${getTime(_startedAt)} findNewTaskForUser / task.destroy() with userOpenId: ${userId}`);
           // Find new task
-          return findNewTaskForUser(userId, _startedAt);
+          return findNewTaskForUser(user, _startedAt);
         }, err => {
-          logError('failed destroying task', err);
+          wechatLib.logError('failed destroying task', err);
         });
       });
     } else {
@@ -941,7 +1014,7 @@ const findNewTaskForUser = (userId, _startedAt) => {
 };
 
 // const findNextTaskForUser = (userId, task) => {
-//   const query = new leanCloud.AV.Query('CrowdsourcingTask');
+//   const query = new LeanCloud.Query('CrowdsourcingTask');
 //   query.equalTo('fragment_order', task.get('fragment_order') + 1);
 //   query.ascending('createdAt');
 //   query.equalTo('status', 0);
@@ -975,7 +1048,7 @@ const findNewTaskForUser = (userId, _startedAt) => {
 // };
 
 const getUser = userId => {
-  const query = new leanCloud.AV.Query('WeChatUser');
+  const query = new LeanCloud.Query('WeChatUser');
   query.equalTo('open_id', userId);
   return query.first();
 };
@@ -984,17 +1057,10 @@ const onReceiveWeChatId = (data, accessToken, user) => {
   const content = data.content;
   if (content === '1') {
     // Change user status
-    user.set('status', -200);
+    user.set('status', 0);
     user.save().then(user => {
-      logger.info(`--- At ${getTime(data._startedAt)} onReceiveWeChatId / set status -200 `);
-      // Send image to let user add xiaozhushou
-      sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, data.fromusername, accessToken, data._startedAt)
-        .then(() => {
-          setTimeout(() => {
-            // Send first question
-            sendToUser.text(savedContent.secondMin[0].q, data, accessToken);
-          }, 2000);
-        });
+      logger.info(`--- At ${getTime(data._startedAt)} onReceiveWeChatId / set status 0 `);
+      sendToUser.text('微信号登记成功！', data.fromusername, accessToken, data._startedAt)
     });
   } else {
     // Save WeChatId, ask for confirmation
@@ -1010,7 +1076,7 @@ const onReceiveWeChatId = (data, accessToken, user) => {
 const getTranscript = task => {
   const type = task.get('fragment_type'),
         id = task.get('fragment_id'),
-        query = new leanCloud.AV.Query(type);
+        query = new LeanCloud.Query(type);
   return query.get(id);
 };
 
@@ -1022,7 +1088,7 @@ const getMachineTranscript = task => {
     return getTranscript(task);
   } else {
     // type === 'UserTranscript'
-    const query = new leanCloud.AV.Query('Transcript');
+    const query = new LeanCloud.Query('Transcript');
     query.equalTo('media_id', task.get('media_id'));
     query.equalTo('fragment_order', task.get('fragment_order'));
     query.equalTo('set_type', 'machine');
@@ -1037,12 +1103,12 @@ const sendGA = (userId, eventAction) => {
     body: payload
   }, (error, response, body) => {
     if (error) {
-      logError('failed sending GA', error);
+      wechatLib.logError('failed sending GA', error);
     }
   });
 };
 
-const onReceiveNoVoice = (data, accessToken, task) => {
+const onReceiveNoVoice = (data, accessToken, task, user) => {
   const userId = data.fromusername;
 
   // Change task status to 1
@@ -1053,16 +1119,11 @@ const onReceiveNoVoice = (data, accessToken, task) => {
 
   sendToUser.text(replyContent, data, accessToken);
 
-  findAndSendNewTaskForUser(data, accessToken);
-};
-
-const logError = (message, err) => {
-  logger.info('Error: ' + message + '.');
-  logger.info(err);
+  findAndSendNewTaskForUser(data, accessToken, user);
 };
 
 const findUserTranscriptFromTaskByUser = (task, userId) => {
-  const query = new leanCloud.AV.Query('UserTranscript');
+  const query = new LeanCloud.Query('UserTranscript');
   query.equalTo('user_open_id', userId);
   query.equalTo('media_id', task.get('media_id'));
   query.equalTo('fragment_order', task.get('fragment_order'));
@@ -1083,18 +1144,18 @@ const onReceiveRevoke = (data, accessToken, user) => {
           sendToUser.text(userTranscript.get('content'), data, accessToken);
           // Send voice
           getTranscript(task).then(transcript => {
-            sendToUser.voice(transcript, data, accessToken);
+            sendToUser.voice(transcript, data, accessToken, user);
           });
         } else {
           // No user's content
-          sendToUser.task(task, data, accessToken);
+          sendToUser.task(task, data, accessToken, user);
         }
       });
     }, err => {
-      logError('failed getting last task in revoke mode', err);
+      wechatLib.logError('failed getting last task in revoke mode', err);
     });
   }, err => {
-    logError('failed saving user when entering revoke mode', err);
+    wechatLib.logError('failed saving user when entering revoke mode', err);
   });
 };
 
@@ -1113,7 +1174,9 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
           userTranscript.set('content', data.content);
           return userTranscript.save();
         } else {
-          return createUserTranscript(user.get('open_id'), data.content, task);
+          return getTranscript(task).then(transcript => {
+            return createUserTranscript(user, data.content, task, transcript);
+          });
         }
       });
     }).then(userTranscript => {
@@ -1127,148 +1190,6 @@ const onReceiveRevokeTranscription = (data, accessToken, user) => {
   }
 };
 
-const onFirstMin = (data, accessToken, user) => {
-  const userStatus = user.get('status'),
-        tasksDone = user.get('tasks_done'),
-        userId = user.get('open_id');
-  let order = (userStatus * -1) - 300;
-
-  // Create UserTranscript
-  const userTranscript = new UserTranscript();
-  userTranscript.set('media_id', 'first_min');
-  userTranscript.set('content', data.content);
-  userTranscript.set('fragment_order', order);
-  userTranscript.set('user_open_id', userId);
-  userTranscript.set('review_times', 0);
-  userTranscript.save().then(userTranscript => {
-    // Change user status and tasks_done
-    user.set('status', userStatus - 1);
-    user.set('tasks_done', tasksDone + 1);
-    if (order < 3) {
-      // Tell user we received his message
-      sendToUser.text('biu~我已经收到你的回复啦！\n下一个任务正在路上，一般需要1～3秒时间。', data, accessToken);
-
-      order += 1;
-      user.save().then(user => {
-        // Send next task
-        // Send text
-        sendToUser.text(savedContent.firstMin[order], data, accessToken);
-        // Send voice in 1s
-        setTimeout(() => {
-          sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, data._startedAt);
-        }, 1000);
-      });
-    } else {
-      user.set('status', 1);
-      user.set('need_pay', true);
-      user.save().then(user => {
-        // Ask for wechat id
-        sendToUser.text('么么哒，恭喜你完成了4个任务！\n请回复你的微信号（非微信昵称），稍后我们会将现金红包发送给你！', data, accessToken);
-      });
-    }
-  });
-};
-
-const onSecondMin = (data, accessToken, user) => {
-  const userStatus = user.get('status'),
-        tasksDone = user.get('tasks_done'),
-        userId = user.get('open_id'),
-        content = data.content;
-  let order = (userStatus * -1) - 200,
-      answer,
-      replyMessage;
-
-  // Set the correct answer
-  if (order === 0 || order === 3) {
-    answer = '1';
-  } else if (order === 1 || order === 2) {
-    answer = '2';
-  } else if (order === 4) {
-    answer = '3';
-  } else {
-    answer = '规则';
-  }
-
-  if (content === answer && answer !== '规则') {
-    // User is correct && it isn't the last question
-    order += 1;
-    replyMessage = '么么哒~正确！恭喜你成功完成了';
-    replyMessage += order;
-    replyMessage += '/6个任务，接下来继续作答吧，';
-    replyMessage += '现金红包正在向你招手！';
-    user.set('status', userStatus - 1);
-    user.save().then(user => {
-      sendToUser.text(replyMessage, data, accessToken)
-      .then(() => {
-        sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
-      });
-    });
-  } else if (content === answer) {
-    // User is correct && it is the last question
-    // Change user status
-    user.set('status', -100);
-    user.set('tasks_done', tasksDone + 4);
-    user.set('need_pay', true);
-    user.save().then(user => {
-      // Send image
-      sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, data._startedAt).then(() => {
-        // Send text
-        const text = '么么哒~正确！恭喜你成功完成所有任务，现金红包正在向你招手！\n\n领取新的任务，请点击下方“领取任务”。注意，我们将开始对你的答案进行审核，如果正确率过低，会被拉入黑名单噢。';
-        setTimeout(() => {
-          sendToUser.text(text, data, accessToken);
-        }, 2000);
-      });
-    });
-  } else {
-    // User is not correct
-    const text = '你肯定是不小心手滑写错了，这个答案是错误的，请再次作答！';
-    sendToUser.text(text, data, accessToken);
-  }
-};
-
-const onThirdMin = (data, accessToken, user) => {
-  const userStatus = user.get('status'),
-        tasksDone = user.get('tasks_done'),
-        userId = user.get('open_id');
-  let order = (userStatus * -1) - 100;
-
-  // Create UserTranscript
-  const userTranscript = new UserTranscript();
-  userTranscript.set('media_id', 'third_min');
-  userTranscript.set('content', data.content);
-  userTranscript.set('fragment_order', order);
-  userTranscript.set('user_open_id', userId);
-  userTranscript.set('review_times', 0);
-  userTranscript.save().then(userTranscript => {
-    // Change user status and tasks_done
-    user.set('status', userStatus - 1);
-    user.set('tasks_done', tasksDone + 1);
-    if (order < 3) {
-      // Tell user we received his message
-      sendToUser.text('biu~我已经收到你的回复啦！\n下一个任务正在路上，一般需要1～3秒时间。', data, accessToken);
-
-      order += 1;
-      user.save().then(user => {
-        // Send next task
-        // Send text
-        sendToUser.text(savedContent.thirdMin[order], data, accessToken)
-          .then(() => {
-            // Send voice in 1s
-            setTimeout(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, data._startedAt);
-            }, 1000);
-          });
-      });
-    } else {
-      user.set('status', -1);
-      user.set('need_pay', true);
-      user.save().then(user => {
-        sendToUser.text('你好，恭喜完成了1分钟的片段，我们将对你的内容进行审核，审核期间将无法领取任务，最快时间1天就能审核结束～', data, accessToken);
-      });
-    }
-  });
-};
-
 const setPrice = (data, user) => {
   const sceneId = +(data.eventkey.replace('qrscene_', '')),
         price = sceneId / 10;
@@ -1277,7 +1198,7 @@ const setPrice = (data, user) => {
     logger.info('Price setted for open_id:');
     logger.info(user.get('open_id'));
   }, err => {
-    logError('failed setting price', err);
+    wechatLib.logError('failed setting price', err);
   });
 };
 
@@ -1299,7 +1220,7 @@ const onReceiveNotMatch = (data, accessToken, task, user) => {
 const onReceivePrevNext = (data, accessToken, task) => {
   // Get the prev/next transcript
   const mediaId = task.get('media_id'),
-        query = new leanCloud.AV.Query('Transcript'),
+        query = new LeanCloud.Query('Transcript'),
         content = 'biu~抱歉，没有找到所请求的片段。';
   let order = task.get('fragment_order');
   if (data.content === '前') {
@@ -1320,9 +1241,447 @@ const onReceivePrevNext = (data, accessToken, task) => {
   });
 };
 
-module.exports.getAccessToken = getAccessTokenFromCache;
-// module.exports.findTaskForUser = findTaskForUser;
-module.exports.findInProcessTaskForUser = findInProcessTaskForUser;
+const onReceivePass = (data, accessToken, task, user) => {
+  const userId = data.fromusername,
+        userRole = user.get('role') || 'B',
+        userField = user.get('fields') && user.get('fields')[0];
+  // Set original task to unassigned status
+  task.unset('user_id');
+  task.addUnique('passed_users', userId);
+  if (userRole === '帮主') {
+    task.set('source', 2.2);
+  } else if (userRole === 'A') {
+    task.set('source', 1.2);
+  } else if (userRole === '工作人员') {
+    task.set('source', 3.2);
+  } else if (userRole !== 'B端用户') {
+    logger.info('Error: user with invalid role is passing a task. User open id: ${userId}. User role: ${userRole}');
+  }
+  task.save().then(task => {
+    findAndSendNewTaskForUser(data, accessToken, user);
+  });
+};
+
+// Return user object
+const ruleTeaching = (data, accessToken, user, obj) => {
+  const ruleArray = [9, 11, 17, 20],
+        status = obj.status,
+        delay = obj.delay,
+        isCorrect = obj.isCorrect,
+        userWrongWords = obj.userWrongWords,
+        redPacket = obj.redPacket,
+        currentTaskOrder = status + 1,
+        nextTaskOrder = currentTaskOrder + 1,
+        userId = data.fromusername,
+        startedAt = data._startedAt,
+        sendRedPacket = redPacket === 8;
+  let content, redPacketDelay;
+
+  content = `【任务完成：${currentTaskOrder - 4}/24】\n`;
+  if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
+  content += `【红包奖励：${redPacket}/8元】\n\n`;
+
+  if (isCorrect) {
+    content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n';
+  } else {
+    content += '不好意思，该片段错误，无红包奖励，你已成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n';
+  }
+
+  // 你的技能
+  if (currentTaskOrder === 9) content += '你的技能：\n1）无错别字\n2）感叹词';
+  if (currentTaskOrder === 11) content += '你的技能：\n1）无错别字\n2）感叹词\n3）语气词';
+  if (currentTaskOrder === 14) content += '你的技能：\n1）无错别字\n2）感叹词\n3）语气词\n4）重复、口误';
+  if (currentTaskOrder === 17) content += '你的技能：\n1）语意（感叹词、语气词、重复口误）\n2）他她它';
+  if (currentTaskOrder === 20) content += '你的技能：\n1）语意（感叹词、语气词、重复口误）\n2）他她它\n3）的地得';
+  if (currentTaskOrder === 23) content += '你的技能：\n1）语意（感叹词、语气词、重复口误）\n2）他她它\n3）的地得\n4）数字';
+  setTimeout(() => {
+    sendToUser.text(content, data, accessToken);
+  }, delay);
+
+  if (sendRedPacket) {
+    setTimeout(() => {
+        // sendToUser.redPacket(userId, 1);
+        sendToUser.text('*此处应有1元红包*', data, accessToken);
+    }, 1000 + delay);
+    redPacketDelay = 1000;
+  } else {
+    redPacketDelay = 0;
+  }
+
+  if (ruleArray.indexOf(currentTaskOrder) !== -1) {
+    // Send rule image
+    setTimeout(() => {
+      let ruleOrder = 3;
+      if (currentTaskOrder !== 9) ruleOrder = (currentTaskOrder + 1) / 3;
+      sendToUser.image(wechatConfig.mediaId.image.rule['_' + ruleOrder], userId, accessToken, startedAt)
+        .then(() => {
+          sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+        });
+    }, 1000 + delay + redPacketDelay);
+  } else {
+    // currentTaskOrder === 14 or 23
+    user.set('status', status + 0.5);
+    // 回顾与总结
+    setTimeout(() => {
+      if (currentTaskOrder === 14) {
+        content = '【回顾与总结】\n\n恭喜你成功修炼了4种不同的字幕技能，其实它们都在告诉你一个字幕原则：如何判断一部分文字是否应该被删掉？\n\n你只需要记住一点即可：\n\n如果一部分文字在【语意】上没有贡献，就应该被删除掉。';
+      } else {
+        content = '【回顾与总结】\n\n目前为止你总共掌握了7项技能，“快速掌握它们的秘诀是什么？”，你只需要记住一点即可：\n【语意】\n【语意】\n【语意】\n\n字幕是一件极为严谨的表达，它是严格基于【语意】来进行修改的，所以你只需要记住你修改的唯一原则是【语意】即可。';
+      }
+      sendToUser.text(content, data, accessToken);
+    }, 1000 + delay + redPacketDelay);
+    // 问题
+    setTimeout(() => {
+      if (currentTaskOrder === 14) {
+        content = '【问】为了提高准确率，修改完一个句子后，应该做什么？\n\n1.通过【语意】再检查一遍，判断它是否有贡献\n2.相信自己，不用管了\n\n（回复数字“1”or“2”即可）';
+      } else {
+        content = '【问】字幕里修改的最根本原则是什么？\n\n1.无错别字\n2.感叹词\n3.语气词\n4.重复口误\n5.他她它\n6.的地得\n7.数字\n8.语意\n\n（回复数字“1”、“2”...即可）';
+      }
+      sendToUser.text(content, data, accessToken);
+    }, 2000 + delay + redPacketDelay);
+  }
+
+  return user;
+};
+
+const onReceiveFromB = (data, accessToken, user) => {
+  const status = user.get('status'),
+        lastWrongWords = user.get('last_wrong_words') || 0,
+        currentTaskOrder = status + 1,
+        currentTask = Tasks['_' + currentTaskOrder],
+        nextTaskOrder = currentTaskOrder + 1,
+        nextTask = Tasks['_' + nextTaskOrder],
+        startedAt = data._startedAt,
+        userId = data.fromusername,
+        userContent = data.content,
+        userTranscript = new UserTranscript(),
+        failContent = 'I’ll fail and fail again until I succeed(我将持续失败直到成功！）\n\n你的回答错误，请仔细回顾图片规则，再次回答。',
+        userTranscriptObj = {
+          media_id: `training`,
+          content: userContent,
+          fragment_order: currentTaskOrder,
+          user_open_id: userId,
+          review_times: 0,
+          user_role: 'B'
+        },
+        skillGotArray = [9, 11, 14, 17, 20, 23],
+        ruleArray = [9, 11, 17, 20];
+  let content, delay,
+      redPacket = user.get('red_packet') || 0,
+      userWrongWords = user.get('wrong_words') || 0,
+      amountPaid = user.get('amount_paid') || 0;
+
+  if (status === 1.5) {
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 2);
+      user.save().then(user => {
+        logger.info(`--- At ${getTime(startedAt)} onReceiveWeChatId / set status 2 `);
+        sendToUser.image(wechatConfig.mediaId.image.xiaozhushou, userId, accessToken, startedAt)
+          .then(() => {
+            sendToUser.schoolTask(3, data, accessToken);
+          });
+      });
+    } else {
+      // Save WeChatId, ask for confirmation
+      user.set('wechat_id', content);
+      user.save().then(user => {
+        logger.info(`--- At ${getTime(startedAt)} onReceiveWeChatId / set wechat_id :${userContent}`);
+        sendToUser.text(`微信号：${userContent}。确认请回复1，修改请回复新的微信号。`, data, accessToken);
+      });
+    }
+  } else if (status <= 3) {
+    // 前4个任务，不判断正确
+    // Create UserTranscript        
+    userTranscript.set(userTranscriptObj);
+    userTranscript.save().then(userTranscript => {
+      if (status === 3 || status === 1) {
+        user.set('status', status + 0.5);
+      } else {
+        user.set('status', status + 1);
+      }
+      user.set('red_packet', redPacket + 1);
+      user.save().then(user => {
+        if (status === 1) {
+          content = '么么哒，请回复你的微信号（非微信昵称），在接下来的任务里，你可能会遇到各种各样的问题，我们的小助手将通过微信来协助你。';
+        } else if (status === 3) {
+          content = '【1\'61是干什么？】\n\n我们来自硅谷斯坦福大学，是一家以人工智能驱动的语音识别初创企业，因为我们的机器只能正确翻译90%的语音，所以我们将机器翻译错误的部分（10%）通过众包的形式分发给大家进行人工校对。\n\n目前，我们主要为各大教育视频机构做字幕，你修改的每一条文字都将直接呈现在各大教育视频网站里，让数千万的学生看见。';
+        } else {
+          content = `【红包奖励：${currentTaskOrder}/8元】\n【离进入新手学院还有${4 - currentTaskOrder}个片段】\n\nbiu~我已经收到你的文字啦，集满1元将发送红包给你，快来挑战下一个片段吧！`;
+        }
+        sendToUser.text(content, data, accessToken).then(() => {
+          if (status === 3) {
+            setTimeout(() => {
+              content = '【新手学院：字幕达人】\n\n尽管看似不可能，但我们还是将在接下来的6分钟任务里让你成为一名高段位的字幕达人！\n\n总计6分钟，24个语音片段，3元现金红包奖励（每满1.0元发送），还有一封毕业证书。\n\n1.答错一个片段，该片段将没有奖励；\n2.如果总的错别字数超过10个字，将无法毕业，无法开通领取语音任务；\n\n同意请回复“1”，即可继续。';
+              sendToUser.text(content, data, accessToken);
+            }, 1000);
+            // 礼物图片
+            setTimeout(() => {
+              sendToUser.image(wechatConfig.mediaId.image.gift, userId, accessToken, startedAt);
+            }, 2000);
+          } else if (status !== 1) {
+            sendToUser.schoolTask(nextTaskOrder, data, accessToken);
+          }
+        });
+      });
+    });
+  } else if (status === 3.5) {
+    // 回复"1"开始新手学院
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 4);
+      user.save().then(user => {
+        // 规则图片-1
+        sendToUser.image(wechatConfig.mediaId.image.rule._1, userId, accessToken, startedAt)
+          .then(() => {
+            // Task 5
+            setTimeout(() => {
+              sendToUser.schoolTask(5, data, accessToken);
+            }, 1000);
+          });
+      });
+    } else {
+      content = '请认真阅读上面文字，然后回复“1”即可参与令人期待的新手训练营。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status === 13.5) {
+    if (userContent === '1') {
+      // Change user status
+      user.set('status', 14);
+      user.save().then(user => {
+        sendToUser.text('恭喜你，你的回答是正确的。', data, accessToken);
+        setTimeout(() => {
+          // 规则图片-5
+          sendToUser.image(wechatConfig.mediaId.image.rule._5, userId, accessToken, startedAt)
+            .then(() => {
+              // Task 15
+              sendToUser.schoolTask(15, data, accessToken);
+            });
+        }, 1000);
+      });
+    } else {
+      content = '不好意思，请再思考，重新选择。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status === 22.5) {
+    if (userContent === '8') {
+      // Change user status
+      user.set('status', 23);
+      user.save().then(user => {
+        content = '恭喜你，你的回答是正确的。下面将会有5道综合题来训练你对【语意】的掌握情况，加油！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          // Task 24
+          sendToUser.schoolTask(24, data, accessToken, user);
+        });
+      });
+    } else {
+      content = '不好意思，请再思考，重新选择。';
+      sendToUser.text(content, data, accessToken);
+    }
+  } else if (status <= 27) {
+    // Task 5-28
+    const userTotalWords = compare.getTotalWords(userContent),
+          correctTotalWords = compare.getTotalWords(currentTask.correct),
+          wrongWords = compare.diffWordsWithoutXX(userTotalWords, correctTotalWords),
+          isCorrect = wrongWords === 0;
+    let objForRuleTeaching = {
+          status,
+          delay: 0,
+          isCorrect,
+          userWrongWords,
+          redPacket
+        };
+
+    if (isCorrect) {
+      user.set('status', status + 1);
+
+      redPacket += 1;
+      objForRuleTeaching.redPacket = redPacket;
+      const sendRedPacket = redPacket === 8;
+      content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
+      
+      if (currentTaskOrder === 5) {
+        content += '恭喜你，你的答案是正确的！';
+        sendToUser.text(content, data, accessToken).then(() => {
+          sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+        });
+      } else if (currentTaskOrder === 6) {
+        content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
+        sendToUser.text(content, data, accessToken);
+        setTimeout(() => {
+          content = '你的技能：\n1）无错别字';
+          sendToUser.text(content, data, accessToken);
+        }, 1000);
+        setTimeout(() => {
+          sendToUser.image(wechatConfig.mediaId.image.rule._2, userId, accessToken, startedAt)
+            .then(() => {
+              sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+            });
+        }, 2000);
+      } else if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
+        // 穿插规则教学
+        user = ruleTeaching(data, accessToken, user, objForRuleTeaching);
+      } else {
+        // currentTaskOrder === 7 - 28, no 规则教学
+        content = `【任务完成：${currentTaskOrder - 4}/24】\n`;
+        if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
+        content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
+        sendToUser.text(content, data, accessToken);
+
+        if (sendRedPacket) {
+          setTimeout(() => {
+              // sendToUser.redPacket(userId, 1);
+              sendToUser.text('*此处应有1元红包*', data, accessToken);
+          }, 1000);
+          delay = 2000;
+        } else {
+          delay = 0;
+        }
+
+        if (currentTaskOrder === 28) {
+          user.set({status: 0, role: 'A'});
+
+          setTimeout(() => {
+            content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
+            sendToUser.text(content, data, accessToken);
+          }, 1000 + delay);
+          // 毕业证书
+          setTimeout(() => {
+            sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
+          }, 2000 + delay);
+          setTimeout(() => {
+            content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
+            sendToUser.text(content, data, accessToken);
+          }, 3000 + delay);
+          setTimeout(() => {
+            content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
+            sendToUser.text(content, data, accessToken);
+          }, 4000 + delay);
+        } else {
+          setTimeout(() => {
+            sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);            
+          }, delay);
+        }
+      }
+
+      if (redPacket === 8) {
+        // Reset red_packet to 0
+        redPacket = 0;
+        // Add 1 to amount_paid
+        amountPaid += 1;
+      }
+
+      user.set({red_packet: redPacket, amount_paid: amountPaid});
+      user.save();
+    }
+
+    // Create UserTranscript
+    userTranscript.set(userTranscriptObj);
+    userTranscript.save().then(userTranscript => {
+      if (!isCorrect) {
+        userWrongWords += wrongWords;
+        objForRuleTeaching.userWrongWords = userWrongWords;
+
+        // Get answer times
+        const query = new LeanCloud.Query('UserTranscript');
+        query.equalTo('media_id', 'training');
+        query.equalTo('fragment_order', currentTaskOrder);
+        query.equalTo('user_open_id', userId);
+        query.equalTo('review_times', 0);
+        query.equalTo('user_role', 'B');
+        query.count().then(count => {
+          if (count === 1) {
+            sendToUser.text(failContent, data, accessToken).then(() => {
+              sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
+            });
+          } else if (count === 2) {
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+              sendToUser.text(content, data, accessToken);
+            } else {
+              content = '【提示】\n\n下面提示图片里标明了这道题错误的地方，只有红色的地方是有错误的，非标红的地方没有错误。\n\n1.如果你修改了非红色部分，请改回来。\n2.如果红色部分你没有发现错误，请努力寻找错误。\n\n注意：你只剩1次机会修改这个片段，将计入你的错别字字数。';
+              sendToUser.text(content, data, accessToken);
+              // Send hint image
+              setTimeout(() => {
+                sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
+              }, 1000);
+            }
+          } else {
+            // count >= 3
+            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+              sendToUser.text(content, data, accessToken);
+            } else {
+              // Task 7 - 28
+              user.set('wrong_words', userWrongWords);
+
+              if (userWrongWords > 10) {
+                content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
+                sendToUser.text(content, data, accessToken);
+                user.set('status', -1);
+              } else {
+                // wrong words < 10
+                if (currentTaskOrder === 28) {
+                  user.set({status: 0, role: 'A'});
+                } else {
+                  user.set('status', status + 1);
+                }
+
+                // Send answer image
+                sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
+
+                if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
+                  objForRuleTeaching.delay = 1000;
+                  user = ruleTeaching(data, accessToken, user, objForRuleTeaching);
+                } else {
+                  // Task 7 - 28, no 规则教学
+                  setTimeout(() => {
+                    content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n【红包奖励：${redPacket}/8元】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
+                    sendToUser.text(content, data, accessToken);
+                  }, 1000);
+
+                  if (currentTaskOrder === 28) {
+                    setTimeout(() => {
+                      content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
+                      sendToUser.text(content, data, accessToken);
+                    }, 3000);
+                    // 毕业证书
+                    setTimeout(() => {
+                      sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
+                    }, 4000);
+                    setTimeout(() => {
+                      content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
+                      sendToUser.text(content, data, accessToken);
+                    }, 5000);
+                    setTimeout(() => {
+                      content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
+                      sendToUser.text(content, data, accessToken);
+                    }, 6000);
+                  } else {
+                    setTimeout(() => {
+                      sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);            
+                    }, 1000);
+                  }
+                }
+              }
+              user.save();
+            }
+          }
+        });
+      }
+    });
+  }
+};
+
+const cancelListTip = (data, accessToken, user) => {
+  const preference = user.get('preference') || {};
+  preference.disableTip = true;
+  user.set('preference', preference);
+  user.save().then(user => {
+    const content = '已取消提示，请继续任务。';
+    sendToUser.text(content, data, accessToken);
+  });
+};
 
 module.exports.postCtrl = (req, res, next) => {
   // Reply success to avoid error and repeated request
@@ -1330,7 +1689,7 @@ module.exports.postCtrl = (req, res, next) => {
 
   const data = req.body.xml,
         userId = data.fromusername,
-        Scene = leanCloud.AV.Object.extend('Scene');
+        Scene = LeanCloud.Object.extend('Scene');
 
   let scene;
 
@@ -1338,7 +1697,7 @@ module.exports.postCtrl = (req, res, next) => {
   data._startedAt = startedAt;
   logger.info(`--- At ${startedAt} get user ${userId} response`);
 
-  const accessTokenPromise = getAccessTokenFromCache(undefined, startedAt);
+  const accessTokenPromise = wechatLib.getAccessTokenFromCache(undefined, startedAt);
   const userPromise = getUser(userId).then(user => {
     if (user) {
       return user;
@@ -1350,10 +1709,11 @@ module.exports.postCtrl = (req, res, next) => {
   Promise.all([accessTokenPromise, userPromise]).then(results => {
     const accessToken = results[0],
           user = results[1],
+          userRole = user.get('role') || 'B',
           userStatus = user.get('status'),
           wechatId = user.get('wechat_id'),
           tasksDone = user.get('tasks_done');
-    let order;
+    let order, content;
 
     logger.info(`--- At ${getTime(startedAt)} get user ${userId} data from leancloud.`);
     logger.info('user:');
@@ -1366,64 +1726,146 @@ module.exports.postCtrl = (req, res, next) => {
         logger.info(userId);
         sendGA(userId, 'test_internet');
       } else if (data.content === '规则' && userStatus !== -205) {
-        sendToUser.image(wechatConfig.mediaId.image.rule, userId, accessToken, startedAt);
+        sendToUser.image(wechatConfig.mediaId.image.rule.all, userId, accessToken, startedAt);
         sendGA(userId, 'rule');
+      } else if (data.content === '取消') {
+        // 取消任务音频后5点提醒
+        cancelListTip(data, accessToken, user);
+      } else if (data.content === '申诉') {
+        sendToUser.image(wechatConfig.mediaId.image.complain, userId, accessToken, startedAt);
       } else {
-        // Check status
-        if (userStatus >= -304 && userStatus <= -300) {
-          // First min tasks
-          onFirstMin(data, accessToken, user);
-          sendGA(userId, 'reply_first_min');
-        } else if (userStatus >= -206 && userStatus <= -200) {
-          onSecondMin(data, accessToken, user);
-          sendGA(userId, 'reply_second_min');
-        } else if (userStatus >= -104 && userStatus <= -100) {
-          onThirdMin(data, accessToken, user);
-          sendGA(userId, 'reply_third_min');
-        } else if (userStatus === 1) {
-          // Waiting for WeChat ID
-          onReceiveWeChatId(data, accessToken, user);
-          sendGA(userId, 'reply_wechat_id');
-        } else if (userStatus === 2) {
-          // Revoke mode
-          onReceiveRevokeTranscription(data, accessToken, user);
-          sendGA(userId, 'reply_revoke');
+        // Check role
+        if (userRole === 'C') {
+          // TODO
+        } else if (userRole === 'B') {
+          if (userStatus !== -1) {
+            onReceiveFromB(data, accessToken, user);
+          }
         } else {
-          // User status === 0 or -1
-          if (data.content === '修改') {
-            // Enter revoke mode
-            onReceiveRevoke(data, accessToken, user);
-            sendGA(userId, 'enter_revoke_mode');
-          } else {
-            findInProcessTaskForUser(userId).then(task => {
-              logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
-              if (task) {
-                if (data.content === '没有语音') {
-                  onReceiveNoVoice(data, accessToken, task);
-                  sendGA(userId, 'reply_no_voice');
-                } else if (data.content === '不对应') {
-                  onReceiveNotMatch(data, accessToken, task, user);
-                  sendGA(userId, 'reply_not_match');
-                } else if (data.content === '前') {
-                  onReceivePrevNext(data, accessToken, task);
-                  sendGA(userId, 'reply_prev');
-                } else if (data.content === '后') {
-                  onReceivePrevNext(data, accessToken, task);
-                  sendGA(userId, 'reply_next');
-                } else {
-                  onReceiveTranscription(data, accessToken, task);
-                  sendGA(userId, 'reply');
-                }
+          // A, 帮主, 工作人员, B端用户
+          // Check user status
+          if (userStatus === 3) {
+            let correctReply = false;
+            if (tasksDone === 0) {
+              // 技能卡片-1，需要回复“XX”
+              if (data.content.match(/xx/gi)) {
+                content = '恭喜你成功解锁该技能！';
+                correctReply = true;
               } else {
-                sendGA(userId, 'not_anything');
+                content = '请回复“XX”解锁技能，否则无法领取你第一个正式的音频任务啦。';
               }
-            });
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                user.set('status', 0);
+                user.save().then(user => {
+                  findAndSendNewTaskForUser(data, accessToken, user);
+                });
+              }
+            } else if (tasksDone === 4) {
+              // 技能卡片-2，需要回复“修改”
+              if (data.content === '修改' ) {
+                content = '恭喜你成功解锁该技能！';
+                correctReply = true;
+              } else {
+                content = '请回复“修改”解锁技能，否则无法领取下一个任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) onReceiveRevoke(data, accessToken, user);
+            } else if (tasksDone === 8) {
+              // 技能卡片-3，需要回复“过”
+              if (data.content === '过' ) {
+                content = '恭喜你成功解锁该技能！已为你跳过了上一段片段！（上一个片段没有红包）';
+                correctReply = true;
+              } else {
+                content = '请回复“过”解锁技能，否则无法领取下一个任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                findInProcessTaskForUser(userId).then(task => {
+                  onReceivePass(data, accessToken, task, user);
+                });
+                user.set('status', 0);
+                user.save();
+              }
+            } else if (tasksDone === 12) {
+              // 技能卡片-4，需要回复“前”或“后”
+              if (data.content === '前' || data.content === '后') {
+                content = '恭喜你成功解锁该技能！下面是你调用的音频片段，听完之后可以更好地帮助你找出上面音频片段的错别字。';
+                correctReply = true;
+              } else {
+                content = '请回复“前”or“后”解锁技能，否则无法领取下一个任务啦。';
+              }
+              sendToUser.text(content, data, accessToken);
+              if (correctReply) {
+                findInProcessTaskForUser(userId).then(task => {
+                  onReceivePrevNext(data, accessToken, task);                  
+                });
+                user.set('status', 0);
+                user.save();
+              }
+            }
+          } else if (userStatus === 1) {
+            // Waiting for WeChat ID
+            onReceiveWeChatId(data, accessToken, user);
+            sendGA(userId, 'reply_wechat_id');
+          } else if (userStatus === 2) {
+            // Revoke mode
+            onReceiveRevokeTranscription(data, accessToken, user);
+            sendGA(userId, 'reply_revoke');
+          } else {
+            // User status === 0
+            if (data.content === '修改') {
+              // Enter revoke mode
+              onReceiveRevoke(data, accessToken, user);
+              sendGA(userId, 'enter_revoke_mode');
+            } else {
+              findInProcessTaskForUser(userId).then(task => {
+                logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
+                if (task) {
+                  if (data.content === '没有语音') {
+                    onReceiveNoVoice(data, accessToken, task);
+                    sendGA(userId, 'reply_no_voice');
+                  } else if (data.content === '不对应') {
+                    onReceiveNotMatch(data, accessToken, task, user);
+                    sendGA(userId, 'reply_not_match');
+                  } else if (data.content === '前') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_prev');
+                  } else if (data.content === '后') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_next');
+                  } else if (data.content === '过') {
+                    onReceivePass(data, accessToken, task, user);
+                    sendGA(userId, 'reply_pass');
+                  } else if (data.content === '不对应') {
+                    onReceiveNotMatch(data, accessToken, task, user);
+                    sendGA(userId, 'reply_not_match');
+                  } else if (data.content === '前') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_prev');
+                  } else if (data.content === '后') {
+                    onReceivePrevNext(data, accessToken, task);
+                    sendGA(userId, 'reply_next');
+                  } else {
+                    onReceiveTranscription(data, accessToken, task, user);
+                    sendGA(userId, 'reply');
+                  }
+                } else {
+                  // User status is 0
+                  // User has no assigned task
+                  if (tasksDone === 0) {
+                    content = '请点击下方“领取任务”，开启1\'61探索之旅。';
+                    sendToUser.text(content, data, accessToken);
+                  }
+                }
+              });
+            }
           }
         }
       }
     } else if (data.msgtype === 'event') {
       if (data.event === 'subscribe') {
-        if (userStatus === -300) {
+        if (userRole === 'B' && userStatus === 0) {
           onSubscribe(data, accessToken);
           sendGA(userId, 'new_subscription');
         } else {
@@ -1434,41 +1876,44 @@ module.exports.postCtrl = (req, res, next) => {
           setPrice(data, user);
         }
       } else if (data.event === 'CLICK' && data.eventkey === 'GET_TASK') {
-        // Check if the user has wechat_id recorded if the user has done more than 4 tasks
-        if (userStatus === 0 && tasksDone >= 4 && !wechatId) {
-          sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
-
-          // Change user status to 1
-          user.set('status', 1);
-          user.save();
-        } else if (userStatus === 0) {
-          onGetTask(data, accessToken);
-        } else if (userStatus === 1) {
-          sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
-        } else if (userStatus === 2) {
-          sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
-        } else if (userStatus >= -104 && userStatus <= -100) {
-          order = -100 - userStatus;
-          sendToUser.text(savedContent.thirdMin[order], data, accessToken)
-            .then(() => {
-              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe2[order], userId, accessToken, startedAt);
-            });
-        } else if (userStatus >= -304 && userStatus <= -300) {
-          order = -300 - userStatus;
-          // Send text
-          sendToUser.text(savedContent.firstMin[order], data, accessToken);
-          // Send voice in 1s
-          setTimeout(() => {
-            sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.subscribe1[order], userId, accessToken, startedAt);
-          }, 1000);
-        } else if (userStatus >= -206 && userStatus <= -200) {
-          order = -200 - userStatus;
-          sendToUser.text(savedContent.secondMin[order].q, data, accessToken);
-        } else if (userStatus === -1) {
-          sendToUser.text('你好，欢迎你对1\'61的关注，你暂时没有被开通“领取任务”功能，只有经过“新手训练营”测试的童鞋才会被开通。目前“新手训练营”属于邀请制，我们会一一邀请大家来参与测试的，谢谢大家。', data, accessToken);
+        if (userRole === 'C') {
+          // TODO
+        } else if (userRole === 'B') {
+          if (userStatus !== -1) {
+            onGetTaskForB(data, accessToken, user);
+          }
         } else {
-          // Should not get here
-          logger.info('Error: need get task handler');
+          // A, 帮主, 工作人员, B端用户
+          // Check if the user has wechat_id recorded if the user has done more than 4 tasks
+          if (userStatus === 0 && tasksDone >= 4 && !wechatId) {
+            sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
+
+            // Change user status to 1
+            user.set('status', 1);
+            user.save();
+          } else if (userStatus === 0) {
+            onGetTask(data, accessToken, user);
+          } else if (userStatus === 1) {
+            sendToUser.text('biu~正在登记微信号，无法领取任务。请先回复你的微信号噢。', data, accessToken);
+          } else if (userStatus === 2) {
+            sendToUser.text('biu~正在修改模式中，无法领取任务。可直接回复修改后的内容或者回复“0”退出修改模式。', data, accessToken);
+          } else if (userStatus === 3) {
+            if (tasksDone === 0) {
+              content = '请回复“XX”解锁技能，否则无法领取你第一个正式的音频任务啦。';
+            } else if (tasksDone === 4) {
+              content = '请回复“修改”解锁技能，否则无法领取下一个任务啦。';
+            } else if (tasksDone === 8) {
+              content = '请回复“过”解锁技能，否则无法领取下一个任务啦。';
+            } else if (tasksDone === 12) {
+              content = '请回复“前”或“后”解锁技能，否则无法领取下一个任务啦。';
+            }
+            sendToUser.text(content, data, accessToken);
+          } else if (userStatus === -1) {
+            sendToUser.text('biu~我们正在审核你的答案。请耐心等待通知噢！', data, accessToken);
+          } else {
+            // Should not get here
+            logger.info('Error: need get task handler');
+          }
         }
         sendGA(userId, 'click_get_task');
       } else if (data.event === 'SCAN') {

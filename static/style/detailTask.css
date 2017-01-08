@@ -1,0 +1,78 @@
+body {
+  margin: 0px;
+  font-family: PingFangSC;
+}
+
+.detailTask {
+  padding-bottom: 10rem;
+}
+
+.title {
+  background-image: url('../home.jpeg');
+  background-position: center;
+  height: 23.5rem;
+  width: 100%;
+  text-align: center;
+  color: #fff;
+}
+
+.title1 {
+  text-align: center;
+}
+
+.title11 {
+  font-size: 2rem;
+}
+
+.title12 {
+  font-size: 1.5rem;
+}
+
+.circle {
+  width: 12.5rem;
+  height: 12.5rem;
+  background-color: transparent;
+  border: 15px #fff solid;
+  -webkit-border-radius: 150px;
+  transform: translateX(-50%) translateY(0.5rem);
+  margin-left: 50%;
+}
+
+.arrowLeft {
+  display: inline-block;
+  transform: rotate(-90deg) scaleX(1.5) translateX(20%);
+  font-size: 2.5rem;
+}
+
+.rewardRate {
+  display: inline-block;
+  font-size: 3rem;
+  font-weight:800;
+  padding-top: 5rem;
+}
+
+.content {
+  padding-right: 3rem;
+  padding-left: 2.5rem;
+  margin-top: 1.5rem;
+  font-size: 1.8rem;
+}
+
+.bottom {
+  float: right;
+  padding-right: 3rem;
+  padding-left: 2.5rem;
+  margin-top: 2.5rem;
+  font-size: 1.5rem;
+}
+
+.rule {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+audio {
+  width: 70%;
+  height: 5rem;
+  display: inline-block;
+}
