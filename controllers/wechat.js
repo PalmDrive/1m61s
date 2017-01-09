@@ -1506,18 +1506,14 @@ const onReceiveFromB = (data, accessToken, user) => {
           sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
         });
       } else if (currentTaskOrder === 6) {
-        content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）';
+        content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n你的技能：\n1）无错别字';
         sendToUser.text(content, data, accessToken);
-        setTimeout(() => {
-          content = '你的技能：\n1）无错别字';
-          sendToUser.text(content, data, accessToken);
-        }, 1000);
         setTimeout(() => {
           sendToUser.image(wechatConfig.mediaId.image.rule._2, userId, accessToken, startedAt)
             .then(() => {
               sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
             });
-        }, 2000);
+        }, 1000);
       } else if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
         // 穿插规则教学
         user = ruleTeaching(data, accessToken, user, objForRuleTeaching);
