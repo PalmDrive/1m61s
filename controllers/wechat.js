@@ -1320,7 +1320,6 @@ const ruleTeaching = (data, accessToken, user, obj) => {
     }, 1000 + delay + redPacketDelay);
   } else {
     // currentTaskOrder === 14 or 23
-    user.set('status', status + 0.5);
     // 回顾与总结
     setTimeout(() => {
       if (currentTaskOrder === 14) {
@@ -1340,8 +1339,6 @@ const ruleTeaching = (data, accessToken, user, obj) => {
       sendToUser.text(content, data, accessToken);
     }, 2000 + delay + redPacketDelay);
   }
-
-  return user;
 };
 
 const onReceiveFromB = (data, accessToken, user) => {
@@ -1365,8 +1362,9 @@ const onReceiveFromB = (data, accessToken, user) => {
           user_role: 'B'
         },
         skillGotArray = [9, 11, 14, 17, 20, 23],
-        ruleArray = [9, 11, 17, 20];
-  let content, delay,
+        ruleArray = [9, 11, 17, 20],
+        questionList = [14, 23]; // currentTaskOrder
+  let content, delay, sendRedPacket, newRedPacket, answerTimes,
       redPacket = user.get('red_packet') || 0,
       userWrongWords = user.get('wrong_words') || 0,
       amountPaid = user.get('amount_paid') || 0;
@@ -1492,89 +1490,34 @@ const onReceiveFromB = (data, accessToken, user) => {
           redPacket
         };
 
-    if (isCorrect) {
-      user.set('status', status + 1);
-
-      redPacket += 1;
-      objForRuleTeaching.redPacket = redPacket;
-      const sendRedPacket = redPacket === 8;
-      content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
-      
-      if (currentTaskOrder === 5) {
-        content += '恭喜你，你的答案是正确的！';
-        sendToUser.text(content, data, accessToken).then(() => {
-          sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-        });
-      } else if (currentTaskOrder === 6) {
-        content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n你的技能：\n1）无错别字';
-        sendToUser.text(content, data, accessToken);
-        setTimeout(() => {
-          sendToUser.image(wechatConfig.mediaId.image.rule._2, userId, accessToken, startedAt)
-            .then(() => {
-              sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
-            });
-        }, 1000);
-      } else if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
-        // 穿插规则教学
-        user = ruleTeaching(data, accessToken, user, objForRuleTeaching);
-      } else {
-        // currentTaskOrder === 7 - 28, no 规则教学
-        content = `【任务完成：${currentTaskOrder - 4}/24】\n`;
-        if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
-        content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
-        sendToUser.text(content, data, accessToken);
-
-        if (sendRedPacket) {
-          setTimeout(() => {
-              sendToUser.redPacket(userId, 1);
-              logger.info(`RedPacket: send 1 yuan to ${userId}`);
-          }, 1000);
-          delay = 2000;
-        } else {
-          delay = 0;
-        }
-
-        if (currentTaskOrder === 28) {
-          user.set({status: 0, role: 'A'});
-
-          setTimeout(() => {
-            content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
-            sendToUser.text(content, data, accessToken);
-          }, 1000 + delay);
-          // 毕业证书
-          setTimeout(() => {
-            sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
-          }, 2000 + delay);
-          setTimeout(() => {
-            content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
-            sendToUser.text(content, data, accessToken);
-          }, 3000 + delay);
-          setTimeout(() => {
-            content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
-            sendToUser.text(content, data, accessToken);
-          }, 4000 + delay);
-        } else {
-          setTimeout(() => {
-            sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);            
-          }, delay);
-        }
-      }
-
-      if (redPacket === 8) {
-        // Reset red_packet to 0
-        redPacket = 0;
-        // Add 1 to amount_paid
-        amountPaid += 1;
-      }
-
-      user.set({red_packet: redPacket, amount_paid: amountPaid});
-      user.save();
-    }
-
     // Create UserTranscript
     userTranscript.set(userTranscriptObj);
     userTranscript.save().then(userTranscript => {
-      if (!isCorrect) {
+      // Update user
+      if (isCorrect) {
+        // Status
+        if (currentTaskOrder === 28) {
+          user.set({status: 0, role: 'A'});
+        } else if (questionList.indexOf(currentTaskOrder) !== -1) {
+          user.set('status', status + 0.5);
+        } else {
+          user.set('status', status + 1);
+        }
+
+        // Red packet and amount_paid
+        redPacket += 1;
+        objForRuleTeaching.redPacket = redPacket;
+        if (redPacket === 8) {
+          sendRedPacket = true;
+          newRedPacket = 0;
+          amountPaid += 1;
+        } else {
+          sendRedPacket = false;
+          newRedPacket = redPacket;
+        }
+        user.set({red_packet: newRedPacket, amount_paid: amountPaid});
+        return user.save();
+      } else {
         userWrongWords += wrongWords;
         objForRuleTeaching.userWrongWords = userWrongWords;
 
@@ -1585,85 +1528,153 @@ const onReceiveFromB = (data, accessToken, user) => {
         query.equalTo('user_open_id', userId);
         query.equalTo('review_times', 0);
         query.equalTo('user_role', 'B');
-        query.count().then(count => {
-          if (count === 1) {
-            sendToUser.text(failContent, data, accessToken).then(() => {
-              sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
-            });
-          } else if (count === 2) {
-            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
-              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
-              sendToUser.text(content, data, accessToken);
-            } else {
-              content = '【提示】\n\n下面提示图片里标明了这道题错误的地方，只有红色的地方是有错误的，非标红的地方没有错误。\n\n1.如果你修改了非红色部分，请改回来。\n2.如果红色部分你没有发现错误，请努力寻找错误。\n\n注意：你只剩1次机会修改这个片段，将计入你的错别字字数。';
-              sendToUser.text(content, data, accessToken);
-              // Send hint image
-              setTimeout(() => {
-                sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
-              }, 1000);
-            }
-          } else {
-            // count >= 3
-            if (currentTaskOrder === 5 || currentTaskOrder === 6) {
-              content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
-              sendToUser.text(content, data, accessToken);
-            } else {
-              // Task 7 - 28
-              user.set('wrong_words', userWrongWords);
-
+        return query.count().then(count => {
+          answerTimes = count;
+          if (count >= 3) {
+            user.set('wrong_words', userWrongWords);
+            if (currentTaskOrder > 6) {
               if (userWrongWords > 10) {
-                content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
-                sendToUser.text(content, data, accessToken);
                 user.set('status', -1);
+              } else if (currentTaskOrder === 28) {
+                user.set({status: 0, role: 'A'});
+              } else if (questionList.indexOf(currentTaskOrder) !== -1) {
+                user.set('status', status + 0.5);
               } else {
-                // wrong words < 10
-                if (currentTaskOrder === 28) {
-                  user.set({status: 0, role: 'A'});
-                } else {
-                  user.set('status', status + 1);
-                }
-
-                // Send answer image
-                sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
-
-                if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
-                  objForRuleTeaching.delay = 1000;
-                  user = ruleTeaching(data, accessToken, user, objForRuleTeaching);
-                } else {
-                  // Task 7 - 28, no 规则教学
-                  setTimeout(() => {
-                    content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n【红包奖励：${redPacket}/8元】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
-                    sendToUser.text(content, data, accessToken);
-                  }, 1000);
-
-                  if (currentTaskOrder === 28) {
-                    setTimeout(() => {
-                      content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
-                      sendToUser.text(content, data, accessToken);
-                    }, 3000);
-                    // 毕业证书
-                    setTimeout(() => {
-                      sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
-                    }, 4000);
-                    setTimeout(() => {
-                      content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
-                      sendToUser.text(content, data, accessToken);
-                    }, 5000);
-                    setTimeout(() => {
-                      content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
-                      sendToUser.text(content, data, accessToken);
-                    }, 6000);
-                  } else {
-                    setTimeout(() => {
-                      sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);            
-                    }, 1000);
-                  }
-                }
+                user.set('status', status + 1);
               }
-              user.save();
             }
           }
+          return user.save();
         });
+      }
+    }).then(user => {
+      if (isCorrect) {
+        content = `【任务完成：${currentTaskOrder - 4}/24】\n【红包奖励：${redPacket}/8元】\n\n`;
+        
+        if (currentTaskOrder === 5) {
+          content += '恭喜你，你的答案是正确的！';
+          sendToUser.text(content, data, accessToken).then(() => {
+            sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+          });
+        } else if (currentTaskOrder === 6) {
+          content += '恭喜你成功修炼一项字幕技能，欢迎修炼下一难度的技能！（么么哒）\n\n你的技能：\n1）无错别字';
+          sendToUser.text(content, data, accessToken);
+          setTimeout(() => {
+            sendToUser.image(wechatConfig.mediaId.image.rule._2, userId, accessToken, startedAt)
+              .then(() => {
+                sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);
+              });
+          }, 1000);
+        } else if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
+          // 穿插规则教学
+          ruleTeaching(data, accessToken, user, objForRuleTeaching);
+        } else {
+          // currentTaskOrder === 7 - 28, no 规则教学
+          content = `【任务完成：${currentTaskOrder - 4}/24】\n`;
+          if (userWrongWords > 0) content += `【错别字总数：${userWrongWords}】\n`;
+          content += `【红包奖励：${redPacket}/8元】\n\n恭喜你，你的答案是正确的！`;
+          sendToUser.text(content, data, accessToken);
+
+          if (sendRedPacket) {
+            setTimeout(() => {
+                // sendToUser.redPacket(userId, 1);
+                sendToUser.text('*此处应有1元红包*', data, accessToken);
+            }, 1000);
+            delay = 2000;
+          } else {
+            delay = 0;
+          }
+
+          if (currentTaskOrder === 28) {
+            setTimeout(() => {
+              content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
+              sendToUser.text(content, data, accessToken);
+            }, 1000 + delay);
+            // 毕业证书
+            setTimeout(() => {
+              sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
+            }, 2000 + delay);
+            setTimeout(() => {
+              content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
+              sendToUser.text(content, data, accessToken);
+            }, 3000 + delay);
+            setTimeout(() => {
+              content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
+              sendToUser.text(content, data, accessToken);
+            }, 4000 + delay);
+          } else {
+            setTimeout(() => {
+              sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);            
+            }, delay);
+          }
+        }        
+      } else {
+        if (answerTimes === 1) {
+          sendToUser.text(failContent, data, accessToken).then(() => {
+            sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
+          });
+        } else if (answerTimes === 2) {
+          if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+            content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+            sendToUser.text(content, data, accessToken);
+          } else {
+            content = '【提示】\n\n下面提示图片里标明了这道题错误的地方，只有红色的地方是有错误的，非标红的地方没有错误。\n\n1.如果你修改了非红色部分，请改回来。\n2.如果红色部分你没有发现错误，请努力寻找错误。\n\n注意：你只剩1次机会修改这个片段，将计入你的错别字字数。';
+            sendToUser.text(content, data, accessToken);
+            // Send hint image
+            setTimeout(() => {
+              sendToUser.image(wechatConfig.mediaId.image.hint[currentTaskOrder], userId, accessToken, startedAt);
+            }, 1000);
+          }
+        } else {
+          // count >= 3
+          if (currentTaskOrder === 5 || currentTaskOrder === 6) {
+            content = '这段文字是正确的，所以你只需要复制粘贴机器给出的文字就好啦。';
+            sendToUser.text(content, data, accessToken);
+          } else {
+            // Task 7 - 28
+            if (userWrongWords > 10) {
+              content = '非常遗憾，你的错误字数已经大于10，暂时无法进行新手训练营测试，如果想要申诉，回复“申诉”即可。';
+              sendToUser.text(content, data, accessToken);
+            } else {
+              // Send answer image
+              sendToUser.image(wechatConfig.mediaId.image.answers[currentTaskOrder], userId, accessToken, startedAt);
+
+              if (skillGotArray.indexOf(currentTaskOrder) !== -1) {
+                objForRuleTeaching.delay = 1000;
+                ruleTeaching(data, accessToken, user, objForRuleTeaching);
+              } else {
+                // Task 7 - 28, no 规则教学
+                setTimeout(() => {
+                  content = `【任务完成：${currentTaskOrder - 4}/24】\n【错别字总数：${userWrongWords}】\n【红包奖励：${redPacket}/8元】\n\n腻害，该片段视为错误无红包，很欣赏你的性格，真正的勇士敢于直面惨淡的人生。请认真阅读上面参考答案。`;
+                  sendToUser.text(content, data, accessToken);
+                }, 1000);
+
+                if (currentTaskOrder === 28) {
+                  setTimeout(() => {
+                    content = '恭喜你成为1\'61新手学院的毕业生，你已被开通“领取任务”功能。\n\n乔布斯曾经说过，“细节至关重要，它值得被耐心等待。”\n\n希望，在接下来的任务中，你能够耐心一点，也希望这份耐心能浸透到你的生活之中，带去积极的影响。\n\n现在赠送你一页毕业证书，欢迎分享证书邀请更多的朋友参加这次“耐心修炼”之旅。';
+                    sendToUser.text(content, data, accessToken);
+                  }, 3000);
+                  // 毕业证书
+                  setTimeout(() => {
+                    sendToUser.image(wechatConfig.mediaId.image.certificate, userId, accessToken, startedAt);
+                  }, 4000);
+                  setTimeout(() => {
+                    content = '【1\'61毕业宣言】\n“只有那些相信能带去改变的人才会拥有改变”\n\n作为1\'61的毕业生，我们对你的第一个要求就是：相信自己改变的力量，接下来你将开启真正有趣的1\'61探索征程。\n\n在未来的任务中，你会随机得到各种各样技能卡片，每一张技能卡片上都印有一位人类历史上最伟大的科学家，他们推动着物理、化学、生物等多个领域的变革，促进71亿人口的进步。总计36张卡片，36项技能，36位顶尖科学家。集满还会有1000元现金奖励。\n\n我们希望这些科学家的不墨守陈规、敢于挑战、持续不断的努力等等特质能够激励你更好地前行。';
+                    sendToUser.text(content, data, accessToken);
+                  }, 5000);
+                  setTimeout(() => {
+                    content = '现在你已经被开通“领取任务”功能，点击下方“领取任务”开启探索之旅吧。\n\n（同时，接下来的音频都会切分为2个短片段，提高你的改错别字效率。）';
+                    sendToUser.text(content, data, accessToken);
+                  }, 6000);
+                } else {
+                  setTimeout(() => {
+                    sendToUser.schoolTask(nextTaskOrder, data, accessToken, user);            
+                  }, 1000);
+                }
+              }
+            }
+          }
+        }
       }
     });
   }
