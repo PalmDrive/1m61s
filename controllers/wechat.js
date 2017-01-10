@@ -1754,7 +1754,15 @@ module.exports.postCtrl = (req, res, next) => {
               if (correctReply) {
                 user.set('status', 0);
                 user.save().then(user => {
-                  findAndSendNewTaskForUser(data, accessToken, user);
+                  findInProcessTaskForUser(userId).then(task => {
+                    if (task) {
+                      // There is a task in process
+                      sendToUser.task(task, data, accessToken, user);
+                    } else {
+                      // There is no task in process
+                      findAndSendNewTaskForUser(data, accessToken, user);
+                    }
+                  });
                 });
               }
             } else if (tasksDone === 4) {
