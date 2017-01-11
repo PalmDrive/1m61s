@@ -10,7 +10,7 @@ const cron = schedule.scheduleJob('0 0 23 * * *', function() {
   logger.info(`scheduled task..at --{${new Date()}}`);
 
   const today = Date.today(),
-        yesterday = Date.yesterday();
+        yesterday = Date.yesterday().yesterday();
   today.setHours(23);
   yesterday.setHours(23);
 
@@ -24,14 +24,16 @@ const cron = schedule.scheduleJob('0 0 23 * * *', function() {
         wechat_ctl.sendModelMessage(result, res);
         try {
           // 发红包
+          const totalMoney = (parseFloat(result.money) + parseFloat(result.reward)) * 100;
           const _data = {
                 re_openid: result.touser,
-                total_amount: result.money * 100
+                total_amount: totalMoney
                 },
                 _callback = ret => {
                 };
-          console.log('send money data: ' + JSON.stringify(_data));
+          console.log('try to send money data1: ' + JSON.stringify(_data));
           wechat_pay.sendMoney(_data, _callback);
+           console.log('real send money data2: ' + JSON.stringify(_data));
         } catch(e) {
           console.log('send money error start: ');
           console.dir(e);
