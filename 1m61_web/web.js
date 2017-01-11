@@ -94,7 +94,7 @@ app.get('/ranking', function (req, res, next) {
         data.task_amount = res.task_amount;
         data.total_task_amount = res.total_task_amount;
         data.rewardRate = res.reward_rate;
-        data.reward = res.salary * res.reward_rate;
+        data.reward = (res.salary * res.reward_rate).toFixed(2);
         break;
       }
     }
