@@ -81,13 +81,18 @@ app.get('/ranking', function (req, res, next) {
       ranking = {};
 
   const rightRatePromise = promiseQuery('right_task_rate').then(results => {
-    results = results.map(res => {return res.toJSON();});
+    results = results.map(res => {
+      const r = res.toJSON();
+      r.reward_rate = r.reward_rate * 100;
+      return r;
+    });
     data.rightRateList = results.splice(0,10);
   });
 
   const todayTaskPromise = promiseQuery('task_amount').then(results => {
     for (var i = 0; i < results.length; i++) {
       const res = results[i].toJSON();
+      res.reward_rate = res.reward_rate * 100;
       results[i] = res;
       if(res.open_id === openId) {
         data.ranking = i + 1;
@@ -103,7 +108,11 @@ app.get('/ranking', function (req, res, next) {
   });
 
   const totalTaskPromise = promiseQuery('total_task_amount').then(results => {
-    results = results.map(res => {return res.toJSON();});
+    results = results.map(res => {
+      const r = res.toJSON();
+      r.reward_rate = r.reward_rate * 100;
+      return r;
+    });
     data.totalTaskList = results.splice(0,10);
   });
 
