@@ -81,20 +81,26 @@ app.get('/ranking', function (req, res, next) {
       ranking = {};
 
   const rightRatePromise = promiseQuery('right_task_rate').then(results => {
-    results = results.map(res => {return res.toJSON();});
+    results = results.map(res => {
+      const r = res.toJSON();
+      r.right_task_rate = r.right_task_rate * 100;
+      r.reward_rate = r.reward_rate * 100;
+      return r;
+    });
     data.rightRateList = results.splice(0,10);
   });
 
   const todayTaskPromise = promiseQuery('task_amount').then(results => {
     for (var i = 0; i < results.length; i++) {
       const res = results[i].toJSON();
+      res.reward_rate = res.reward_rate * 100;
       results[i] = res;
       if(res.open_id === openId) {
         data.ranking = i + 1;
         data.task_amount = res.task_amount;
         data.total_task_amount = res.total_task_amount;
         data.rewardRate = res.reward_rate;
-        data.reward = res.salary * res.reward_rate;
+        data.reward = (res.salary * res.reward_rate / 100).toFixed(2);
         break;
       }
     }

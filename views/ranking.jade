@@ -12,8 +12,8 @@ html
         span.rewardRate #{data.rewardRate} 
         .arrowLeft →
       h3 准确率奖励加倍百分比
-      h4 额外奖励
-      h5 #{data.reward}元
+      h3 额外奖励
+      h3 #{data.reward}元
     
     section.second
       table
@@ -40,8 +40,8 @@ html
           tr 
             td #{i + 1}
             td #{result.wechat_id}
-            td #{result.right_task_rate}
-            td #{result.reward_rate}
+            td #{result.right_task_rate}%
+            td #{result.reward_rate}%
 
     section.three.todayTask
       table
@@ -49,7 +49,7 @@ html
           th 排名
           th 昵称
           th 今日完成片段数
-          th 累计总完后才能片段数
+          th 累计总完成片段数
         each result, i in data.todayTaskList
           tr 
             td #{i + 1}
@@ -63,7 +63,7 @@ html
           th 排名
           th 昵称
           th 今日完成片段数
-          th(style="{color: #ff000}") 累计总完后才能片段数
+          th(style="{color: #ff000}") 累计总完成片段数
         each result, i in data.totalTaskList
           tr 
             td #{i + 1}

@@ -22,15 +22,21 @@ const cron = schedule.scheduleJob('0 0 23 * * *', function() {
         
         // 发模板消息
         wechat_ctl.sendModelMessage(result, res);
-
-        // 发红包
-        const _data = {
-              re_openid: result.touser,
-              total_amount: result.money * 100
-              },
-              _callback = ret => {
-              };
-        wechat_pay.sendMoney(_data, _callback);
+        try {
+          // 发红包
+          const _data = {
+                re_openid: result.touser,
+                total_amount: result.money * 100
+                },
+                _callback = ret => {
+                };
+          console.log('send money data: ' + JSON.stringify(_data));
+          wechat_pay.sendMoney(_data, _callback);
+        } catch(e) {
+          console.log('send money error start: ');
+          console.dir(e);
+          console.log('send money error end: ---- ');
+        }
       });
     });
   });
