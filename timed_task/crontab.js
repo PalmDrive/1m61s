@@ -30,6 +30,7 @@ const cron = schedule.scheduleJob('0 0 23 * * *', function() {
                 },
                 _callback = ret => {
                 };
+          console.log('send money data: ' + JSON.stringify(_data));
           wechat_pay.sendMoney(_data, _callback);
         } catch(e) {
           console.log('send money error start: ');

@@ -83,7 +83,7 @@ app.get('/ranking', function (req, res, next) {
   const rightRatePromise = promiseQuery('right_task_rate').then(results => {
     results = results.map(res => {
       const r = res.toJSON();
-      res.right_task_rate = res.right_task_rate * 100;
+      r.right_task_rate = r.right_task_rate * 100;
       r.reward_rate = r.reward_rate * 100;
       return r;
     });
