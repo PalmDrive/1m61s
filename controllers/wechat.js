@@ -1858,15 +1858,6 @@ module.exports.postCtrl = (req, res, next) => {
                   } else if (data.content === '过') {
                     onReceivePass(data, accessToken, task, user);
                     sendGA(userId, 'reply_pass');
-                  } else if (data.content === '不对应') {
-                    onReceiveNotMatch(data, accessToken, task, user);
-                    sendGA(userId, 'reply_not_match');
-                  } else if (data.content === '前') {
-                    onReceivePrevNext(data, accessToken, task);
-                    sendGA(userId, 'reply_prev');
-                  } else if (data.content === '后') {
-                    onReceivePrevNext(data, accessToken, task);
-                    sendGA(userId, 'reply_next');
                   } else {
                     onReceiveTranscription(data, accessToken, task, user);
                     sendGA(userId, 'reply');
