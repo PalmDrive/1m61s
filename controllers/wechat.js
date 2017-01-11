@@ -1300,8 +1300,11 @@ const ruleTeaching = (data, accessToken, user, obj) => {
 
   if (sendRedPacket) {
     setTimeout(() => {
+      if (process.env.NODE_ENV === 'production') {
         sendToUser.redPacket(userId, 1);
-        logger.info(`RedPacket: send 1 yuan to ${userId}`);
+      } else {
+        sendToUser.text('*此处应有1元红包*', data, accessToken);
+      }
     }, 1000 + delay);
     redPacketDelay = 1000;
   } else {
@@ -1577,7 +1580,11 @@ const onReceiveFromB = (data, accessToken, user) => {
 
           if (sendRedPacket) {
             setTimeout(() => {
+              if (process.env.NODE_ENV === 'production') {
                 sendToUser.redPacket(userId, 1);
+              } else {
+                sendToUser.text('*此处应有1元红包*', data, accessToken);
+              }
             }, 1000);
             delay = 2000;
           } else {
