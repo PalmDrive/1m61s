@@ -83,8 +83,10 @@ app.get('/ranking', function (req, res, next) {
   const rightRatePromise = promiseQuery('right_task_rate').then(results => {
     results = results.map(res => {
       const r = res.toJSON();
+      console.log('rightRatePromise data1 ---: ' + JSON.stringify(r));
       r.right_task_rate = r.right_task_rate * 100;
       r.reward_rate = r.reward_rate * 100;
+      console.log('rightRatePromise data2 ---: ' + JSON.stringify(r));
       return r;
     });
     data.rightRateList = results.splice(0,10);
@@ -105,7 +107,6 @@ app.get('/ranking', function (req, res, next) {
       }
     }
     data.todayTaskList = results.splice(0,10);
-    // console.log('todayTaskList: ' + JSON.stringify( data.totalTaskList));
   });
 
   const totalTaskPromise = promiseQuery('total_task_amount').then(results => {
