@@ -1617,7 +1617,23 @@ const onReceiveFromB = (data, accessToken, user) => {
       } else {
         if (answerTimes === 1) {
           sendToUser.text(failContent, data, accessToken).then(() => {
-            sendToUser.schoolTask(currentTaskOrder, data, accessToken, user);
+            const sendTip = !(user.get('preference') && user.get('preference').disableTip) && currentTaskOrder >= 24;
+            let textDelay = 1000,
+                voiceDelay = 2000;
+
+            if (sendTip) {
+              setTimeout(() => {
+                self.text(wechatData.tips.list, data, accessToken);
+              }, 1000);
+              textDelay = 2000;
+              voiceDelay = 3000;
+            }
+            setTimeout(() => {
+              sendToUser.text(userContent, data, accessToken);
+            }, textDelay);
+            setTimeout(() => {
+              sendToUser.voiceByMediaId(wechatConfig.mediaId.voice.tasks['_' + currentTaskOrder], userId, accessToken, startedAt);
+            }, voiceDelay);
           });
         } else if (answerTimes === 2) {
           if (currentTaskOrder === 5 || currentTaskOrder === 6) {
