@@ -924,7 +924,7 @@ const getTask = user => {
     query.notEqualTo('last_user', userId);
     query.notEqualTo('passed_users', userId);
     if (options.field) query.equalTo('fields', options.field);
-    if (options.noField) query.doesNotExist('fields');
+    if (options.noField) query.equalTo('fields', [""]);
     if (options.notField) query.notEqualTo('fields', options.notField);
 
     return query;
