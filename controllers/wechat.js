@@ -1300,8 +1300,11 @@ const ruleTeaching = (data, accessToken, user, obj) => {
 
   if (sendRedPacket) {
     setTimeout(() => {
+      if (process.env.NODE_ENV === 'production') {
         sendToUser.redPacket(userId, 1);
-        logger.info(`RedPacket: send 1 yuan to ${userId}`);
+      } else {
+        sendToUser.text('*此处应有1元红包*', data, accessToken);
+      }
     }, 1000 + delay);
     redPacketDelay = 1000;
   } else {
@@ -1577,7 +1580,11 @@ const onReceiveFromB = (data, accessToken, user) => {
 
           if (sendRedPacket) {
             setTimeout(() => {
+              if (process.env.NODE_ENV === 'production') {
                 sendToUser.redPacket(userId, 1);
+              } else {
+                sendToUser.text('*此处应有1元红包*', data, accessToken);
+              }
             }, 1000);
             delay = 2000;
           } else {
@@ -1851,15 +1858,6 @@ module.exports.postCtrl = (req, res, next) => {
                   } else if (data.content === '过') {
                     onReceivePass(data, accessToken, task, user);
                     sendGA(userId, 'reply_pass');
-                  } else if (data.content === '不对应') {
-                    onReceiveNotMatch(data, accessToken, task, user);
-                    sendGA(userId, 'reply_not_match');
-                  } else if (data.content === '前') {
-                    onReceivePrevNext(data, accessToken, task);
-                    sendGA(userId, 'reply_prev');
-                  } else if (data.content === '后') {
-                    onReceivePrevNext(data, accessToken, task);
-                    sendGA(userId, 'reply_next');
                   } else {
                     onReceiveTranscription(data, accessToken, task, user);
                     sendGA(userId, 'reply');
