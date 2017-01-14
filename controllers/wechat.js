@@ -1863,7 +1863,7 @@ module.exports.postCtrl = (req, res, next) => {
                 logger.info(`--- At ${getTime(startedAt)} get task for user ${userId} data from leancloud.`);
                 if (task) {
                   if (data.content === '没有语音') {
-                    onReceiveNoVoice(data, accessToken, task);
+                    onReceiveNoVoice(data, accessToken, task, user);
                     sendGA(userId, 'reply_no_voice');
                   } else if (data.content === '不对应') {
                     onReceiveNotMatch(data, accessToken, task, user);
