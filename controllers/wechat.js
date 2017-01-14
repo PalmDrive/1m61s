@@ -629,9 +629,11 @@ const isTaskValid = (task, _startedAt) => {
 };
 
 const onGetTask = (data, accessToken, user) => {
+  let userPreference = user.get('preference') || {};
   const userId = data.fromusername,
-        tasksDone = user.get('tasks_done');
-  if (tasksDone === 0) {
+        tasksDone = user.get('tasks_done'),
+        sendXXCard = !userPreference.xxCardReceived;
+  if (tasksDone === 0 && sendXXCard) {
     // 技能卡片-1
     sendToUser.image(wechatConfig.mediaId.image.skills[1], userId, accessToken, data._startedAt);
     setTimeout(() => {
@@ -641,7 +643,8 @@ const onGetTask = (data, accessToken, user) => {
     setTimeout(() => {
       sendToUser.text(wechatData['Q&A'].pay, data, accessToken);
     }, 3000);
-    user.set('status', 3);
+    userPreference.xxCardReceived = true;
+    user.set({status: 3, preference: userPreference});
     user.save();
   } else {
     findInProcessTaskForUser(userId).then(task => {
