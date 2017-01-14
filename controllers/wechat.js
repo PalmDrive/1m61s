@@ -300,9 +300,10 @@ const sendToUser = {
   voice(transcript, data, accessToken, user) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
-          mediaSrc = `${global.APP_ROOT}/tmp/${audioId}.mp3`,
-          splitPath1 = `${global.APP_ROOT}/tmp/${audioId}_split1.mp3`,
-          splitPath2 = `${global.APP_ROOT}/tmp/${audioId}_split2.mp3`,
+          time = (new Date()).getTime(),
+          mediaSrc = `${global.APP_ROOT}/tmp/${audioId + time}.mp3`,
+          splitPath1 = `${global.APP_ROOT}/tmp/${audioId + time}_split1.mp3`,
+          splitPath2 = `${global.APP_ROOT}/tmp/${audioId + time}_split2.mp3`,
           ws = fs.createWriteStream(mediaSrc),
           self = this,
           _startedAt = data._startedAt;
@@ -430,7 +431,8 @@ const sendToUser = {
   singleVoice(transcript, data, accessToken) {
     const audioURL = transcript.get('fragment_src'),
           audioId = transcript.id,
-          mediaSrc = `${global.APP_ROOT}/tmp/single_${audioId}.mp3`,
+          time = (new Date()).getTime(),
+          mediaSrc = `${global.APP_ROOT}/tmp/single_${audioId + time}.mp3`,
           ws = fs.createWriteStream(mediaSrc),
           self = this,
           _startedAt = data._startedAt;
