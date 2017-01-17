@@ -869,18 +869,24 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
     transcript.save().then(transcript => {
       // create new UserTranscript to record transcription
       createUserTranscript(user, content, task, transcript).then(userTranscript => {
-        if (userTranscript) {
-          if (userRole === '帮主' && hasXX) {
-            source = 2.1;
-          } else if (userRole === 'A' && hasXX) {
-            source = 1.1;
-          } else if (userRole === '工作人员' && hasXX) {
-            source = 3.1;
-          }
+        // if (userTranscript) {
+        //   if (userRole === '帮主' && hasXX) {
+        //     source = 2.1;
+        //   } else if (userRole === 'A' && hasXX) {
+        //     source = 1.1;
+        //   } else if (userRole === '工作人员' && hasXX) {
+        //     source = 3.1;
+        //   }
 
-          if (source) {
-            createCrowdsourcingTask(userTranscript, userId, source, task);
-          }
+        //   if (source) {
+        //     createCrowdsourcingTask(userTranscript, userId, source, task);
+        //   }
+        // }
+
+        // Create crowdsourcingTask when the previous transcript is machine-produced. This ensures a fragment is distributed at most 2 times
+        if (userTranscript && taskType === 'Transcript' && userRole === 'A')
+        {
+          createCrowdsourcingTask(userTranscript, userId, 1, task);
         }
       }, err => {
         wechatLib.logError('createUserTranscript', err);
