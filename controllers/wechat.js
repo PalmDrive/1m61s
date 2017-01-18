@@ -917,82 +917,98 @@ const getTask = user => {
    */
   const _constructQuery = options => {
     let query = new LeanCloud.Query('CrowdsourcingTask');
-    const source = options.source || 0;
-    if (source) {
-      query.greaterThan('source', source[0]);
-      query.lessThan('source', source[1]);
-    } else {
-      query.equalTo('source', source);
-      const queryNoSource = new LeanCloud.Query('CrowdsourcingTask');
-      queryNoSource.doesNotExist('source');
-      query = LeanCloud.Query.or(query, queryNoSource);
-    }
+    // const source = options.source || 0;
+    // if (source) {
+    //   query.greaterThan('source', source[0]);
+    //   query.lessThan('source', source[1]);
+    // } else {
+    //   query.equalTo('source', source);
+    //   const queryNoSource = new LeanCloud.Query('CrowdsourcingTask');
+    //   queryNoSource.doesNotExist('source');
+    //   query = LeanCloud.Query.or(query, queryNoSource);
+    // }
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
     query.notEqualTo('passed_users', userId);
-    if (options.field) query.equalTo('fields', options.field);
-    if (options.noField) query.equalTo('fields', [""]);
-    if (options.notField) query.notEqualTo('fields', options.notField);
+    if (options.secondTime) query.equalTo('fragment_type', 'UserTranscript');
+    // if (options.field) query.equalTo('fields', options.field);
+    // if (options.noField) query.equalTo('fields', [""]);
+    // if (options.notField) query.notEqualTo('fields', options.notField);
 
     return query;
   };
 
   let query;
-  if (userRole === '帮主') {
-    // 帮主
-    // 1. 自己专业领域的机器任务
-    query = _constructQuery({field: userField});
-    return query.first().then(task => {
-      if (task) return task;
-      // 2. 自己专业领域的，帮众做完带XX或者“过”的
-      query = _constructQuery({field: userField, source: [1, 2]});
-      return query.first().then(task => {
-        if (task) return task;
-        // 3. 没有任何专业领域的机器任务
-        query = _constructQuery({noField: true});
-        return query.first().then(task => {
-          if (task) return task;
-          // 4. 其他专业领域的机器任务
-          query = _constructQuery({notField: userField});
-          return query.first();
-        });
-      });
-    });
-  } else if (userRole === 'A') {
-    // 帮众
-    query = _constructQuery({noField: true});
+
+  // if (userRole === '帮主') {
+  //   // 帮主
+  //   // 1. 自己专业领域的机器任务
+  //   query = _constructQuery({field: userField});
+  //   return query.first().then(task => {
+  //     if (task) return task;
+  //     // 2. 自己专业领域的，帮众做完带XX或者“过”的
+  //     query = _constructQuery({field: userField, source: [1, 2]});
+  //     return query.first().then(task => {
+  //       if (task) return task;
+  //       // 3. 没有任何专业领域的机器任务
+  //       query = _constructQuery({noField: true});
+  //       return query.first().then(task => {
+  //         if (task) return task;
+  //         // 4. 其他专业领域的机器任务
+  //         query = _constructQuery({notField: userField});
+  //         return query.first();
+  //       });
+  //     });
+  //   });
+  // }
+
+  // if (userRole === 'B端用户') {
+  //   // B端用户
+  //   // 工作人员做完带XX或者“过”的
+  //   query = _constructQuery({source: [3, 4]});
+  //   return query.first();
+  // }
+
+  if (userRole === 'A') {
+    // query = _constructQuery({noField: true});
+    // return query.first().then(task => {
+    //   if (task) return task;
+    //   query = _constructQuery({});
+    //   return query.first();
+    // });
+
+    query = _constructQuery({});
+    return query.first();
+  } else if (userRole === '工作人员') {
+    // // 工作人员
+    // // 1. 帮主做完带XX或者“过”的
+    // query = _constructQuery({source: [2, 3]});
+    // return query.first().then(task => {
+    //   if (task) return task;
+    //   // 2. 没有任何专业领域的，帮众做完带XX或者“过”的
+    //   query = _constructQuery({noField: true, source: [1, 2]});
+    //   return query.first().then(task => {
+    //     if (task) return task;
+    //     // 3. 有专业领域的，帮众做完带XX或者“过”的
+    //     query = _constructQuery({source: [1, 2]});
+    //     return query.first().then(task => {
+    //       if (task) return task;
+    //       // 4. 任何机器任务
+    //       query = _constructQuery({});
+    //       return query.first();
+    //     });
+    //   });
+    // });
+
+    // 工作人员，优先做第二遍的任务
+    query = _constructQuery({secondTime: true});
     return query.first().then(task => {
       if (task) return task;
       query = _constructQuery({});
       return query.first();
     });
-  } else if (userRole === '工作人员') {
-    // 工作人员
-    // 1. 帮主做完带XX或者“过”的
-    query = _constructQuery({source: [2, 3]});
-    return query.first().then(task => {
-      if (task) return task;
-      // 2. 没有任何专业领域的，帮众做完带XX或者“过”的
-      query = _constructQuery({noField: true, source: [1, 2]});
-      return query.first().then(task => {
-        if (task) return task;
-        // 3. 有专业领域的，帮众做完带XX或者“过”的
-        query = _constructQuery({source: [1, 2]});
-        return query.first().then(task => {
-          if (task) return task;
-          // 4. 任何机器任务
-          query = _constructQuery({});
-          return query.first();
-        });
-      });
-    });
-  } else if (userRole === 'B端用户') {
-    // B端用户
-    // 工作人员做完带XX或者“过”的
-    query = _constructQuery({source: [3, 4]});
-    return query.first();
   } else {
     logger.info(`Error: invalid role to get task. User role: ${userRole}. User open id: ${userId}`);
     return Promise.resolve(false);
