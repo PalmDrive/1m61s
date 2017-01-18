@@ -1153,11 +1153,15 @@ const onReceiveNoVoice = (data, accessToken, task, user) => {
   findAndSendNewTaskForUser(data, accessToken, user);
 };
 
+// Can only be used in revoked mode.
+// Param task is the most recent task done,
+// so it is sorted by createdAt to find the most recent UserTranscript for the very fragment
 const findUserTranscriptFromTaskByUser = (task, userId) => {
   const query = new LeanCloud.Query('UserTranscript');
   query.equalTo('user_open_id', userId);
   query.equalTo('media_id', task.get('media_id'));
   query.equalTo('fragment_order', task.get('fragment_order'));
+  query.descending('createdAt');
   return query.first();
 };
 
