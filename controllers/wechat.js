@@ -1254,8 +1254,7 @@ const onReceivePrevNext = (data, accessToken, task) => {
 
 const onReceivePass = (data, accessToken, task, user) => {
   const userId = data.fromusername,
-        userRole = user.get('role') || 'B',
-        userField = user.get('fields') && user.get('fields')[0];
+        userRole = user.get('role') || 'B';
   // Set original task to unassigned status
   task.unset('user_id');
   task.addUnique('passed_users', userId);
@@ -1782,7 +1781,7 @@ module.exports.postCtrl = (req, res, next) => {
             onReceiveFromB(data, accessToken, user);
           }
         } else {
-          // A, 帮主, 工作人员, B端用户
+          // A, 工作人员
           // Check user status
           if (userStatus === 3) {
             let correctReply = false;
@@ -1922,7 +1921,7 @@ module.exports.postCtrl = (req, res, next) => {
             onGetTaskForB(data, accessToken, user);
           }
         } else {
-          // A, 帮主, 工作人员, B端用户
+          // A, 工作人员
           // Check if the user has wechat_id recorded if the user has done more than 4 tasks
           if (userStatus === 0 && tasksDone >= 4 && !wechatId) {
             sendToUser.text('请回复你的微信号（非微信昵称），否则不能给你发红包噢！\n\n微信号登记完成后，继续领取任务，请点击“领取任务”', data, accessToken);
