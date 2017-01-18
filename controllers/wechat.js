@@ -848,8 +848,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
   const userId = data.fromusername,
         content = data.content,
         hasXX = content.match(/xx/gi),
-        userRole = user.get('role') || 'B',
-        userField = user.get('fields') && user.get('fields')[0];
+        userRole = user.get('role') || 'B';
   let source = 0;
 
   completeTaskAndReply(task, data, accessToken, user);
@@ -884,8 +883,7 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
         // }
 
         // Create crowdsourcingTask when the previous transcript is machine-produced. This ensures a fragment is distributed at most 2 times
-        if (userTranscript && taskType === 'Transcript' && userRole === 'A')
-        {
+        if (userTranscript && taskType === 'Transcript' && userRole === 'A') {
           createCrowdsourcingTask(userTranscript, userId, 1, task);
         }
       }, err => {
