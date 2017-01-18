@@ -932,6 +932,7 @@ const getTask = user => {
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
     query.notEqualTo('passed_users', userId);
+    if (options.firstTime) query.equalTo('fragment_type', 'Transcript');
     if (options.secondTime) query.equalTo('fragment_type', 'UserTranscript');
     // if (options.field) query.equalTo('fields', options.field);
     // if (options.noField) query.equalTo('fields', [""]);
@@ -979,8 +980,13 @@ const getTask = user => {
     //   return query.first();
     // });
 
-    query = _constructQuery({});
-    return query.first();
+    // 优先做机器任务
+    query = _constructQuery({firstTime: true});
+    return query.first().then(task => {
+      if (task) return task;
+      query = _constructQuery({});
+      return query.first();
+    });
   } else if (userRole === '工作人员') {
     // // 工作人员
     // // 1. 帮主做完带XX或者“过”的
@@ -1002,7 +1008,7 @@ const getTask = user => {
     //   });
     // });
 
-    // 工作人员，优先做第二遍的任务
+    // 优先做第二遍的任务
     query = _constructQuery({secondTime: true});
     return query.first().then(task => {
       if (task) return task;
