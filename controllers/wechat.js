@@ -759,14 +759,17 @@ const createUserTranscript = (user, content, task, transcript) => {
 // lastTask: the task user did before creating this one
 const createCrowdsourcingTask = (userTranscript, lastUserId, source, lastTask) => {
   const newTask = new CrowdsourcingTask();
-  newTask.set('fragment_id', userTranscript.id);
-  newTask.set('fragment_type', 'UserTranscript');
-  newTask.set('fragment_order', userTranscript.get('fragment_order'));
-  newTask.set('status', 0);
-  newTask.set('media_id', userTranscript.get('media_id'));
-  newTask.set('last_user', lastUserId);
-  newTask.set('source', source);
-  newTask.set('fields', lastTask.get('fields'));
+  newTask.set({
+    fragment_id: userTranscript.id,
+    fragment_type: 'UserTranscript',
+    fragment_order: userTranscript.get('fragment_order'),
+    status: 0,
+    media_id: userTranscript.get('media_id'),
+    last_user: lastUserId,
+    source,
+    fields: lastTask.get('fields'),
+    review_times: userTranscript.get('review_times') + 1
+  });
   return newTask.save();
 };
 
@@ -856,7 +859,9 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
   // Get the relevant transcript / userTranscript
   getTranscript(task).then(transcript => {
     const taskType = task.get('fragment_type'),
-          oldContent = taskType === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content');
+          oldContent = taskType === 'Transcript' ? transcript.get('content_baidu')[0] : transcript.get('content'),
+          // How many times the fragment has been transcribed after this user reply
+          reviewTimes = taskType === 'Transcript' ? 1 : transcript.get('review_times') + 1;
     if (content === oldContent || content === '0') {
       // Mark the transcript wrong_chars = 0
       transcript.set('wrong_chars', 0);
@@ -868,23 +873,21 @@ const onReceiveTranscription = (data, accessToken, task, user) => {
     transcript.save().then(transcript => {
       // create new UserTranscript to record transcription
       createUserTranscript(user, content, task, transcript).then(userTranscript => {
-        // if (userTranscript) {
-        //   if (userRole === '帮主' && hasXX) {
-        //     source = 2.1;
-        //   } else if (userRole === 'A' && hasXX) {
-        //     source = 1.1;
-        //   } else if (userRole === '工作人员' && hasXX) {
-        //     source = 3.1;
-        //   }
+        if (userTranscript) {
+          // if (userRole === '帮主' && hasXX) {
+          //   source = 2.1;
+          // }
+          // if (userRole === '工作人员' && hasXX) {
+          //   source = 3.1;
+          // }
+          if (userRole === 'A') {
+            if (hasXX) source = 1.1;
+            else source = 1;
 
-        //   if (source) {
-        //     createCrowdsourcingTask(userTranscript, userId, source, task);
-        //   }
-        // }
-
-        // Create crowdsourcingTask when the previous transcript is machine-produced. This ensures a fragment is distributed at most 2 times
-        if (userTranscript && taskType === 'Transcript' && userRole === 'A') {
-          createCrowdsourcingTask(userTranscript, userId, 1, task);
+            if (reviewTimes === 1 || reviewTimes === 2 && hasXX) {
+              createCrowdsourcingTask(userTranscript, userId, source, task);
+            }
+          }
         }
       }, err => {
         wechatLib.logError('createUserTranscript', err);
