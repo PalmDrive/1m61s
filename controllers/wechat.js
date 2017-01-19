@@ -913,34 +913,49 @@ const getTask = user => {
 
   /**
    * @param  {Dict} options
-   * @param  {Array} options.source  Min and Max (excluding) for source, e.g. [1, 2]
+   * @param  {Dict} options.source  Min and Max (including) for source, e.g. {min: 1, max: 2}
+   * @param  {Integer} options.souce.min
+   * @param  {Integer} options.souce.max
    * @param  {String} options.field
    * @param  {Bolean} options.noField
    * @param  {String} options.notField
+   * @param  {Integer} options.reviewTimes
    */
   const _constructQuery = options => {
     let query = new LeanCloud.Query('CrowdsourcingTask');
-    // const source = options.source || 0;
-    // if (source) {
-    //   query.greaterThan('source', source[0]);
-    //   query.lessThan('source', source[1]);
-    // } else {
-    //   query.equalTo('source', source);
-    //   const queryNoSource = new LeanCloud.Query('CrowdsourcingTask');
-    //   queryNoSource.doesNotExist('source');
-    //   query = LeanCloud.Query.or(query, queryNoSource);
-    // }
+    const source = options.source;
+    if (source) {
+      if (source.min === source.max) {
+        query.equalTo('source', source.min);
+      } else {
+        if (source.min) query.greaterThanOrEqualTo('source', source.min);
+        if (source.max) query.lessThanOrEqualTo('source', source.max);
+      }
+      // Consider CrowdsourcingTask has no source as source = 0
+      if (!source.min) {
+        const queryNoSource = new LeanCloud.Query('CrowdsourcingTask');
+        queryNoSource.doesNotExist('source');
+        query = LeanCloud.Query.or(query, queryNoSource);
+      }
+    }
+
+    if (options.reviewTimes) {
+      if (options.reviewTimes === 1) {
+        query.equalTo('fragment_type', 'Transcript');
+      } else {
+        query.equalTo('review_times', options.reviewTimes);
+      }
+    }
+
+    // if (options.field) query.equalTo('fields', options.field);
+    // if (options.noField) query.equalTo('fields', [""]);
+    // if (options.notField) query.notEqualTo('fields', options.notField);
+
     query.ascending('createdAt');
     query.equalTo('status',0);
     query.doesNotExist('user_id');
     query.notEqualTo('last_user', userId);
     query.notEqualTo('passed_users', userId);
-    if (options.firstTime) query.equalTo('fragment_type', 'Transcript');
-    if (options.secondTime) query.equalTo('fragment_type', 'UserTranscript');
-    // if (options.field) query.equalTo('fields', options.field);
-    // if (options.noField) query.equalTo('fields', [""]);
-    // if (options.notField) query.notEqualTo('fields', options.notField);
-
     return query;
   };
 
@@ -984,7 +999,7 @@ const getTask = user => {
     // });
 
     // 优先做机器任务
-    query = _constructQuery({firstTime: true});
+    query = _constructQuery({reviewTimes: 1});
     return query.first().then(task => {
       if (task) return task;
       query = _constructQuery({});
@@ -1011,12 +1026,34 @@ const getTask = user => {
     //   });
     // });
 
-    // 优先做第二遍的任务
-    query = _constructQuery({secondTime: true});
+    // 优先做第三遍的任务
+    query = _constructQuery({reviewTimes: 3});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery({});
-      return query.first();
+      // A做了一遍后带xx或过的
+      query = _constructQuery({
+        reviewTimes: 2,
+        source: {
+          min: 1.1
+        }
+      });
+      return query.first().then(task => {
+        if (task) return task;
+        // A做了一遍后不带xx的
+        query = _constructQuery({
+          reviewTimes: 2,
+          source: {
+            min: 1,
+            max: 1
+          }
+        });
+        return query.first().then(task => {
+          if (task) return task;
+          // 机器任务
+          query = _constructQuery({reviewTimes: 1});
+          return query.first();
+        });
+      });
     });
   } else {
     logger.info(`Error: invalid role to get task. User role: ${userRole}. User open id: ${userId}`);
