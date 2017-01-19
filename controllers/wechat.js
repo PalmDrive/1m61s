@@ -1002,7 +1002,8 @@ const getTask = user => {
     query = _constructQuery({reviewTimes: 1});
     return query.first().then(task => {
       if (task) return task;
-      query = _constructQuery({});
+      // 第二遍的任务
+      query = _constructQuery({reviewTimes: 2});
       return query.first();
     });
   } else if (userRole === '工作人员') {
