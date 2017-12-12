@@ -9,6 +9,10 @@ const redis = require('redis'),
       });
 // var client = jsonify(redis.createClient());
 
+client.auth(config.redis.password, () => {
+  console.log('pass the auth');
+});
+
 client.on('connect', function() {
   console.log('redis server connected.');
 });
