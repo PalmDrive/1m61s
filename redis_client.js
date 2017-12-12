@@ -4,7 +4,8 @@
 const redis = require('redis'),
       config = require(`./config/${process.env.NODE_ENV || 'development'}.json`),
       client = redis.createClient({
-        host: config.redis.host
+        host: config.redis.host,
+        port: config.redis.port
       });
 // var client = jsonify(redis.createClient());
 
