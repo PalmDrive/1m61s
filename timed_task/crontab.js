@@ -9,7 +9,7 @@ const schedule = require('node-schedule'),
 const cron = schedule.scheduleJob('0 0 23 * * *', function() {
   logger.info(`scheduled task..at --{${new Date()}}`);
 
-  const today = Date.today(),
+  const today =  Date.today(),
         yesterday = Date.yesterday(); 
   today.setHours(23);
   yesterday.setHours(23);
