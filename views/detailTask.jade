@@ -1,0 +1,48 @@
+html
+  head
+    link(href="../static/style/detailTask.css",type="text/css", rel="stylesheet")
+
+  body.detailTask
+    section.title
+      .circle
+        span.rewardRate #{data.rewardRate} 
+        .arrowLeft →
+      h2 准确率奖励加倍百分比
+      h4 额外奖励
+      h4 #{data.reward}元
+    
+    section.title1
+      h1.title11 今日质量诊断报告
+      .title12 我们会将随机抽取你的片段进行抽查，请重点查看红色错误部分！
+      .title12 若要进行申诉，请联系小助手：palmdrivefufu(微信号）
+
+    section.content
+      each error, i in data.errorTask
+        span.index (#{i + 1})
+        audio(src="#{error.audioURL}", controls="controls")
+        .right 
+          span 【正确答案】
+            each content in error.content2
+              if content.color
+                span(style="color: #ff0000;") #{content.title}
+              else 
+                span #{content.title}
+        .wrong 
+          span 【您的答案】
+            each content in error.content1
+              if content.color
+                span(style="color: #ff0000;") #{content.title}
+              else 
+                span #{content.title}
+        .summary
+          span 【错误字数】>#{error.wrongWordsAmount}个
+
+    section.bottom
+      .rule
+        a(href="/web/rules") 点击查看 我们的抽查与奖励机制
+      .ranking
+        a(href="/web/ranking") 点击查看你在1’61小伙伴们里的排名
+
+
+
+
